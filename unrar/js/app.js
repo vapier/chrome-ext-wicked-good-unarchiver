@@ -9,6 +9,13 @@
  */
 var app = {
   /**
+   * The key used by chrome.storage.local to save and restore the volumes state.
+   * @type {string}
+   * @const
+   */
+  STORAGE_KEY: 'state',
+
+  /**
    *
    * Multiple volumes can be opened at the same time. The key is the
    * fileSystemId, which is the same as the file's displayPath.
@@ -20,7 +27,6 @@ var app = {
   /**
    * The NaCl module containing the logic for decompressing archives.
    * @type {Object}
-   * @private
    */
   naclModule_: null,
 
@@ -75,15 +81,18 @@ var app = {
         entryId: entryId
       };
     }
-    chrome.storage.local.set({state: state});
+
+    var toStore = {};
+    toStore[app.STORAGE_KEY] = state;
+    chrome.storage.local.set(toStore);
   },
 
   /**
    * Restores metadata for the passed file system id.
    * @param {string} fileSystemId The file system id.
    * @param {number} requestId The request id.
-   * @param {function} onSuccess Callback to execute on success.
-   * @param {function} onError Callback to execute on error.
+   * @param {function()} onSuccess Callback to execute on success.
+   * @param {function(ProviderError)} onError Callback to execute on error.
    * @private
    */
   restoreState_: function(fileSystemId, requestId, onSuccess, onError) {
@@ -97,17 +106,18 @@ var app = {
       return;
     }
 
-    chrome.storage.local.get(['state'], function(result) {
-      if (!app.naclModuleIsLoaded()) {
+    chrome.storage.local.get([app.STORAGE_KEY], function(result) {
+      if (!app.naclModuleIsLoaded() || !result[app.STORAGE_KEY]) {
         onError('FAILED');
         return;
       }
 
-      chrome.fileSystem.restoreEntry(result.state[fileSystemId].entryId,
+      chrome.fileSystem.restoreEntry(
+          result[app.STORAGE_KEY][fileSystemId].entryId,
           function(entry) {
             entry.file(function(file) {
-              app.loadVolume(fileSystemId, entry, file, onSuccess, onError,
-                             requestId);
+              app.loadVolume_(fileSystemId, entry, file, onSuccess, onError,
+                              requestId);
             });
           });
     });
@@ -118,14 +128,15 @@ var app = {
    * @param {string} fileSystemId The file system id of the volume to create.
    * @param {Entry} entry The entry corresponding to the volume's archive.
    * @param {File} file The file corresponding to entry.
-   * @param {function} onSuccess Callback to execute on successful loading.
-   * @param {function} onError Callback to execute on error.
+   * @param {function()} onSuccess Callback to execute on successful loading.
+   * @param {function(ProviderError)} onError Callback to execute on error.
    * @param {number=} opt_requestId An optional request id. First load doesn't
    *     require a request id, but any subsequent loads after suspends or
    *     restarts should use the request id of the operation that called
    *     restoreState_.
+   * @private
    */
-  loadVolume: function(fileSystemId, entry, file, onSuccess, onError,
+  loadVolume_: function(fileSystemId, entry, file, onSuccess, onError,
                        opt_requestId) {
     // Operation already in progress. We must do the check here due to
     // asynchronous calls.
@@ -152,7 +163,7 @@ var app = {
    *     file, which should be a .nmf file.
    * @param {string} mimeType The type of the NaCl executable (e.g. .nexe or
    *     .pexe).
-   * @param {function=} opt_onModuleLoad Optional callback to execute on NaCl
+   * @param {function()=} opt_onModuleLoad Optional callback to execute on NaCl
    *     module load.
    */
   loadNaclModule: function(pathToConfigureFile, mimeType, opt_onModuleLoad) {
@@ -177,12 +188,11 @@ var app = {
    * Unmounts a volume and updates the local storage state.
    * @param {fileSystemProvider.UnmountRequestedOptions} options Options for
    *     unmount event.
-   * @param {function} onSuccess Callback to execute on success.
-   * @param {function} onError Callback to execute on error.
+   * @param {function()} onSuccess Callback to execute on success.
+   * @param {function(ProviderError)} onError Callback to execute on error.
    */
   onUnmountRequested: function(options, onSuccess, onError) {
-    chrome.fileSystemProvider.unmount({
-      fileSystemId: options.fileSystemId},
+    chrome.fileSystemProvider.unmount({fileSystemId: options.fileSystemId},
       function() {
         delete app.volumes[options.fileSystemId];
         app.saveState_();  // Remove volume from local storage state.
@@ -197,8 +207,9 @@ var app = {
    * Obtains metadata about a file system entry.
    * @param {fileSystemProvider.GetMetadataRequestedOptions} options Options for
    *     getting the metadata of an entry.
-   * @param {function} onSuccess Callback to execute on success.
-   * @param {function} onError Callback to execute on error.
+   * @param {function(EntryMetadata)} onSuccess Callback to execute on success.
+   *     The parameter is the EntryMetadata obtained by this function.
+   * @param {function(ProviderError)} onError Callback to execute on error.
    */
   onGetMetadataRequested: function(options, onSuccess, onError) {
     app.restoreState_(options.fileSystemId, options.requestId, function() {
@@ -211,10 +222,13 @@ var app = {
    * Reads a directory entries.
    * @param {fileSystemProvider.ReadDirectoryRequestedOptions>} options Options
    *     for reading the contents of a directory.
-   * @param {function} onSuccess Callback to execute on success.
-   * @param {function} onError Callback to execute on error.
+   * @param {function(Array.<EntryMetadata>, boolean)} onSuccess Callback to
+   *     execute on success. The first parameter is an array with directory
+   *     entries. The second parameter is 'hasMore', and if it's set to true,
+   *     then onSuccess must be called again with the next directory entries.
+   * @param {function(ProviderError)} onError Callback to execute on error.
    */
-  onReadDirectoryRequested: function onRe(options, onSuccess, onError) {
+  onReadDirectoryRequested: function(options, onSuccess, onError) {
     app.restoreState_(options.fileSystemId, options.requestId, function() {
       app.volumes[options.fileSystemId].onReadDirectoryRequested(
           options, onSuccess, onError);
@@ -225,8 +239,8 @@ var app = {
    * Opens a file for read or write.
    * @param {fileSystemProvider.OpenFileRequestedOptions} options Options for
    *     opening a file.
-   * @param {function} onSuccess Callback to execute on success.
-   * @param {function} onError Callback to execute on error.
+   * @param {function()} onSuccess Callback to execute on success.
+   * @param {function(ProviderError)} onError Callback to execute on error.
    */
   onOpenFileRequested: function(options, onSuccess, onError) {
     app.restoreState_(options.fileSystemId, options.requestId, function() {
@@ -239,8 +253,8 @@ var app = {
    * Closes a file identified by options.openRequestId.
    * @param {fileSystemProvider.CloseFileRequestedOptions} options Options for
    *     closing a file.
-   * @param {function} onSuccess Callback to execute on success.
-   * @param {function} onError Callback to execute on error.
+   * @param {function()} onSuccess Callback to execute on success.
+   * @param {function(ProviderError)} onError Callback to execute on error.
    */
   onCloseFileRequested: function(options, onSuccess, onError) {
     app.restoreState_(options.fileSystemId, options.requestId, function() {
@@ -253,8 +267,11 @@ var app = {
    * Reads the contents of a file identified by options.openRequestId.
    * @param {fileSystemProvider.ReadFileRequestedOptions} options Options for
    *     reading a file's contents.
-   * @param {function} onSuccess Callback to execute on success.
-   * @param {function} onError Callback to execute on error.
+   * @param {function(ArrayBuffer, boolean)} onSuccess Callback to execute on
+   *     success. The first parameter is the read data and the second parameter
+   *     is 'hasMore'. If it's set to true, then onSuccess must be called again
+   *     with the next data to read.
+   * @param {function(ProviderError)} onError Callback to execute on error.
    */
   onReadFileRequested: function(options, onSuccess, onError) {
     app.restoreState_(options.fileSystemId, options.requestId, function() {
@@ -267,26 +284,44 @@ var app = {
    * Creates a volume for every opened file with the extension or mime type
    * declared in the manifest file.
    * @param {Object} launchData The data pased on launch.
+   * @param {function(string)=} opt_onSuccess Callback to execute in case a
+   *     volume was loaded successfully. Has one parameter, which is the file
+   *     system id of the loaded volume. Can be called multiple times, depending
+   *     on how many volumes must be loaded.
+   * @param {function(string)=} opt_onError Callback to execute in case of
+   *     failure when loading a volume. Has one parameter, which is the file
+   *     system id of the volume that failed to load. Can be called multiple
+   *     times, depending on how many volumes must be loaded.
    */
-  onLaunched: function(launchData) {
+  onLaunched: function(launchData, opt_onSuccess, opt_onError) {
     if (!app.naclModuleIsLoaded()) {
-      console.log('Module not loaded yet.');
+      console.warn('Module not loaded yet.');
       return;
     }
 
     launchData.items.forEach(function(item) {
       chrome.fileSystem.getDisplayPath(item.entry, function(displayPath) {
         item.entry.file(function(file) {
-          app.loadVolume(displayPath, item.entry, file, function() {
+          app.loadVolume_(displayPath, item.entry, file, function() {
             // Mount the volume and save its information in local storage
             // in order to be able to recover the metadata in case of
             // restarts, system crashes, etc.
             chrome.fileSystemProvider.mount(
                 {fileSystemId: displayPath, displayName: item.entry.name},
-                function() { app.saveState_(); },
-                function() { console.error('Failed to mount.'); });
+                function() {
+                  app.saveState_();
+                  if (opt_onSuccess)
+                    opt_onSuccess(displayPath);
+                },
+                function() {
+                  console.error('Failed to mount.');
+                  if (opt_onError)
+                    opt_onError(displayPath);
+                });
           }, function(error) {
-            console.log('Unable to read metadata: ' + error + '.');
+            console.error('Unable to read metadata: ' + error + '.');
+            if (opt_onError)
+              opt_onError(displayPath);
           });
         });
       });
@@ -297,9 +332,9 @@ var app = {
    * Restores the state on a profile startup.
    */
   onStartup: function() {
-    chrome.storage.local.get(['state'], function(result) {
+    chrome.storage.local.get([app.STORAGE_KEY], function(result) {
       // Nothing to change.
-      if (!result.state)
+      if (!result[app.STORAGE_KEY])
         return;
 
       // TODO(cmihail): Nothing to do for now, but will require logic for

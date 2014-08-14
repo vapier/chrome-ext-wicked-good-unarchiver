@@ -37,4 +37,4 @@ Chai for assertions (http://chaijs.com/) and Sinon for spies and stubs
 
 # Run tests:
 > cd unrar-test # Where the repository was cloned.
-> karma start
+> ./run_tests.sh
