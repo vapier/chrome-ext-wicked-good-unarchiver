@@ -14,6 +14,24 @@ function DateFromTimeT(timestamp) {
 }
 
 /**
+ * Corrects metadata entries fields in order for them to be sent to Files.app.
+ * This function runs recursively for every entry in a directory.
+ * @param {Object} entryMetadata The metadata to correct.
+ */
+function correctMetadata(entryMetadata) {
+  entryMetadata.size = parseInt(entryMetadata.size);
+  entryMetadata.modificationTime =
+      DateFromTimeT(entryMetadata.modificationTime);
+  if (entryMetadata.isDirectory) {
+    console.assert(entryMetadata.entries,
+        'The field "entries" is mandatory for dictionaries.');
+    for (var entry in entryMetadata.entries) {
+      correctMetadata(entryMetadata.entries[entry]);
+    }
+  }
+}
+
+/**
  * Defines a volume object that contains information about archives' contents
  * and performs operations on these contents.
  * @constructor
@@ -74,16 +92,9 @@ Volume.prototype.readMetadata = function(onSuccess, onError, opt_requestId) {
   // than 0.
   var requestId = opt_requestId ? opt_requestId : -1;
   this.decompressor.readMetadata(requestId, function(metadata) {
-    // TODO(cmihail): Consider using a tree format instead of a flat
-    // organization for this.metadata.
-
     // Make a deep copy of metadata.
     this.metadata = JSON.parse(JSON.stringify(metadata));
-    for (var path in metadata) {
-      this.metadata[path].size = parseInt(this.metadata[path].size);
-      this.metadata[path].modificationTime =
-          DateFromTimeT(this.metadata[path].modificationTime);
-    }
+    correctMetadata(this.metadata);
 
     onSuccess();
   }.bind(this), onError);
@@ -99,7 +110,7 @@ Volume.prototype.readMetadata = function(onSuccess, onError, opt_requestId) {
  */
 Volume.prototype.onGetMetadataRequested = function(options, onSuccess,
                                                    onError) {
-  var entryMetadata = this.metadata[options.entryPath];
+  var entryMetadata = this.getEntryMetadata_(options.entryPath);
   if (!entryMetadata)
     onError('NOT_FOUND');
   else
@@ -115,7 +126,7 @@ Volume.prototype.onGetMetadataRequested = function(options, onSuccess,
  */
 Volume.prototype.onReadDirectoryRequested = function(options, onSuccess,
                                                      onError) {
-  var directoryMetadata = this.metadata[options.directoryPath];
+  var directoryMetadata = this.getEntryMetadata_(options.directoryPath);
   if (!directoryMetadata) {
     onError('NOT_FOUND');
     return;
@@ -125,20 +136,10 @@ Volume.prototype.onReadDirectoryRequested = function(options, onSuccess,
     return;
   }
 
-  // Retrieve directory contents from metadata.
+  // Convert dictionary entries to an array.
   var entries = [];
-  for (var entry in this.metadata) {
-    // Do not add itself on the list.
-    if (entry == options.directoryPath)
-      continue;
-    // Check if the entry is a child of the requested directory.
-    if (entry.indexOf(options.directoryPath) != 0)
-      continue;
-    // Restrict to direct children only.
-    if (entry.substring(options.directoryPath.length + 1).indexOf('/') != -1)
-      continue;
-
-    entries.push(this.metadata[entry]);
+  for (var entry in directoryMetadata.entries) {
+    entries.push(directoryMetadata.entries[entry]);
   }
 
   onSuccess(entries, false /* Last call. */);
@@ -178,4 +179,32 @@ Volume.prototype.onCloseFileRequested = function(options, onSuccess, onError) {
 Volume.prototype.onReadFileRequested = function(options, onSuccess, onError) {
   // TODO(cmihail): Implement.
   onError('INVALID_OPERATION');
+};
+
+/**
+ * Gets the metadata for an entry based on its path.
+ * @param {string} entryPath The full path to the entry.
+ * @return {Object} the correspondent metadata.
+ * @private
+ */
+Volume.prototype.getEntryMetadata_ = function(entryPath) {
+  var entryPathSplit = entryPath.split('/');
+
+  // Remove empty strings resulted after split.
+  var pathArray = [];
+  entryPathSplit.forEach(function(entry) {
+    if (entry != '')
+      pathArray.push(entry);
+  });
+
+  // Get the actual metadata by iterating through every directory metadata
+  // on the path to the entry.
+  var entryMetadata = this.metadata;
+  pathArray.forEach(function(entry) {
+    if (!entryMetadata.isDirectory && i != limit - 1 /* Parent directory. */)
+      return null;
+    entryMetadata = entryMetadata.entries[entry];
+  });
+
+  return entryMetadata;
 };

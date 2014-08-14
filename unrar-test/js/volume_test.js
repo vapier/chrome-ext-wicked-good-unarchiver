@@ -9,14 +9,17 @@
  * @type {Object.<string, Object>}
  */
 var METADATA = {
-  '/': {name: '/', size: 0, isDirectory: true,
-        modificationTime: 3000 /* In seconds. */},
-  '/file': {name: 'file', size: 50, isDirectory: false,
-          modificationTime: 20000 /* In seconds. */},
-  '/dir': {name: 'dir', size: 0, isDirectory: true,
-          modificationTime: 12000 /* In seconds. */},
-  '/dir/anotherFile': {name: 'anotherFile', size: 50, isDirectory: false,
-                       modificationTime: 7000 /* In seconds. */}
+  name: '/',
+  size: 0,
+  isDirectory: true,
+  modificationTime: 3000 /* In seconds. */,
+  entries: {
+    'file': {name: 'file', size: 50, isDirectory: false,
+             modificationTime: 20000 /* In seconds. */},
+    'dir': {name: 'dir', size: 0, isDirectory: true,
+            modificationTime: 12000 /* In seconds. */,
+            entries: {}}
+  }
 };
 
 describe('Volume', function() {
@@ -99,44 +102,44 @@ describe('Volume', function() {
               .to.equal(Object.keys(METADATA).length);
         });
 
-        // Test directory entry.
-        describe('should have a root entry', function() {
+        // Test root directory.
+        describe('which should be the root entry', function() {
           it('that is valid', function() {
-            expect(volume.metadata['/']).to.not.be.undefined;
+            expect(volume.metadata).to.not.be.undefined;
           });
 
           it('that is a directory', function() {
-            expect(volume.metadata['/'].isDirectory).to.be.true;
+            expect(volume.metadata.isDirectory).to.be.true;
           });
 
           it('that has correct size', function() {
-            expect(volume.metadata['/'].size).to.equal(METADATA['/'].size);
+            expect(volume.metadata.size).to.equal(METADATA.size);
           });
 
           it('that has correct number of ms for modification time', function() {
-            expect(volume.metadata['/'].modificationTime.getTime()).
-                to.equal(METADATA['/'].modificationTime * 1000);
+            expect(volume.metadata.modificationTime.getTime()).
+                to.equal(METADATA.modificationTime * 1000);
           });
         });
 
         // Test file entry.
         describe('should have a file entry', function() {
           it('that is valid', function() {
-            expect(volume.metadata['/file']).to.not.be.undefined;
+            expect(volume.metadata.entries['file']).to.not.be.undefined;
           });
 
           it('that is not a directory', function() {
-            expect(volume.metadata['/file'].isDirectory).to.be.false;
+            expect(volume.metadata.entries['file'].isDirectory).to.be.false;
           });
 
           it('that has correct size', function() {
-            expect(volume.metadata['/file'].size)
-                .to.equal(METADATA['/file'].size);
+            expect(volume.metadata.entries['file'].size)
+                .to.equal(METADATA.entries['file'].size);
           });
 
           it('that has correct number of ms for modification time', function() {
-            expect(volume.metadata['/file'].modificationTime.getTime()).
-                to.equal(METADATA['/file'].modificationTime * 1000);
+            expect(volume.metadata.entries['file'].modificationTime.getTime()).
+                to.equal(METADATA.entries['file'].modificationTime * 1000);
           });
         });
 
@@ -175,7 +178,7 @@ describe('Volume', function() {
             });
 
             it('should call onSuccess with the entry metadata', function() {
-              expect(onSuccessSpy.calledWith(volume.metadata['/file']))
+              expect(onSuccessSpy.calledWith(volume.metadata.entries['file']))
                   .to.be.true;
             });
           });
@@ -234,7 +237,10 @@ describe('Volume', function() {
             });
 
             it('should call onSuccess with the directory entries', function() {
-              var entries = [volume.metadata['/file'], volume.metadata['/dir']];
+              var entries = [
+                volume.metadata.entries['file'],
+                volume.metadata.entries['dir']
+              ];
               expect(onSuccessSpy.calledWith(entries, false)).to.be.true;
             });
           });

@@ -50,35 +50,38 @@ class NaclArchiveInstance : public pp::Instance {
   // TODO(cmihail): Modify fake data with actual data.
   void ReadMetadata(const std::string& file_system_id,
                     const std::string& request_id) {
-    pp::VarDictionary metadata;
-    // Create fake directories.
+    // Create directories.
     bool is_directory = true;
-    metadata.Set("/", CreateEntry("/", "/", is_directory, 0, 10000));
-    metadata.Set("/dir1", CreateEntry("/dir1", "dir1", is_directory, 0, 20000));
-    metadata.Set("/dir2", CreateEntry("/dir2", "dir2", is_directory, 0, 30000));
-    metadata.Set("/dir1/dir3",
-                 CreateEntry("/dir1/dir3", "dir3", is_directory, 0, 30050));
+    pp::VarDictionary root =  CreateEntry("/", is_directory, 0, 10000);
+    pp::VarDictionary dir1 = CreateEntry("dir1", is_directory, 0, 20000);
+    pp::VarDictionary dir2 = CreateEntry("dir2", is_directory, 0, 30000);
 
-    // Create fake files.
+    // Create dir1 entries.
     is_directory = false;
-    metadata.Set("/f0", CreateEntry("/f0", "f0", is_directory, 500, 15000));
-    metadata.Set("/dir1/f1",
-                 CreateEntry("/dir1/f1", "f1", is_directory, 320, 40000));
-    metadata.Set("/dir1/f2",
-                 CreateEntry("/dir1/f2", "f2", is_directory, 150, 30000));
-    metadata.Set("/dir2/f4",
-                 CreateEntry("/dir2/f4", "f4", is_directory, 40, 30000));
-    metadata.Set("/dir1/dir3/f3",
-                 CreateEntry("/dir1/dir3/f3", "f3", is_directory, 200, 152000));
+    pp::VarDictionary dir1_entries;
+    dir1_entries.Set("f1", CreateEntry("f1", is_directory, 320, 40000));
+    dir1_entries.Set("f2", CreateEntry("f2", is_directory, 150, 30000));
+    dir1.Set("entries", dir1_entries);
+
+    // Create dir2 entries
+    pp::VarDictionary dir2_entries;
+    dir2_entries.Set("f3", CreateEntry("f3", is_directory, 40, 30000));
+    dir2.Set("entries", dir2_entries);
+
+    // Create root entries.
+    pp::VarDictionary root_entries;
+    root_entries.Set("dir1", dir1);
+    root_entries.Set("dir2", dir2);
+    root_entries.Set("f0", CreateEntry("f0", is_directory, 500, 15000));
+    root.Set("entries", root_entries);
 
     PostMessage(request::CreateReadMetadataDoneResponse(
-        file_system_id, request_id, metadata));
+        file_system_id, request_id, root));
   }
 
   // size is int64_t and mtime is time_t because this is how libarchive is going
   // to pass them to us.
-  pp::VarDictionary CreateEntry(const std::string& full_path,
-                                const std::string& name,
+  pp::VarDictionary CreateEntry(const std::string& name,
                                 bool is_directory,
                                 int64_t size,
                                 time_t mtime) const {

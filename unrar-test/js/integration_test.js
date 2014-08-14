@@ -37,31 +37,24 @@ describe('Unrar extension', function() {
       expect(metadata).to.not.be.null;
     });
 
-    it('that has 9 entries', function() {
-      expect(Object.keys(metadata).length).to.equal(9);
+    it('that has name "/"', function() {
+      expect(metadata.name).to.equal('/');
     });
 
-    // Test root entry.
-    describe('that has a root entry', function() {
-      it('which is defined', function() {
-        expect(metadata['/']).to.not.be.undefined;
-      });
+    it('that is a dictionary', function() {
+      expect(metadata.isDirectory).to.be.true;
+    });
 
-      it('with name "/"', function() {
-        expect(metadata['/'].name).to.equal('/');
-      });
+    it('that has size 0', function() {
+      expect(metadata.size).to.equal(0);
+    });
 
-      it('which is a directory', function() {
-        expect(metadata['/'].isDirectory).to.be.true;
-      });
+    it('that has modificationTime as a Date object', function() {
+      expect(metadata.modificationTime).to.be.a('Date');
+    });
 
-      it('with size 0', function() {
-        expect(metadata['/'].size).to.equal(0);
-      });
-
-      it('with modificationTime as a Date object', function() {
-        expect(metadata['/'].modificationTime).to.be.a('Date');
-      });
+    it('that has 3 entries', function() {
+      expect(Object.keys(metadata.entries).length).to.equal(3);
     });
   });
 
