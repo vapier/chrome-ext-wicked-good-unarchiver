@@ -21,7 +21,7 @@ module.exports = function(config) {
      * https://npmjs.org/browse/keyword/karma-adapter
      * @type {Array.<string>}
      */
-    frameworks: ['mocha', 'chai'],
+    frameworks: ['mocha', 'chai', 'sinon'],
 
     /**
      * List of files / patterns to load in the browser.

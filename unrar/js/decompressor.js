@@ -30,9 +30,8 @@ var Decompressor = function(naclModule, fileSystemId) {
    * Requests in progress. No need to save them onSuspend for now as metadata
    * reads are restarted from start.
    * @type {Object.<number, Object>}
-   * @private
    */
-  this.requestsInProgress_ = {};
+  this.requestsInProgress = {};
 };
 
 /**
@@ -46,14 +45,14 @@ var Decompressor = function(naclModule, fileSystemId) {
  * @return {Object} An object with data about the request in progress.
  */
 Decompressor.prototype.newRequest_ = function(requestId, onSuccess, onError) {
-  console.assert(!this.requestsInProgress_[requestId],
+  console.assert(!this.requestsInProgress[requestId],
                  'There is already a request with the id ' + requestId + '.');
 
-  this.requestsInProgress_[requestId] = {
+  this.requestsInProgress[requestId] = {
     onSuccess: onSuccess,
     onError: onError
   };
-  return this.requestsInProgress_[requestId];
+  return this.requestsInProgress[requestId];
 };
 
 /**
@@ -82,8 +81,8 @@ Decompressor.prototype.readMetadata = function(requestId, onSuccess, onError) {
  */
 Decompressor.prototype.processMessage = function(data, operation, requestId) {
   // Create a request reference for asynchronous calls as sometimes we delete
-  // some requestsInProgress from this.requestsInProgress_.
-  var requestInProgress = this.requestsInProgress_[requestId];
+  // some requestsInProgress from this.requestsInProgress.
+  var requestInProgress = this.requestsInProgress[requestId];
   console.assert(requestInProgress, 'No request for: ' + requestId + '.');
 
   switch (operation) {
@@ -103,5 +102,5 @@ Decompressor.prototype.processMessage = function(data, operation, requestId) {
       console.error('Invalid NaCl operation: ' + operation + '.');
       requestInProgress.onError('FAILED');
   }
-  delete this.requestsInProgress_[requestId];
+  delete this.requestsInProgress[requestId];
 };
