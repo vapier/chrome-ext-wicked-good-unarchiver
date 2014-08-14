@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+  <!--
+  Copyright 2014 The Chromium Authors. All rights reserved.
+  Use of this source code is governed by a BSD-style license that can be
+  found in the LICENSE file.
+  -->
+<head>
+  <title>Open rar and zip archives</title>
+  <script src="js/background.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/decompressor.js"></script>
+  <script src="js/request.js"></script>
+  <script src="js/volume.js"></script>
+</head>
+
+<!--
+Uses common.js to support multiple toolchains.
+TODO(cmihail): Once a toolchain is selected, after doing profiling,
+common.js and this file can be removed.
+
+TODO(cmihail): Once ready for release, add "Release" to data-config.
+-->
+<body data-name="module" data-tools="newlib pnacl"
+      data-configs="Debug" data-path="{tc}/{config}">
+  <!--
+  The <embed> element will be wrapped inside the <div> element with the id
+  "listener". This is used by common.js to load the module.
+  -->
+  <div id="listener"></div>
+</body>
+</html>

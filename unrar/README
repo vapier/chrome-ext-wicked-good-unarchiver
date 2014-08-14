@@ -1,0 +1,19 @@
+### Build steps for Release:
+> make # for nacl
+> make VALID_TOOLCHAINS=pnacl # for pnacl
+
+Add "Release" keyword to "data-configs" attribute in index.html to use Release
+executables (for now only debug executables are used). 
+
+To run using pnacl, modify "data-tools" attribute in index.html to point to
+pnacl as first argument.
+
+### Use:
+- load unpacked extension and open rar / zip archives
+
+### Debugging:
+> make debug
+
+To see debug messages open chrome from a terminal and check the output.
+For output redirection see
+https://developer.chrome.com/native-client/devguide/devcycle/debugging.
