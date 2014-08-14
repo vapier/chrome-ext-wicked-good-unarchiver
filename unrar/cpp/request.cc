@@ -4,6 +4,8 @@
 
 #include "request.h"
 
+#include <sstream>
+
 // Creates a basic request with the mandatory fields.
 static pp::VarDictionary CreateBasicRequest(const int operation,
                                             const std::string& file_system_id,
@@ -22,6 +24,21 @@ pp::VarDictionary request::CreateReadMetadataDoneResponse(
   pp::VarDictionary request =
       CreateBasicRequest(READ_METADATA_DONE, file_system_id, request_id);
   request.Set(request::key::kMetadata, metadata);
+  return request;
+}
+
+pp::VarDictionary request::CreateReadChunkRequest(
+    const std::string& file_system_id,
+    const std::string& request_id,
+    int64_t offset,
+    int32_t length) {
+  pp::VarDictionary request =
+      CreateBasicRequest(READ_CHUNK, file_system_id, request_id);
+
+  std::stringstream ss_offset;
+  ss_offset << offset;
+  request.Set(request::key::kOffset, ss_offset.str());
+  request.Set(request::key::kLength, length);
   return request;
 }
 

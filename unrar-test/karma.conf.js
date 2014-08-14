@@ -25,17 +25,22 @@ module.exports = function(config) {
 
     /**
      * List of files / patterns to load in the browser.
+     * In case any file that is not a .js is changed, the tests must be run
+     * again.
      * @type {Array.<string>}
      */
     files: [
       // Application files. Only *.js files are included as <script>, the rest
       // only served.
-      {pattern: 'newlib/*/*.nmf', watched: true, included: false, served: true},
-      {pattern: 'newlib/*/*.[n|p]exe', watched: true, included: false,
+      {pattern: 'newlib/*/*.nmf', watched: false, included: false,
+                served: true},
+      {pattern: 'newlib/*/*.[n|p]exe', watched: false, included: false,
                 served: true},
       {pattern: 'js/*.js', watched: true, included: true, served: true},
 
       // Test files.
+      {pattern: '../unrar-test/archives/*.rar', watched: false,
+                included: false, served: true},
       '../unrar-test/js/*.js'
     ],
 
@@ -55,7 +60,8 @@ module.exports = function(config) {
     reporters: ['progress'],
 
     /**
-     * Web server port.
+     * Web server port. Update ARCHIVE_BASE_URL in integration_test.js if
+     * modified.
      * @type {number}
      */
     port: 9876,

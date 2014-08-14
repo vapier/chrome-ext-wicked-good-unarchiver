@@ -99,10 +99,12 @@ var app = {
     // Check if metadata for the given file system is alread in memory.
     var volume = app.volumes[fileSystemId];
     if (volume) {
-      if (volume.isReady())
-        onSuccess();
-      else
-        onError('FAILED');
+      // TODO(cmihail): Move logic for isReady() inside volume.js.
+      // This is prone to race conditions after restarts. Checking isReady()
+      // here will fail to load the metadata.
+      // Below sometimes work (local files), but fails for Google Drive.
+      // Problem appears only after restarts, not onSuspend().
+      onSuccess();
       return;
     }
 
@@ -144,9 +146,11 @@ var app = {
       onError('FAILED');
       return;
     }
+    // File is a Blob object, so it's ok to construct the Decompressor directly
+    // with it.
     app.volumes[fileSystemId] =
-        new Volume(new Decompressor(app.naclModule_, fileSystemId),
-                   fileSystemId, entry, file);
+        new Volume(new Decompressor(app.naclModule_, fileSystemId, file),
+                   fileSystemId, entry);
     app.volumes[fileSystemId].readMetadata(onSuccess, onError, opt_requestId);
   },
 
@@ -192,9 +196,16 @@ var app = {
    * @param {function(ProviderError)} onError Callback to execute on error.
    */
   onUnmountRequested: function(options, onSuccess, onError) {
-    chrome.fileSystemProvider.unmount({fileSystemId: options.fileSystemId},
+    var fileSystemId = options.fileSystemId;
+    if (app.volumes[fileSystemId].inUse()) {
+      onError('IN_USE');
+      return;
+    }
+    chrome.fileSystemProvider.unmount({fileSystemId: fileSystemId},
       function() {
-        delete app.volumes[options.fileSystemId];
+        app.naclModule_.postMessage(
+            request.createCloseVolumeRequest(fileSystemId));
+        delete app.volumes[fileSystemId];
         app.saveState_();  // Remove volume from local storage state.
         onSuccess();
       },

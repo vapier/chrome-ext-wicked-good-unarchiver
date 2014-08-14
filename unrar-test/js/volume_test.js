@@ -34,9 +34,7 @@ describe('Volume', function() {
     onReadMetadataSuccessSpy = sinon.spy();
     onReadMetadataErrorSpy = sinon.spy();
 
-    // TODO(cmihail): Once reading real metadata is added, file parameter should
-    // be changed to a stub or spy.
-    volume = new Volume(decompressor, 'fileSystemId', 'entry', 'file');
+    volume = new Volume(decompressor, 'fileSystemId', 'entry');
   });
 
   it('should have null metadata before calling readMetadata', function() {

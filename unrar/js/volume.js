@@ -39,9 +39,8 @@ function correctMetadata(entryMetadata) {
  *     archives.
  * @param {string} fileSystemId The file system id of the volume.
  * @param {Entry} entry The entry corresponding to the volume's archive.
- * @param {File} file The file corresponding to entry.
  */
-function Volume(decompressor, fileSystemId, entry, file) {
+function Volume(decompressor, fileSystemId, entry) {
   /**
    * Used for restoring the opened file entry after resuming the event page.
    * @type {Entry}
@@ -64,12 +63,6 @@ function Volume(decompressor, fileSystemId, entry, file) {
    * @type {Object.<string, EntryMetadata>}
    */
   this.metadata = null;
-
-  /**
-   * @type {File}
-   * @private
-   */
-  this.file_ = file;
 }
 
 /**
@@ -77,6 +70,13 @@ function Volume(decompressor, fileSystemId, entry, file) {
  */
 Volume.prototype.isReady = function() {
   return !!this.metadata;
+};
+
+/**
+ * @return {boolean} True if volume is in use.
+ */
+Volume.prototype.inUse = function() {
+  return this.decompressor.hasRequestsInProgress();
 };
 
 /**

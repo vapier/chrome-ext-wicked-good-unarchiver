@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "request.h"
+#include "volume.h"
 
 #include <sstream>
 
@@ -16,7 +17,12 @@
 class NaclArchiveInstance : public pp::Instance {
  public:
   explicit NaclArchiveInstance(PP_Instance instance) : pp::Instance(instance) {}
-  virtual ~NaclArchiveInstance() {}
+  virtual ~NaclArchiveInstance() {
+    for (std::map<std::string, Volume*>::iterator iterator = volumes_.begin();
+         iterator != volumes_.end(); iterator++) {
+      delete iterator->second;
+    }
+  }
 
   // Handler for messages coming in from JS via postMessage().
   virtual void HandleMessage(const pp::Var& var_message) {
@@ -36,7 +42,37 @@ class NaclArchiveInstance : public pp::Instance {
     // Process operation.
     switch (operation) {
       case request::READ_METADATA: {
-        ReadMetadata(file_system_id, request_id);
+        Volume* volume = CreateOrGetVolume(file_system_id, request_id);
+        if (volume) {
+          PP_DCHECK(var_dict.Get(request::key::kArchiveSize).is_string());
+          std::stringstream ss_archive_size(
+              var_dict.Get(request::key::kArchiveSize).AsString());
+          int64_t archive_size;
+          ss_archive_size >> archive_size;
+          volume->ReadMetadata(request_id, archive_size);
+        }
+        break;
+      }
+
+      case request::READ_CHUNK_DONE:
+        // No need to initialize volume as this is a response to READ_CHUNK
+        // sent from NaCl.
+        ReadChunkDone(var_dict, file_system_id, request_id);
+        break;
+
+      case request::READ_CHUNK_ERROR:
+        // No need to initialize volume as this is a response to READ_CHUNK
+        // sent from NaCl.
+        ReadChunkError(file_system_id, request_id);
+        break;
+
+      case request::CLOSE_VOLUME: {
+        std::map<std::string, Volume*>::iterator it =
+            volumes_.find(file_system_id);
+        if (it != volumes_.end()) {
+          delete it->second;
+          volumes_.erase(file_system_id);
+        }
         break;
       }
 
@@ -47,58 +83,59 @@ class NaclArchiveInstance : public pp::Instance {
   }
 
  private:
-  // TODO(cmihail): Modify fake data with actual data.
-  void ReadMetadata(const std::string& file_system_id,
-                    const std::string& request_id) {
-    // Create directories.
-    bool is_directory = true;
-    pp::VarDictionary root =  CreateEntry("/", is_directory, 0, 10000);
-    pp::VarDictionary dir1 = CreateEntry("dir1", is_directory, 0, 20000);
-    pp::VarDictionary dir2 = CreateEntry("dir2", is_directory, 0, 30000);
+  // Gets the corresponding volume for file_system_id or create a new volume
+  // if none. In case of any volume creation problems, an error message is sent
+  // back to JavaScript and NULL is returned.
+  Volume* CreateOrGetVolume(const std::string& file_system_id,
+                            const std::string& request_id) {
+    std::map<std::string, Volume*>::iterator it = volumes_.find(file_system_id);
+    if (it != volumes_.end()) {
+      return it->second;
+    }
 
-    // Create dir1 entries.
-    is_directory = false;
-    pp::VarDictionary dir1_entries;
-    dir1_entries.Set("f1", CreateEntry("f1", is_directory, 320, 40000));
-    dir1_entries.Set("f2", CreateEntry("f2", is_directory, 150, 30000));
-    dir1.Set("entries", dir1_entries);
+    Volume* volume = new Volume(this, file_system_id);
+    if (!volume->Init()) {
+      PostMessage(request::CreateFileSystemError(
+          "Could not create a volume for: " + file_system_id,
+          file_system_id,
+          request_id));
+      delete volume;
+      return NULL;
+    }
 
-    // Create dir2 entries
-    pp::VarDictionary dir2_entries;
-    dir2_entries.Set("f3", CreateEntry("f3", is_directory, 40, 30000));
-    dir2.Set("entries", dir2_entries);
-
-    // Create root entries.
-    pp::VarDictionary root_entries;
-    root_entries.Set("dir1", dir1);
-    root_entries.Set("dir2", dir2);
-    root_entries.Set("f0", CreateEntry("f0", is_directory, 500, 15000));
-    root.Set("entries", root_entries);
-
-    PostMessage(request::CreateReadMetadataDoneResponse(
-        file_system_id, request_id, root));
+    volumes_[file_system_id] = volume;
+    return volume;
   }
 
-  // size is int64_t and mtime is time_t because this is how libarchive is going
-  // to pass them to us.
-  pp::VarDictionary CreateEntry(const std::string& name,
-                                bool is_directory,
-                                int64_t size,
-                                time_t mtime) const {
-    pp::VarDictionary entry_metadata;
-    entry_metadata.Set("isDirectory", is_directory);
-    entry_metadata.Set("name", name);
-    // size is int64_t, unsupported by pp::Var
-    std::stringstream ss_size;
-    ss_size << size;
-    entry_metadata.Set("size", ss_size.str());
-    // mtime is time_t, unsupported by pp::Var
-    std::stringstream ss_mtime;
-    ss_mtime << mtime;
-    entry_metadata.Set("modificationTime", ss_mtime.str());
+  void ReadChunkDone(const pp::VarDictionary& var_dict,
+                     const std::string& file_system_id,
+                     const std::string& request_id) {
+    PP_DCHECK(var_dict.Get(request::key::kChunkBuffer).is_array_buffer());
+    pp::VarArrayBuffer array_buffer(var_dict.Get(request::key::kChunkBuffer));
 
-    return entry_metadata;
+    std::map<std::string, Volume*>::iterator it = volumes_.find(file_system_id);
+    if (it != volumes_.end()) {
+      it->second->ReadChunkDone(request_id, array_buffer);
+    } else {
+      PostMessage(request::CreateFileSystemError(
+          "No Volume for this file system", file_system_id, request_id));
+    }
   }
+
+  void ReadChunkError(const std::string& file_system_id,
+                      const std::string& request_id) {
+    std::map<std::string, Volume*>::iterator it = volumes_.find(file_system_id);
+    if (it != volumes_.end()) {
+      it->second->ReadChunkError(request_id);
+    } else {
+      PostMessage(request::CreateFileSystemError(
+          "No Volume for this file system", file_system_id, request_id));
+    }
+  }
+
+  // A map that holds for every opened archive its instance. The key is the file
+  // system id of the archive.
+  std::map<std::string, Volume*> volumes_;
 };
 
 // The Module class. The browser calls the CreateInstance() method to create

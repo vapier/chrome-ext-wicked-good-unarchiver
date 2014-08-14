@@ -4,22 +4,44 @@
 
 'use strict';
 
+/**
+ * @type {string}
+ * @const
+ */
 var FILE_SYSTEM_ID = 'fileSystemId';
+
+/**
+ * @type {number}
+ * @const
+ */
 var REQUEST_ID = 10;
+
+/**
+ * @type {Blob}
+ * @const
+ */
+var BLOB = new Blob([new Uint8Array(100)], {type: 'application/octet-stream'});
 
 describe('Decompressor', function() {
   var naclModule;
   var decompressor;
+  var blobContents;
   var onSuccessSpy;
   var onErrorSpy;
 
-  beforeEach(function() {
-    naclModule = {
-      postMessage: sinon.spy()
-    };
-    decompressor = new Decompressor(naclModule, FILE_SYSTEM_ID);
+  beforeEach(function(done) {
+    naclModule = {postMessage: sinon.spy()};
+    decompressor = new Decompressor(naclModule, FILE_SYSTEM_ID, BLOB);
     onSuccessSpy = sinon.spy();
     onErrorSpy = sinon.spy();
+
+    // Load BLOB contents.
+    var reader = new FileReader();
+    reader.onload = function(event) {
+      blobContents = event.target.result;
+      done();
+    };
+    reader.readAsArrayBuffer(BLOB);
   });
 
   it('should not have any requests in progress if no method was called',
@@ -42,8 +64,8 @@ describe('Decompressor', function() {
 
     it('should call naclModule.postMessage with read metadata request',
         function() {
-      var readMetadataRequest =
-          request.createReadMetadataRequest(FILE_SYSTEM_ID, REQUEST_ID);
+      var readMetadataRequest = request.createReadMetadataRequest(
+          FILE_SYSTEM_ID, REQUEST_ID, BLOB.size);
       expect(naclModule.postMessage.calledWith(readMetadataRequest)).to.be.true;
     });
 
@@ -68,6 +90,45 @@ describe('Decompressor', function() {
 
       it('should remove the request in progress', function() {
         expect(decompressor.requestsInProgress[REQUEST_ID]).to.be.undefined;
+      });
+    });
+
+    // Test READ_CHUNK.
+    describe('and receives a processMessage with READ_CHUNK', function() {
+      var data = {};
+
+      describe('that has length < file.size - offset', function() {
+        it('should call naclModule.postMessage with READ_CHUNK_DONE response',
+            function(done) {
+          var expectedResponse = request.createReadChunkDoneResponse(
+              FILE_SYSTEM_ID, REQUEST_ID, blobContents);
+          data[request.Key.OFFSET] = '0';  // Received as string from NaCl.
+          data[request.Key.LENGTH] = BLOB.size / 2;
+
+          naclModule.postMessage = function(response) {
+            expect(response).to.deep.equal(expectedResponse);
+            done();
+          };
+          decompressor.processMessage(data, request.Operation.READ_CHUNK,
+                                      REQUEST_ID);
+        });
+      });
+
+      describe('that length > file.size - offset', function() {
+        it('should call naclModule.postMessage with READ_CHUNK_DONE response',
+            function(done) {
+          var expectedResponse = request.createReadChunkDoneResponse(
+              FILE_SYSTEM_ID, REQUEST_ID, blobContents);
+          data[request.Key.OFFSET] = '0';  // Received as string from NaCl.
+          data[request.Key.LENGTH] = BLOB.size * 2;
+
+          naclModule.postMessage = function(response) {
+            expect(response).to.deep.equal(expectedResponse);
+            done();
+          };
+          decompressor.processMessage(data, request.Operation.READ_CHUNK,
+                                      REQUEST_ID);
+        });
       });
     });
 

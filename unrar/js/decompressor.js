@@ -11,8 +11,9 @@
  * @param {Object} naclModule The nacl module with which the decompressor
  *     communicates.
  * @param {string} fileSystemId The file system id of the correspondent volume.
+ * @param {Blob} blob The correspondent file blob for fileSystemId.
  */
-var Decompressor = function(naclModule, fileSystemId) {
+var Decompressor = function(naclModule, fileSystemId, blob) {
   /**
    * The NaCl module that will decompress archives.
    * @type {Object}
@@ -27,11 +28,24 @@ var Decompressor = function(naclModule, fileSystemId) {
   this.fileSystemId_ = fileSystemId;
 
   /**
+   * @type {Blob}
+   * @private
+   */
+  this.blob_ = blob;
+
+  /**
    * Requests in progress. No need to save them onSuspend for now as metadata
    * reads are restarted from start.
    * @type {Object.<number, Object>}
    */
   this.requestsInProgress = {};
+};
+
+/**
+ * @return {boolean} True if there is any request in progress.
+ */
+Decompressor.prototype.hasRequestsInProgress = function() {
+  return Object.keys(this.requestsInProgress).length > 0;
 };
 
 /**
@@ -68,7 +82,7 @@ Decompressor.prototype.newRequest_ = function(requestId, onSuccess, onError) {
 Decompressor.prototype.readMetadata = function(requestId, onSuccess, onError) {
   this.newRequest_(requestId, onSuccess, onError);
   this.naclModule_.postMessage(request.createReadMetadataRequest(
-      this.fileSystemId_, requestId));
+      this.fileSystemId_, requestId, this.blob_.size));
 };
 
 /**
@@ -92,6 +106,12 @@ Decompressor.prototype.processMessage = function(data, operation, requestId) {
       requestInProgress.onSuccess(metadata);
       break;
 
+    case request.Operation.READ_CHUNK:
+      this.readChunk_(data, requestId);
+      // this.requestsInProgress_[requestId] should be valid as long as NaCL
+      // can still make READ_CHUNK requests.
+      return;
+
     case request.Operation.FILE_SYSTEM_ERROR:
       console.error('File system error for <' + this.fileSystemId_ +
                     '>: ' + data[request.Key.ERROR] + '.');
@@ -103,4 +123,42 @@ Decompressor.prototype.processMessage = function(data, operation, requestId) {
       requestInProgress.onError('FAILED');
   }
   delete this.requestsInProgress[requestId];
+};
+
+/**
+ * Reads a chunk of data from this.blob_ for READ_CHUNK operation.
+ * @param {Object} data The data received from the NaCl module.
+ * @param {number} requestId The request id, which should be unique per every
+ *     volume.
+ * @private
+ */
+Decompressor.prototype.readChunk_ = function(data, requestId) {
+  var offset = data[request.Key.OFFSET];
+  var length = data[request.Key.LENGTH];
+  // Explicit check if offset is undefined as it can be 0.
+  console.assert(offset !== undefined && offset >= 0 &&
+                 offset < this.blob_.size, 'Invalid offset');
+  console.assert(length && length > 0, 'Invalid length');
+
+  offset = Number(offset);  // Received as string. See request.js.
+  length = Math.min(this.blob_.size - offset, length);
+
+  // Read a chunk from offset to offset + length.
+  var blob = this.blob_.slice(offset, offset + length);
+  var fileReader = new FileReader();
+  var decompressor = this;  // Workaround for gjslint, which gives warning for
+                            // function() { ... }.bind(this);
+
+  fileReader.onload = function(event) {
+    decompressor.naclModule_.postMessage(request.createReadChunkDoneResponse(
+        decompressor.fileSystemId_, requestId, event.target.result));
+  };
+
+  fileReader.onerror = function(event) {
+    console.error('Failed to read a chunk of data from the archive.');
+    decompressor.naclModule_.postMessage(request.createReadChunkErrorResponse(
+        decompressor.fileSystemId_, requestId));
+  };
+
+  fileReader.readAsArrayBuffer(blob);
 };

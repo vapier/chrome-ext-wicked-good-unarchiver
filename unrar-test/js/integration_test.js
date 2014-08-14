@@ -5,44 +5,87 @@
 'use strict';
 
 /**
- * Define information for the volumes to check.
- * @type {Array.<Object>}
+ * The base URL where all test archives are located.
+ * @type {string}
  * @const
  */
-var VOLUMES = [
-  {
-    fileSystemId: 'first_volume',
-    file: 'file1',
-    entry: {
-      file: sinon.stub().callsArgWith(0, 'file1'),
-      name: 'first_name'
-    },
-    entryId: 'entryId1'
-  },
-  {
-    fileSystemId: 'second_volume',
-    file: 'file2',
-    entry: {
-      file: sinon.stub().callsArgWith(0, 'file2'),
-      name: 'second_name'
-    },
-    entryId: 'entryId2'
-  }
-];
+var ARCHIVE_BASE_URL = 'http://localhost:9876/base-test/archives/';
+
+/**
+ * Define information for the volumes to check.
+ * @type {Array.<Object>}
+ */
+var volumesInformation = [];
 
 /**
  * The volumes state to save and restore after suspend event, restarts,
  * crashes, etc.
- * @type {Object}
- * @const
+ * @type {Object.<string, Object>}
  */
-var VOLUMES_STATE = {};
-VOLUMES_STATE[app.STORAGE_KEY] = {};
-VOLUMES.forEach(function(volume) {
-  VOLUMES_STATE[app.STORAGE_KEY][volume.fileSystemId] = {
-    entryId: volume.entryId
+var volumesState = {};
+volumesState[app.STORAGE_KEY] = {};
+
+/**
+ * Downloads an archive in order to use it inside the tests. The download
+ * operation is required in order to obtain a Blob object for the archive,
+ * object that is needed by the Decompressor to read the archive's data.
+ * @param {string} archiveName The archive name.
+ * @param {function(Blob)} onSuccess Callback to call on success with the Blob
+ *     object for the downloaded archive.
+ * @param {function(string)} onError Callback to call on failure with the error
+ *     message.
+ */
+function getArchiveBlob(archiveName, onSuccess, onError) {
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', ARCHIVE_BASE_URL + archiveName);
+  xhr.responseType = 'blob';
+
+  xhr.onload = function(e) {
+    if (xhr.readyState === 4) {
+      if (xhr.status === 200) {
+        onSuccess(xhr.response);
+      } else {
+        onError(xhr.statusText);
+      }
+    }
   };
-});
+
+  xhr.onerror = function(e) {
+    onError(xhr.statusText);
+  };
+
+  xhr.send(null);
+}
+
+/**
+ * Adds a new volume information to volumesInformation and register it into
+ * volumesState. Should call "then" with resolve and reject callbacks.
+ * @param {string} archiveName The archive name in 'archives/' directory.
+ * @return {Promise} A promise that can be used with Promise.all.
+ */
+function AddVolumeInformation(archiveName) {
+  return new Promise(function(resolve, reject) {
+    getArchiveBlob(archiveName, function(blob) {
+      var volumeInformation = {
+        fileSystemId: archiveName + '_id',
+        entry: {
+          file: sinon.stub().callsArgWith(0, blob),
+          name: archiveName + '_name'
+        },
+        entryId: archiveName + '_entry'
+      };
+
+      volumesInformation.push(volumeInformation);
+      volumesState[app.STORAGE_KEY][volumeInformation.fileSystemId] = {
+        entryId: volumeInformation.entryId
+      };
+
+      resolve();
+    }, function(error) {
+      reject(error + ': ' + archiveName);
+    });
+  });
+}
 
 /**
  * Initializes Chrome APIs.
@@ -56,7 +99,7 @@ function initChromeApis() {
     }
   };
   chrome.storage.local.get.withArgs([app.STORAGE_KEY])
-      .callsArgWith(1, VOLUMES_STATE);
+      .callsArgWith(1, volumesState);
   chrome.storage.local.get.throws(
       'Invalid argument for get.' /* Called if app.STORAGE_KEY is invalid. */);
 
@@ -67,7 +110,7 @@ function initChromeApis() {
     getDisplayPath: sinon.stub()
   };
 
-  VOLUMES.forEach(function(volume) {
+  volumesInformation.forEach(function(volume) {
     chrome.fileSystem.retainEntry.withArgs(volume.entry)
         .returns(volume.entryId);
     chrome.fileSystem.restoreEntry.withArgs(volume.entryId)
@@ -84,7 +127,7 @@ function initChromeApis() {
     mount: sinon.stub(),
     unmount: sinon.stub()
   };
-  VOLUMES.forEach(function(volume) {
+  volumesInformation.forEach(function(volume) {
     chrome.fileSystemProvider.mount
         .withArgs({fileSystemId: volume.fileSystemId,
                    displayName: volume.entry.name})
@@ -109,6 +152,7 @@ var restoreCheck = function(volumeInformation) {
   // Call onGetMetatadaRequested, which should restore the volume state.
   describe('and then calls onGetMetadataRequested ' + suffix, function() {
     var rootMetadata;
+
     beforeEach(function(done) {
       expect(app.volumes[fileSystemId]).to.be.undefined;
 
@@ -134,6 +178,10 @@ var restoreCheck = function(volumeInformation) {
 
     it('should return correct entry metadata', function() {
       expect(rootMetadata).to.equal(app.volumes[fileSystemId].metadata);
+    });
+
+    it('should call chrome.storage.local.get only once', function() {
+      expect(chrome.storage.local.get.calledOnce).to.be.true;
     });
   });
 
@@ -165,6 +213,10 @@ var restoreCheck = function(volumeInformation) {
 
     it('should return 3 directory entries', function() {
       expect(directoryEntries.length).to.equal(3);
+    });
+
+    it('should call chrome.storage.local.get only once', function() {
+      expect(chrome.storage.local.get.calledOnce).to.be.true;
     });
   });
 
@@ -241,135 +293,158 @@ var unmountCheck = function(volumeInformation) {
     });
 
     it('should call retainEntry again for state save', function() {
-      // First calls were onLaunched. The calls are + VOLUMES.length - 1
-      // because retainEntry is called for every volume except the one that
-      // was umounted.
+      var length = volumesInformation.length;
+      // First calls were onLaunched. The calls are '+ length - 1' because
+      // retainEntry is called for every volume except the one that was
+      // umounted.
       expect(chrome.fileSystem.retainEntry.callCount)
-          .to.equal(VOLUMES.length * VOLUMES.length + VOLUMES.length - 1);
+          .to.equal(length * length + length - 1);
     });
 
     it('should store the volumes state again for state save', function() {
       // First calls were onLaunched.
       expect(chrome.storage.local.set.callCount)
-          .to.equal(VOLUMES.length + 1);
+          .to.equal(volumesInformation.length + 1);
     });
   });
 };
 
-// Run tests.
-describe('Unrar extension', function() {
-  before(function(done) {
-    expect(app.naclModuleIsLoaded()).to.be.false;
+// Execute tests. Necessary in order to register volumeInformation correctly.
+// TODO(cmihail): Refactor this file by splitting it in smaller files and avoid
+// calling 'describe' indirectly.
+var executeTests = function() {
+  describe('Unrar extension', function() {
+    before(function(done) {
+      expect(app.naclModuleIsLoaded()).to.be.false;
 
-    // "base/" prefix is required because Karma prefixes every file path with
-    // "base/" before serving it. No need for loading on DOMContentLoaded as the
-    // DOM was already loaded by karma before tests are run.
-    app.loadNaclModule('base/newlib/Debug/module.nmf',
-                       'application/x-nacl',
-                       function() {
-      expect(app.naclModuleIsLoaded()).to.be.true;
-      done();
-    });
-  });
-
-  describe('that loads fake data', function() {
-    beforeEach(function(done) {
-      initChromeApis();  // Called on beforeEach() in order for spies and stubs
-                         // to reset registered number of calls to methods.
-
-      var launchData = {items: []};
-      VOLUMES.forEach(function(volume) {
-        launchData.items.push({entry: volume.entry});
-      });
-
-      var successfulVolumeLoads = 0;
-      app.onLaunched(launchData, function(fileSystemId) {
-        successfulVolumeLoads++;
-        if (successfulVolumeLoads == VOLUMES.length)
-          done();
-      }, function(fileSystemId) {
-        // Force failure, first 2 parameters don't matter.
-        assert.fail(undefined, undefined,
-            'Could not load volume <' + fileSystemId + '>.');
-        done();  // No need to wait for the other volumes as normally
-                 // we shouldn't get an error.
+      // "base/" prefix is required because Karma prefixes every file path with
+      // "base/" before serving it. No need for loading on DOMContentLoaded as
+      // the DOM was already loaded by karma before tests are run.
+      app.loadNaclModule('base/newlib/Debug/module.nmf', 'application/x-nacl',
+                         function() {
+        expect(app.naclModuleIsLoaded()).to.be.true;
+        done();
       });
     });
 
-    afterEach(function() {
-      app.volumes = {};  // Clear volumes.
-    });
+    describe('that loads fake data', function() {
+      beforeEach(function(done) {
+        initChromeApis();  // Called on beforeEach() in order for spies and
+                           // stubs to reset registered number of calls to
+                           // methods.
 
-    // Check if volumes were correctly loaded.
-    VOLUMES.forEach(function(volume) {
-      volumeLoadCheck(volume);
-    });
+        var launchData = {items: []};
+        volumesInformation.forEach(function(volume) {
+          launchData.items.push({entry: volume.entry});
+        });
 
-    // Test state save.
-    describe('should save state in case of restarts, crashes, etc', function() {
-      it('by calling retainEntry with the volume\'s entry', function() {
-        // retainEntry is called square times because saveState is
-        // reexecuted for every volume load.
-        expect(chrome.fileSystem.retainEntry.callCount)
-            .to.equal(VOLUMES.length * VOLUMES.length);
-        VOLUMES.forEach(function(volume) {
-          expect(chrome.fileSystem.retainEntry.calledWith(volume.entry)).
-              to.be.true;
+        var successfulVolumeLoads = 0;
+        app.onLaunched(launchData, function(fileSystemId) {
+          successfulVolumeLoads++;
+          if (successfulVolumeLoads == volumesInformation.length)
+            done();
+        }, function(fileSystemId) {
+          // Force failure, first 2 parameters don't matter.
+          assert.fail(undefined, undefined,
+              'Could not load volume <' + fileSystemId + '>.');
+          done();  // No need to wait for the other volumes as normally
+                   // we shouldn't get an error.
         });
       });
 
-      it('by storing the volumes state', function() {
-        expect(chrome.storage.local.set.callCount)
-            .to.equal(VOLUMES.length);
-        expect(chrome.storage.local.set.calledWith(VOLUMES_STATE)).to.be.true;
+      afterEach(function() {
+        app.volumes = {};  // Clear volumes.
+      });
+
+      // Check if volumes were correctly loaded.
+      volumesInformation.forEach(function(volume) {
+        volumeLoadCheck(volume);
+      });
+
+      // Test state save.
+      describe('should save state in case of restarts or crashes', function() {
+        it('by calling retainEntry with the volume\'s entry', function() {
+          // retainEntry is called square times because saveState is
+          // reexecuted for every volume load.
+          expect(chrome.fileSystem.retainEntry.callCount)
+              .to.equal(volumesInformation.length * volumesInformation.length);
+          volumesInformation.forEach(function(volume) {
+            expect(chrome.fileSystem.retainEntry.calledWith(volume.entry)).
+                to.be.true;
+          });
+        });
+
+        it('by storing the volumes state', function() {
+          expect(chrome.storage.local.set.callCount)
+              .to.equal(volumesInformation.length);
+          expect(chrome.storage.local.set.calledWith(volumesState)).to.be.true;
+        });
+      });
+
+      // Test restore after suspend page event.
+      describe('and then suspends the page', function() {
+        beforeEach(function() {
+          app.onSuspend();  // This gets called before suspend.
+          app.volumes = {};  // Removes all volumes from memory.
+          // No need to remove NaCl. The reason is that we have to load NaCl
+          // manually by ourself anyway (in real scenarios the browser does it),
+          // so this will only take extra time without really testing anything.
+        });
+
+        it('should call retainEntry again', function() {
+          var length = volumesInformation.length;
+          // First calls were onLaunched. The calls are '+ length' because
+          // retainEntry is called for every volume.
+          expect(chrome.fileSystem.retainEntry.callCount)
+              .to.equal(length * length + length);
+        });
+
+        it('should store the volumes state again', function() {
+          // First calls were onLaunched.
+          expect(chrome.storage.local.set.callCount)
+              .to.equal(volumesInformation.length + 1);
+        });
+
+        // Check if restore was successful.
+        volumesInformation.forEach(function(volume) {
+          restoreCheck(volume);
+        });
+      });
+
+      // Test restore after restarts, crashes, etc.
+      describe('and then restarts', function() {
+        beforeEach(function() {
+          app.volumes = {};  // Removes all volumes from memory.
+          app.onStartup();  // This gets called after restart.
+
+          initChromeApis();  // Called on beforeEach() in order for spies and
+                             // stubs to reset registered number of calls to
+                             // methods.
+        });
+
+        // Check if restore was successful.
+        volumesInformation.forEach(function(volume) {
+          restoreCheck(volume);
+        });
+      });
+
+      // Check unmount.
+      volumesInformation.forEach(function(volume) {
+        unmountCheck(volume);
       });
     });
+  });
+};
 
-    // Test restore after suspend page event.
-    describe('and then suspends the page', function() {
-      beforeEach(function() {
-        app.onSuspend();  // This gets called before suspend.
-        app.volumes = {};  // Removes all volumes from memory.
-        // No need to remove NaCl. The reason is that we have to load NaCl
-        // manually by ourself anyway (in real scenarios the browser does it),
-        // so this will only take extra time without really testing anything.
-      });
-
-      it('should call retainEntry again', function() {
-        // First calls were onLaunched. The calls are + VOLUMES.length because
-        // retainEntry is called for every volume.
-        expect(chrome.fileSystem.retainEntry.callCount)
-            .to.equal(VOLUMES.length * VOLUMES.length + VOLUMES.length);
-      });
-
-      it('should store the volumes state again', function() {
-        // First calls were onLaunched.
-        expect(chrome.storage.local.set.callCount)
-            .to.equal(VOLUMES.length + 1);
-      });
-
-      // Check if restore was successful.
-      VOLUMES.forEach(function(volume) {
-        restoreCheck(volume);
-      });
-    });
-
-    // Test restore after restarts, crashes, etc.
-    describe('and then restarts', function() {
-      beforeEach(function() {
-        app.volumes = {};  // Removes all volumes from memory.
-        app.onStartup();  // This gets called after restart.
-      });
-
-      // Check if restore was successful.
-      VOLUMES.forEach(function(volume) {
-        restoreCheck(volume);
-      });
-    });
-
-    // Check unmount.
-    VOLUMES.forEach(function(volume) {
-      unmountCheck(volume);
+// TODO(cmihail): Elaborate tests to check the files inside small_rar.rar
+// and add other archives to test.
+Promise.all([AddVolumeInformation('small_rar.rar')]).then(function() {
+  executeTests();
+}, function(error) {
+  console.error(error);
+  describe('Unrar extension', function() {
+    it('should fail because it did not load archives', function() {
+      assert.fail(undefined, undefined, error);
     });
   });
 });
