@@ -1,19 +1,37 @@
-### Build steps for Release:
-> make # for nacl
-> make VALID_TOOLCHAINS=pnacl # for pnacl
+### Build steps:
+> cd unrar
+> make  # For NaCl.
+> make debug  # For NaCl debug.
+> make VALID_TOOLCHAINS=pnacl  # For PNaCl.
+> make VALID_TOOLCHAINS=pnacl debug  # For PNaCl debug.
 
-Add "Release" keyword to "data-configs" attribute in index.html to use Release
-executables (for now only debug executables are used). 
-
-To run using pnacl, modify "data-tools" attribute in index.html to point to
-pnacl as first argument.
+In order to use Release / Debug or NaCl / PNaCl see js/background for
+instructions.
 
 ### Use:
-- load unpacked extension and open rar / zip archives
+Load unpacked extension and open rar / zip archives.
 
 ### Debugging:
-> make debug
-
 To see debug messages open chrome from a terminal and check the output.
 For output redirection see
 https://developer.chrome.com/native-client/devguide/devcycle/debugging.
+
+### Testing:
+Install Karma (http://karma-runner.github.io/0.12/index.html),
+Mocha (http://visionmedia.github.io/mocha/) and Chai (http://chaijs.com/).
+
+> sudo apt-get install nodejs curl
+> curl https://raw.githubusercontent.com/creationix/nvm/v0.13.0/install.sh |bash
+> source ~/.nvm/nvm.sh  # Add to ~/.bashrc
+> nvm install 0.10
+> nvm use 0.10  # Add to ~/.bashrc
+> npm install karma --save-dev
+> npm install karma-chrome-launcher --save-dev
+> npm install -g karma-cli
+> npm install mocha --save-dev
+> npm install karma-mocha --save-dev
+> npm install karma-chai --save-dev
+
+# Run tests:
+> cd unrar-test # Where the repository was cloned.
+> karma start

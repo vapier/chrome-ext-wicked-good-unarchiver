@@ -22,7 +22,13 @@
   },
   "app": {
     "background": {
-      "page": "index.html"
+      "scripts": [
+        "js/app.js",
+        "js/background.js",
+        "js/decompressor.js",
+        "js/request.js",
+        "js/volume.js"
+      ]
     }
   }
 }

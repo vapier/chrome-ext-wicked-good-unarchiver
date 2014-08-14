@@ -40,26 +40,25 @@ function Volume(decompressor, fileSystemId, entry, file) {
   this.decompressor = decompressor;
 
   /**
+   * The volume's metadata. The key is the full path to the file on this volume.
+   * For more details see
+   * https://developer.chrome.com/apps/fileSystemProvider#type-EntryMetadata
+   * @type {Object.<string, EntryMetadata>}
+   */
+  this.metadata = null;
+
+  /**
    * @type {File}
    * @private
    */
   this.file_ = file;
-
-  /**
-   * The volume's metadata. The key is the full path to the file on this volume.
-   * For more details see
-   * https://developer.chrome.com/apps/fileSystemProvider#type-EntryMetadata
-   * @private
-   * @type {Object.<string, EntryMetadata>}
-   */
-  this.metadata_ = null;
 }
 
 /**
  * @return {boolean} True if volume is ready to be used.
  */
 Volume.prototype.isReady = function() {
-  return !!this.metadata_;
+  return !!this.metadata;
 };
 
 /**
@@ -76,12 +75,12 @@ Volume.prototype.readMetadata = function(onSuccess, onError, opt_requestId) {
   var requestId = opt_requestId ? opt_requestId : -1;
   this.decompressor.readMetadata(requestId, function(metadata) {
     // TODO(cmihail): Consider using a tree format instead of a flat
-    // organization for this.metadata_.
-    this.metadata_ = {};
+    // organization for this.metadata.
+    this.metadata = {};
     for (var path in metadata) {
-      this.metadata_[path] = metadata[path];
-      this.metadata_[path].size = parseInt(metadata[path].size);
-      this.metadata_[path].modificationTime =
+      this.metadata[path] = metadata[path];
+      this.metadata[path].size = parseInt(metadata[path].size);
+      this.metadata[path].modificationTime =
           DateFromTimeT(metadata[path].modificationTime);
     }
 
@@ -99,7 +98,7 @@ Volume.prototype.readMetadata = function(onSuccess, onError, opt_requestId) {
  */
 Volume.prototype.onGetMetadataRequested = function(options, onSuccess,
                                                    onError) {
-  var entryMetadata = this.metadata_[options.entryPath];
+  var entryMetadata = this.metadata[options.entryPath];
   if (!entryMetadata)
     onError('NOT_FOUND');
   else
@@ -115,7 +114,7 @@ Volume.prototype.onGetMetadataRequested = function(options, onSuccess,
  */
 Volume.prototype.onReadDirectoryRequested = function(options, onSuccess,
                                                      onError) {
-  var directoryMetadata = this.metadata_[options.directoryPath];
+  var directoryMetadata = this.metadata[options.directoryPath];
   if (!directoryMetadata) {
     onError('NOT_FOUND');
     return;
@@ -127,7 +126,7 @@ Volume.prototype.onReadDirectoryRequested = function(options, onSuccess,
 
   // Retrieve directory contents from metadata.
   var entries = [];
-  for (var entry in this.metadata_) {
+  for (var entry in this.metadata) {
     // Do not add itself on the list.
     if (entry == options.directoryPath)
       continue;
@@ -138,7 +137,7 @@ Volume.prototype.onReadDirectoryRequested = function(options, onSuccess,
     if (entry.substring(options.directoryPath.length + 1).indexOf('/') != -1)
       continue;
 
-    entries.push(this.metadata_[entry]);
+    entries.push(this.metadata[entry]);
   }
 
   onSuccess(entries, false /* Last call. */);

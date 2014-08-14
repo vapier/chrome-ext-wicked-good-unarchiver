@@ -5,7 +5,7 @@
 'use strict';
 
 /**
- * A class that takes care of communication between NaCL and archive volume.
+ * A class that takes care of communication between NaCl and archive volume.
  * Its job is to handle communication with the naclModule.
  * @constructor
  * @param {Object} naclModule The nacl module with which the decompressor
@@ -14,7 +14,7 @@
  */
 var Decompressor = function(naclModule, fileSystemId) {
   /**
-   * The NaCL module that will decompress archives.
+   * The NaCl module that will decompress archives.
    * @type {Object}
    * @private
    */
@@ -61,7 +61,7 @@ Decompressor.prototype.newRequest_ = function(requestId, onSuccess, onError) {
  * @param {number} requestId The request id, which should be unique per every
  *     volume.
  * @param {function(Object.<string, Object>)} onSuccess Callback to execute once
- *     the metadata is obtained from NaCL. It has one parameter, which is the
+ *     the metadata is obtained from NaCl. It has one parameter, which is the
  *     metadata itself. The metadata has as key the full path to an entry and as
  *     value information about the entry.
  * @param {function} onError Callback to execute in case of any error.
@@ -73,7 +73,8 @@ Decompressor.prototype.readMetadata = function(requestId, onSuccess, onError) {
 };
 
 /**
- * @param {Object} data The data contained in the message from NaCL. Its
+ * Processes messages from NaCl module.
+ * @param {Object} data The data contained in the message from NaCl. Its
  *     types depend on the operation of the request.
  * @param {request.Operation} operation An operation from request.js.
  * @param {number} requestId The request id, which should be unique per every
@@ -99,7 +100,7 @@ Decompressor.prototype.processMessage = function(data, operation, requestId) {
       break;
 
     default:
-      console.error('Invalid NaCL operation: ' + operation + '.');
+      console.error('Invalid NaCl operation: ' + operation + '.');
       requestInProgress.onError('FAILED');
   }
   delete this.requestsInProgress_[requestId];
