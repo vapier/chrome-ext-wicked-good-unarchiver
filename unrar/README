@@ -17,8 +17,10 @@ For output redirection see
 https://developer.chrome.com/native-client/devguide/devcycle/debugging.
 
 ### Testing:
-Install Karma (http://karma-runner.github.io/0.12/index.html),
-Mocha (http://visionmedia.github.io/mocha/) and Chai (http://chaijs.com/).
+Install Karma for tests runner (http://karma-runner.github.io/0.12/index.html),
+Mocha for asynchronous testings (http://visionmedia.github.io/mocha/),
+Chai for assertions (http://chaijs.com/) and Sinon for spies and stubs
+(http://sinonjs.org/).
 
 > sudo apt-get install nodejs curl
 > curl https://raw.githubusercontent.com/creationix/nvm/v0.13.0/install.sh |bash
@@ -31,6 +33,7 @@ Mocha (http://visionmedia.github.io/mocha/) and Chai (http://chaijs.com/).
 > npm install mocha --save-dev
 > npm install karma-mocha --save-dev
 > npm install karma-chai --save-dev
+> npm install karma-sinon --save-dev
 
 # Run tests:
 > cd unrar-test # Where the repository was cloned.

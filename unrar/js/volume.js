@@ -76,12 +76,13 @@ Volume.prototype.readMetadata = function(onSuccess, onError, opt_requestId) {
   this.decompressor.readMetadata(requestId, function(metadata) {
     // TODO(cmihail): Consider using a tree format instead of a flat
     // organization for this.metadata.
-    this.metadata = {};
+
+    // Make a deep copy of metadata.
+    this.metadata = JSON.parse(JSON.stringify(metadata));
     for (var path in metadata) {
-      this.metadata[path] = metadata[path];
-      this.metadata[path].size = parseInt(metadata[path].size);
+      this.metadata[path].size = parseInt(this.metadata[path].size);
       this.metadata[path].modificationTime =
-          DateFromTimeT(metadata[path].modificationTime);
+          DateFromTimeT(this.metadata[path].modificationTime);
     }
 
     onSuccess();
