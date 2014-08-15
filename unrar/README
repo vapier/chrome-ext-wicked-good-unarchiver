@@ -36,5 +36,6 @@ Chai for assertions (http://chaijs.com/) and Sinon for spies and stubs
 > npm install karma-sinon --save-dev
 
 # Run tests:
-> cd unrar-test # Where the repository was cloned.
-> ./run_tests.sh
+> cd unrar-test  # Where the repository was cloned.
+> ./run_js_tests.sh  # JavaScript tests.
+> ./run_nacl_tests.sh  # NaCl tests.
