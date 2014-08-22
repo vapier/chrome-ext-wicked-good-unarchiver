@@ -2,12 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "gtest/gtest.h"
 #include "request.h"
+
+#include <climits>
+#include <sstream>
+
+#include "gtest/gtest.h"
 
 const char kFileSystemId[] = "id";
 const char kRequestId[] = "0";
 const char kError[] = "error";
+const int64_t kOffset = LLONG_MAX;  // Biggest int64_t.
+const int32_t kLength = 100;
 
 TEST(request, CreateReadMetadataDoneResponse) {
   pp::VarDictionary metadata;
@@ -31,6 +37,32 @@ TEST(request, CreateReadMetadataDoneResponse) {
   EXPECT_TRUE(metadataDone.Get(request::key::kMetadata).is_dictionary());
   EXPECT_EQ(metadata,
             pp::VarDictionary(metadataDone.Get(request::key::kMetadata)));
+}
+
+TEST(request, CreateReadChunkRequest) {
+  pp::VarDictionary readChunk = request::CreateReadChunkRequest(
+      kFileSystemId, kRequestId, kOffset, kLength);
+
+  EXPECT_TRUE(readChunk.Get(request::key::kOperation).is_int());
+  EXPECT_EQ(request::READ_CHUNK,
+            readChunk.Get(request::key::kOperation).AsInt());
+
+  EXPECT_TRUE(readChunk.Get(request::key::kFileSystemId).is_string());
+  EXPECT_EQ(kFileSystemId,
+            readChunk.Get(request::key::kFileSystemId).AsString());
+
+  EXPECT_TRUE(readChunk.Get(request::key::kRequestId).is_string());
+  EXPECT_EQ(kRequestId,
+            readChunk.Get(request::key::kRequestId).AsString());
+
+  EXPECT_TRUE(readChunk.Get(request::key::kOffset).is_string());
+  std::stringstream ss_offset(readChunk.Get(request::key::kOffset).AsString());
+  int64_t offset;
+  ss_offset >> offset;
+  EXPECT_EQ(kOffset, offset);
+
+  EXPECT_TRUE(readChunk.Get(request::key::kLength).is_int());
+  EXPECT_EQ(kLength, readChunk.Get(request::key::kLength).AsInt());
 }
 
 TEST(request, CreateFileSystemError) {
