@@ -75,10 +75,12 @@ var app = {
    */
   saveState_: function() {
     var state = {};
-    for (var volumeId in app.volumes) {
-      var entryId = chrome.fileSystem.retainEntry(app.volumes[volumeId].entry);
-      state[volumeId] = {
-        entryId: entryId
+    for (var fileSystemId in app.volumes) {
+      var entryId =
+          chrome.fileSystem.retainEntry(app.volumes[fileSystemId].entry);
+      state[fileSystemId] = {
+        entryId: entryId,
+        openedFiles: app.volumes[fileSystemId].openedFiles
       };
     }
 
@@ -114,14 +116,19 @@ var app = {
         return;
       }
 
-      chrome.fileSystem.restoreEntry(
-          result[app.STORAGE_KEY][fileSystemId].entryId,
-          function(entry) {
-            entry.file(function(file) {
-              app.loadVolume_(fileSystemId, entry, file, onSuccess, onError,
-                              requestId);
-            });
-          });
+      var volumeState = result[app.STORAGE_KEY][fileSystemId];
+      chrome.fileSystem.restoreEntry(volumeState.entryId, function(entry) {
+        if (chrome.runtime.lastError) {
+          console.error('Restore entry error: ' + chrome.runtime.lastError);
+          onError('FAILED');
+          return;
+        }
+
+        entry.file(function(file) {
+          app.loadVolume_(fileSystemId, entry, file, onSuccess, onError,
+              requestId, volumeState.openedFiles);
+        });
+      });
     });
   },
 
@@ -136,22 +143,46 @@ var app = {
    *     require a request id, but any subsequent loads after suspends or
    *     restarts should use the request id of the operation that called
    *     restoreState_.
+   * @param {Object.<number, string>=} opt_openedFiles Previously opened files
+   *     before suspend or restart.
    * @private
    */
   loadVolume_: function(fileSystemId, entry, file, onSuccess, onError,
-                       opt_requestId) {
+                        opt_requestId, opt_openedFiles) {
     // Operation already in progress. We must do the check here due to
     // asynchronous calls.
     if (app.volumes[fileSystemId]) {
       onError('FAILED');
       return;
     }
+
     // File is a Blob object, so it's ok to construct the Decompressor directly
     // with it.
     app.volumes[fileSystemId] =
         new Volume(new Decompressor(app.naclModule_, fileSystemId, file),
-                   fileSystemId, entry);
-    app.volumes[fileSystemId].readMetadata(onSuccess, onError, opt_requestId);
+                   entry, opt_openedFiles);
+    app.volumes[fileSystemId].readMetadata(function() {
+      opt_openedFiles = opt_openedFiles ? opt_openedFiles : {};
+      var totalOpenedFilesNum = Object.keys(opt_openedFiles).length;
+      if (totalOpenedFilesNum == 0) {  // No opened files.
+        onSuccess();
+        return;
+      }
+
+      // Restore opened files on NaCl side.
+      var successfulOpenedFilesNum = 0;
+      for (var requestId in opt_openedFiles) {
+        app.onOpenFileRequested(opt_openedFiles[requestId], function() {
+          successfulOpenedFilesNum++;
+          if (successfulOpenedFilesNum == totalOpenedFilesNum)
+            onSuccess();
+        }, function() {
+          console.error('Failed to restore an opened file for fileSystemId: ' +
+                        fileSystemId + '.');
+          onError('FAILED');
+        });
+      }
+    }, onError, opt_requestId);
   },
 
   /**
@@ -201,17 +232,17 @@ var app = {
       onError('IN_USE');
       return;
     }
+
     chrome.fileSystemProvider.unmount({fileSystemId: fileSystemId},
-      function() {
-        app.naclModule_.postMessage(
-            request.createCloseVolumeRequest(fileSystemId));
-        delete app.volumes[fileSystemId];
-        app.saveState_();  // Remove volume from local storage state.
-        onSuccess();
-      },
-      function() {
-        onError('FAILED');
-      });
+        function() {
+          app.naclModule_.postMessage(
+              request.createCloseVolumeRequest(fileSystemId));
+          delete app.volumes[fileSystemId];
+          app.saveState_();  // Remove volume from local storage state.
+          onSuccess();
+        }, function() {
+          onError('FAILED');
+        });
   },
 
   /**
@@ -348,8 +379,13 @@ var app = {
       if (!result[app.STORAGE_KEY])
         return;
 
-      // TODO(cmihail): Nothing to do for now, but will require logic for
-      // removing opened files information from state.
+      // Remove files opened before the profile shutdown from the local
+      // storage.
+      for (var volumeId in result[app.STORAGE_KEY]) {
+        result[app.STORAGE_KEY][volumeId].openedFiles = {};
+      }
+
+      chrome.storage.local.set(result);
     });
   },
 

@@ -87,6 +87,8 @@ module.exports = function(config) {
     /**
      * Enable / disable watching file and executing tests whenever any file
      * changes.
+     * In order for autoWatch to work correctly in vim use ":set backupcopy=yes"
+     * workaround (see https://github.com/paulmillr/chokidar/issues/35).
      * @type {boolean}
      */
     autoWatch: true,

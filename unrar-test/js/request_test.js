@@ -35,6 +35,30 @@ describe('On calling', function() {
    */
   var CLOSE_VOLUME_REQUEST_ID = '-1';
 
+  /**
+   * @type {string}
+   * @const
+   */
+  var FILE_PATH = '/path/to/file';
+
+  /**
+   * @type {number}
+   * @const
+   */
+  var OPEN_REQUEST_ID = 7;
+
+  /**
+   * @type {number}
+   * @const
+   */
+  var OFFSET = 50;
+
+  /**
+   * @type {number}
+   * @const
+   */
+  var LENGTH = 200;
+
   describe('request.createReadMetadataRequest should create a request',
            function() {
     var readMetadataRequest;
@@ -137,6 +161,103 @@ describe('On calling', function() {
     it('with correct request id', function() {
       expect(closeVolumeRequest[request.Key.REQUEST_ID])
           .to.equal(CLOSE_VOLUME_REQUEST_ID);
+    });
+  });
+
+  describe('request.createOpenFileRequest should create a request', function() {
+    var openFileRequest;
+    beforeEach(function() {
+      openFileRequest = request.createOpenFileRequest(
+          FILE_SYSTEM_ID, REQUEST_ID, FILE_PATH, ARCHIVE_SIZE);
+    });
+
+    it('with OPEN_FILE as operation', function() {
+      expect(openFileRequest[request.Key.OPERATION])
+          .to.equal(request.Operation.OPEN_FILE);
+    });
+
+    it('with correct file system id', function() {
+      expect(openFileRequest[request.Key.FILE_SYSTEM_ID])
+          .to.equal(FILE_SYSTEM_ID);
+    });
+
+    it('with correct request id', function() {
+      expect(openFileRequest[request.Key.REQUEST_ID])
+          .to.equal(REQUEST_ID.toString());
+    });
+
+    it('with correct file path', function() {
+      expect(openFileRequest[request.Key.FILE_PATH]).to.equal(FILE_PATH);
+    });
+
+    it('with correct archive size', function() {
+      expect(openFileRequest[request.Key.ARCHIVE_SIZE])
+          .to.equal(ARCHIVE_SIZE.toString());
+    });
+  });
+
+  describe('request.createCloseFileRequest should create a request',
+      function() {
+    var closeFileRequest;
+    beforeEach(function() {
+      closeFileRequest = request.createCloseFileRequest(
+          FILE_SYSTEM_ID, REQUEST_ID, OPEN_REQUEST_ID);
+    });
+
+    it('with CLOSE_FILE as operation', function() {
+      expect(closeFileRequest[request.Key.OPERATION])
+          .to.equal(request.Operation.CLOSE_FILE);
+    });
+
+    it('with correct file system id', function() {
+      expect(closeFileRequest[request.Key.FILE_SYSTEM_ID])
+          .to.equal(FILE_SYSTEM_ID);
+    });
+
+    it('with correct request id', function() {
+      expect(closeFileRequest[request.Key.REQUEST_ID])
+          .to.equal(REQUEST_ID.toString());
+    });
+
+    it('with correct open request id', function() {
+      expect(closeFileRequest[request.Key.OPEN_REQUEST_ID])
+          .to.equal(OPEN_REQUEST_ID.toString());
+    });
+  });
+
+  describe('request.createReadFileRequest should create a request', function() {
+    var readFileRequest;
+    beforeEach(function() {
+      readFileRequest = request.createReadFileRequest(
+          FILE_SYSTEM_ID, REQUEST_ID, OPEN_REQUEST_ID, OFFSET, LENGTH);
+    });
+
+    it('with READ_FILE as operation', function() {
+      expect(readFileRequest[request.Key.OPERATION])
+          .to.equal(request.Operation.READ_FILE);
+    });
+
+    it('with correct file system id', function() {
+      expect(readFileRequest[request.Key.FILE_SYSTEM_ID])
+          .to.equal(FILE_SYSTEM_ID);
+    });
+
+    it('with correct request id', function() {
+      expect(readFileRequest[request.Key.REQUEST_ID])
+          .to.equal(REQUEST_ID.toString());
+    });
+
+    it('with correct open request id', function() {
+      expect(readFileRequest[request.Key.OPEN_REQUEST_ID])
+          .to.equal(OPEN_REQUEST_ID.toString());
+    });
+
+    it('with correct offset', function() {
+      expect(readFileRequest[request.Key.OFFSET]).to.equal(OFFSET.toString());
+    });
+
+    it('with correct length', function() {
+      expect(readFileRequest[request.Key.LENGTH]).to.equal(LENGTH);
     });
   });
 });

@@ -49,16 +49,18 @@ Decompressor.prototype.hasRequestsInProgress = function() {
 };
 
 /**
- * Template for requests in progress. Some requests might require extra
- * information, but the callbacks onSuccess and onError are mandatory.
- * @private
+ * Sends a request to NaCl and mark it as a request in progress. onSuccess and
+ * onError are the callbacks used when receiving an answer from NaCl.
  * @param {number} requestId The request id, which should be unique per every
  *     volume.
- * @param {function} onSuccess Callback to execute on success.
- * @param {function} onError Callback to execute on error.
- * @return {Object} An object with data about the request in progress.
+ * @param {function(...)} onSuccess Callback to execute on success.
+ * @param {function(ProviderError)} onError Callback to execute on error.
+ * @param {Object} naclRequest A request that must be sent to NaCl using
+ *     postMessage.
+ * @private
  */
-Decompressor.prototype.newRequest_ = function(requestId, onSuccess, onError) {
+Decompressor.prototype.addRequest_ = function(requestId, onSuccess, onError,
+                                              naclRequest) {
   console.assert(!this.requestsInProgress[requestId],
                  'There is already a request with the id ' + requestId + '.');
 
@@ -66,7 +68,8 @@ Decompressor.prototype.newRequest_ = function(requestId, onSuccess, onError) {
     onSuccess: onSuccess,
     onError: onError
   };
-  return this.requestsInProgress[requestId];
+
+  this.naclModule_.postMessage(naclRequest);
 };
 
 /**
@@ -77,12 +80,59 @@ Decompressor.prototype.newRequest_ = function(requestId, onSuccess, onError) {
  *     the metadata is obtained from NaCl. It has one parameter, which is the
  *     metadata itself. The metadata has as key the full path to an entry and as
  *     value information about the entry.
- * @param {function} onError Callback to execute in case of any error.
+ * @param {function(ProviderError)} onError Callback to execute on error.
  */
 Decompressor.prototype.readMetadata = function(requestId, onSuccess, onError) {
-  this.newRequest_(requestId, onSuccess, onError);
-  this.naclModule_.postMessage(request.createReadMetadataRequest(
-      this.fileSystemId_, requestId, this.blob_.size));
+  this.addRequest_(requestId, onSuccess, onError,
+                   request.createReadMetadataRequest(this.fileSystemId_,
+                                                     requestId,
+                                                     this.blob_.size));
+};
+
+/**
+ * Sends an open file request to NaCl.
+ * @param {number} requestId The request id of the open file operation.
+ * @param {string} filePath The path to the file to open.
+ * @param {function()} onSuccess Callback to execute on successful open.
+ * @param {function(ProviderError)} onError Callback to execute on error.
+ */
+Decompressor.prototype.openFile = function(requestId, filePath, onSuccess,
+                                           onError) {
+  this.addRequest_(requestId, onSuccess, onError, request.createOpenFileRequest(
+      this.fileSystemId_, requestId, filePath, this.blob_.size));
+};
+
+/**
+ * Sends a close file request to NaCl.
+ * @param {number} requestId The request id of the close file operation.
+ * @param {number} openRequestId The request id of the corresponding open file
+ *     operation for the file to close.
+ * @param {function()} onSuccess Callback to execute on successful open.
+ * @param {function(ProviderError)} onError Callback to execute on error.
+ */
+Decompressor.prototype.closeFile = function(requestId, openRequestId, onSuccess,
+                                            onError) {
+  this.addRequest_(requestId, onSuccess, onError,
+                   request.createCloseFileRequest(this.fileSystemId_,
+                                                  requestId,
+                                                  openRequestId));
+};
+
+/**
+ * Sends a read file request to NaCl.
+ * @param {number} requestId The request id of the read file operation.
+ * @param {number} openRequestId The request id of the corresponding open file
+ *     operation for the file to read.
+ * @param {number} offset The offset from where read operation should start.
+ * @param {number} length The number of bytes to read.
+ * @param {function(ArrayBuffer, boolean)} onSuccess Callback to execute on
+ *     success.
+ * @param {function(ProviderError)} onError Callback to execute on error.
+ */
+Decompressor.prototype.readFile = function(requestId, openRequestId, offset,
+                                           length, onSuccess, onError) {
+  this.addRequest_(requestId, onSuccess, onError, request.createReadFileRequest(
+      this.fileSystemId_, requestId, openRequestId, offset, length));
 };
 
 /**
@@ -111,6 +161,33 @@ Decompressor.prototype.processMessage = function(data, operation, requestId) {
       // this.requestsInProgress_[requestId] should be valid as long as NaCL
       // can still make READ_CHUNK requests.
       return;
+
+    case request.Operation.OPEN_FILE_DONE:
+      requestInProgress.onSuccess();
+      // this.requestsInProgress_[requestId] should be valid until closing the
+      // file so NaCL can make READ_CHUNK requests.
+      return;
+
+    case request.Operation.CLOSE_FILE_DONE:
+      var openRequestId = data[request.Key.OPEN_REQUEST_ID];
+      console.assert(openRequestId, 'No open request id.');
+
+      openRequestId = Number(openRequestId);  // Received as string.
+      delete this.requestsInProgress[openRequestId];
+      requestInProgress.onSuccess();
+      break;
+
+    case request.Operation.READ_FILE_DONE:
+      var buffer = data[request.Key.READ_FILE_DATA];
+      console.assert(buffer, 'No buffer for read file operation.');
+      var hasMoreData = data[request.Key.HAS_MORE_DATA];
+      console.assert(buffer !== undefined,
+                    'No HAS_MORE_DATA boolean value for file operation.');
+
+      requestInProgress.onSuccess(buffer, hasMoreData /* Last call. */);
+      if (hasMoreData)
+        return;  // Do not delete requestInProgress.
+      break;
 
     case request.Operation.FILE_SYSTEM_ERROR:
       console.error('File system error for <' + this.fileSystemId_ + '>: ' +

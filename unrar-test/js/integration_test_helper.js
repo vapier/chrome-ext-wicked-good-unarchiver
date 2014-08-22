@@ -163,12 +163,16 @@ var tests_helper = {
           file: null,  // Lazy initialization in Promise.
           name: archiveName + '_name'
         },
-        entryId: archiveName + '_entry'
+        entryId: archiveName + '_entry'  // Default type is Entry, but we can't
+                                         // create an Entry object directly with
+                                         // new. String should work because
+                                         // chrome APIs are stubbed.
       };
 
       tests_helper.volumesInformation.push(volumeInformation);
       tests_helper.volumesState[app.STORAGE_KEY][fileSystemId] = {
-        entryId: volumeInformation.entryId
+        entryId: volumeInformation.entryId,
+        openedFiles: {}
       };
 
       // Get the archives blob.

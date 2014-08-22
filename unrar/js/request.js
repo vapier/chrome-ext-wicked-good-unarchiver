@@ -27,7 +27,12 @@ var request = {
                                    // supported by pp::Var on C++.
     CHUNK_BUFFER: 'chunk_buffer',  // Should be an ArrayBuffer.
     OFFSET: 'offset',  // Should be a string. Same reason as ARCHIVE_SIZE.
-    LENGTH: 'length'  // Should be a number. No need to read chunks > 4GB.
+    LENGTH: 'length',  // Should be a number. No need to read chunks > 4GB.
+    FILE_PATH: 'file_path',  // Should be a string.
+    OPEN_REQUEST_ID: 'open_request_id',  // Should be a string, just like
+                                         // REQUEST_ID.
+    READ_FILE_DATA: 'read_file_data',  // Should be an ArrayBuffer.
+    HAS_MORE_DATA: 'has_more_data'  // Should be a boolean.
   },
 
   /**
@@ -42,8 +47,14 @@ var request = {
     READ_CHUNK_DONE: 3,
     READ_CHUNK_ERROR: 4,
     CLOSE_VOLUME: 5,
+    OPEN_FILE: 6,
+    OPEN_FILE_DONE: 7,
+    CLOSE_FILE: 8,
+    CLOSE_FILE_DONE: 9,
+    READ_FILE: 10,
+    READ_FILE_DONE: 11,
     FILE_SYSTEM_ERROR: -1  // Errors specific to a file system. Requires
-                           // FILE_SYSTEM_ID and MESSAGE_ID.
+                           // FILE_SYSTEM_ID and REQUEST_ID.
   },
 
   /**
@@ -114,5 +125,55 @@ var request = {
   createCloseVolumeRequest: function(fileSystemId) {
     return request.createBasic_(request.Operation.CLOSE_VOLUME,
                                 fileSystemId, -1);
-  }
+  },
+
+  /**
+   * Creates an open file request.
+   * @param {string} fileSystemId The file system id.
+   * @param {number} requestId The request id.
+   * @param {string} filePath The path to the file for which read is done.
+   * @param {string} archiveSize The size of the volume's archive.
+   * @return {Object} An open file request.
+   */
+  createOpenFileRequest: function(fileSystemId, requestId, filePath,
+                                  archiveSize) {
+    var openFileRequest = request.createBasic_(request.Operation.OPEN_FILE,
+                                               fileSystemId, requestId);
+    openFileRequest[request.Key.FILE_PATH] = filePath;
+    openFileRequest[request.Key.ARCHIVE_SIZE] = archiveSize.toString();
+    return openFileRequest;
+  },
+
+  /**
+   * Creates a close file request.
+   * @param {string} fileSystemId The file system id.
+   * @param {number} requestId The request id.
+   * @param {number} openRequestId The open request id.
+   * @return {Object} A close file request.
+   */
+  createCloseFileRequest: function(fileSystemId, requestId, openRequestId) {
+    var closeFileRequest = request.createBasic_(request.Operation.CLOSE_FILE,
+                                                fileSystemId, requestId);
+    closeFileRequest[request.Key.OPEN_REQUEST_ID] = openRequestId.toString();
+    return closeFileRequest;
+  },
+
+  /**
+   * Creates a read file request.
+   * @param {string} fileSystemId The file system id.
+   * @param {number} requestId The request id.
+   * @param {number} openRequestId The open request id.
+   * @param {number} offset The offset from where read is done.
+   * @param {number} length The number of bytes required.
+   * @return {Object} A read file request.
+   */
+  createReadFileRequest: function(fileSystemId, requestId, openRequestId,
+                                  offset, length) {
+    var readFileRequest = request.createBasic_(request.Operation.READ_FILE,
+                                               fileSystemId, requestId);
+    readFileRequest[request.Key.OPEN_REQUEST_ID] = openRequestId.toString();
+    readFileRequest[request.Key.OFFSET] = offset.toString();
+    readFileRequest[request.Key.LENGTH] = length;
+    return readFileRequest;
+   }
 };

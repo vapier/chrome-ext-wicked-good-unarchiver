@@ -37,18 +37,16 @@ function correctMetadata(entryMetadata) {
  * @constructor
  * @param {Decompressor} decompressor The decompressor used to obtain data from
  *     archives.
- * @param {string} fileSystemId The file system id of the volume.
  * @param {Entry} entry The entry corresponding to the volume's archive.
+ * @param {Object.<number, string>=} opt_openedFiles Previously opened files
+ *     before suspend or restart.
  */
-function Volume(decompressor, fileSystemId, entry) {
+function Volume(decompressor, entry, opt_openedFiles) {
   /**
    * Used for restoring the opened file entry after resuming the event page.
    * @type {Entry}
    */
   this.entry = entry;
-
-  /** @type {string} */
-  this.fileSystemId = fileSystemId;
 
   /**
    * The decompressor used to obtain data from archives.
@@ -63,6 +61,13 @@ function Volume(decompressor, fileSystemId, entry) {
    * @type {Object.<string, EntryMetadata>}
    */
   this.metadata = null;
+
+  /**
+   * A map with currently opened files. The key is a requestId value from the
+   * openFileRequested event and the value is the file path.
+   * @type {Object.<number, string>}
+   */
+  this.openedFiles = opt_openedFiles ? opt_openedFiles : {};
 }
 
 /**
@@ -76,13 +81,14 @@ Volume.prototype.isReady = function() {
  * @return {boolean} True if volume is in use.
  */
 Volume.prototype.inUse = function() {
-  return this.decompressor.hasRequestsInProgress();
+  return this.decompressor.hasRequestsInProgress() ||
+         Object.keys(this.openedFiles).length > 0;
 };
 
 /**
  * Reads the metadata of the volume. A single call is sufficient.
- * @param {function} onSuccess Callback to execute on success.
- * @param {function} onError Callback to execute on error.
+ * @param {function()} onSuccess Callback to execute on success.
+ * @param {function(ProviderError)} onError Callback to execute on error.
  * @param {number=} opt_requestId Request id is optional for the case of
  *     mounting the volume. Should NOT be used for other case scenarios as
  *     this function doesn't ensure a unique requestId with every call.
@@ -105,8 +111,8 @@ Volume.prototype.readMetadata = function(onSuccess, onError, opt_requestId) {
  * loaded.
  * @param {fileSystemProvider.GetMetadataRequestedOptions} options Options for
  *     getting the metadata of an entry.
- * @param {function} onSuccess Callback to execute on success.
- * @param {function} onError Callback to execute on error.
+ * @param {function(EntryMetadata)} onSuccess Callback to execute on success.
+ * @param {function(ProviderError)} onError Callback to execute on error.
  */
 Volume.prototype.onGetMetadataRequested = function(options, onSuccess,
                                                    onError) {
@@ -121,8 +127,9 @@ Volume.prototype.onGetMetadataRequested = function(options, onSuccess,
  * Reads a directory contents from metadata. Assumes metadata is loaded.
  * @param {fileSystemProvider.ReadDirectoryRequestedOptions>} options Options
  *     for reading the contents of a directory.
- * @param {function} onSuccess Callback to execute on success.
- * @param {function} onError Callback to execute on error.
+ * @param {function(Array.<EntryMetadata>, boolean)} onSuccess Callback to
+ *     execute on success.
+ * @param {function(ProviderError)} onError Callback to execute on error.
  */
 Volume.prototype.onReadDirectoryRequested = function(options, onSuccess,
                                                      onError) {
@@ -149,36 +156,73 @@ Volume.prototype.onReadDirectoryRequested = function(options, onSuccess,
  * Opens a file for read or write.
  * @param {fileSystemProvider.OpenFileRequestedOptions} options Options for
  *     opening a file.
- * @param {function} onSuccess Callback to execute on success.
- * @param {function} onError Callback to execute on error.
+ * @param {function()} onSuccess Callback to execute on success.
+ * @param {function(ProviderError)} onError Callback to execute on error.
  */
 Volume.prototype.onOpenFileRequested = function(options, onSuccess, onError) {
-  // TODO(cmihail): Implement.
-  onError('INVALID_OPERATION');
+  if (options.mode != 'READ' || options.create ||
+      !this.getEntryMetadata_(options.filePath)) {
+    onError('INVALID_OPERATION');
+    return;
+  }
+
+  this.decompressor.openFile(options.requestId, options.filePath, function() {
+    this.openedFiles[options.requestId] = options;
+    onSuccess();
+  }.bind(this), onError);
 };
 
 /**
  * Closes a file identified by options.openRequestId.
  * @param {fileSystemProvider.CloseFileRequestedOptions} options Options for
  *     closing a file.
- * @param {function} onSuccess Callback to execute on success.
- * @param {function} onError Callback to execute on error.
+ * @param {function()} onSuccess Callback to execute on success.
+ * @param {function(ProviderError)} onError Callback to execute on error.
  */
 Volume.prototype.onCloseFileRequested = function(options, onSuccess, onError) {
-  // TODO(cmihail): Implement.
-  onError('INVALID_OPERATION');
+  var openRequestId = options.openRequestId;
+  var openOptions = this.openedFiles[openRequestId];
+  if (!openOptions) {
+    onError('INVALID_OPERATION');
+    return;
+  }
+
+  this.decompressor.closeFile(options.requestId, openRequestId, function() {
+    delete this.openedFiles[openRequestId];
+    onSuccess();
+  }.bind(this), onError);
 };
 
 /**
  * Reads the contents of a file identified by options.openRequestId.
  * @param {fileSystemProvider.ReadFileRequestedOptions} options Options for
  *     reading a file's contents.
- * @param {function} onSuccess Callback to execute on success.
- * @param {function} onError Callback to execute on error.
+ * @param {function(ArrayBuffer, boolean)} onSuccess Callback to execute on
+ *     success.
+ * @param {function(ProviderError)} onError Callback to execute on error.
  */
 Volume.prototype.onReadFileRequested = function(options, onSuccess, onError) {
-  // TODO(cmihail): Implement.
-  onError('INVALID_OPERATION');
+  var openOptions = this.openedFiles[options.openRequestId];
+  if (!openOptions) {
+    onError('INVALID_OPERATION');
+    return;
+  }
+
+  var offset = options.offset;
+  var length = options.length;
+  // Offset and length should be validated by the API.
+  console.assert(offset >= 0, 'Offset should be >= 0.');
+  console.assert(length >= 0, 'Length should be >= 0.');
+
+  var fileSize = this.getEntryMetadata_(openOptions.filePath).size;
+  if (offset >= fileSize || length == 0) {  // No more data.
+    onSuccess(new ArrayBuffer(0), false /* Last call. */);
+    return;
+  }
+  length = Math.min(length, fileSize - offset);
+
+  this.decompressor.readFile(options.requestId, options.openRequestId,
+                             offset, length, onSuccess, onError);
 };
 
 /**

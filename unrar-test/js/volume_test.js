@@ -23,6 +23,45 @@ describe('Volume', function() {
     }
   };
 
+  /**
+   * A fake entry. Will be used outside for restore purposes.
+   * @type {Entry}
+   * @const
+   */
+  var ENTRY = null;
+
+  /**
+   * @type {number}
+   * @const
+   */
+  var METADATA_REQUEST_ID = 1;
+
+  /**
+   * @type {number}
+   * @const
+   */
+  var OPEN_REQUEST_ID = 2;
+
+  /**
+   * @type {number}
+   * @const
+   */
+  var READ_REQUEST_ID = 3;
+
+  /**
+   * @type {number}
+   * @const
+   */
+  var CLOSE_REQUEST_ID = 4;
+
+  /**
+   * In case a volume is created without a request id parameter, then this will
+   * be the default request id used for reading metadata.
+   * @type {number}
+   * @const
+   */
+  var EXPECTED_DEFAULT_READ_METADATA_REQUEST_ID = -1;
+
   var volume;
   var decompressor;
   var onReadMetadataSuccessSpy;
@@ -30,15 +69,29 @@ describe('Volume', function() {
 
   beforeEach(function() {
     volume = null;
-    decompressor = {};
+    decompressor = {
+      readMetadata: sinon.stub(),
+      openFile: sinon.stub(),
+      closeFile: sinon.stub(),
+      readFile: sinon.stub()
+    };
+
     onReadMetadataSuccessSpy = sinon.spy();
     onReadMetadataErrorSpy = sinon.spy();
 
-    volume = new Volume(decompressor, 'fileSystemId', 'entry');
+    volume = new Volume(decompressor, ENTRY);
   });
 
   it('should have null metadata before calling readMetadata', function() {
     expect(volume.metadata).to.be.null;
+  });
+
+  it('should have correct entry', function() {
+    expect(volume.entry).to.equal(ENTRY);
+  });
+
+  it('should have empty openedFiles member', function() {
+    expect(Object.keys(volume.openedFiles).length).to.equal(0);
   });
 
   /**
@@ -55,10 +108,7 @@ describe('Volume', function() {
       // Invalid metadata.
       describe('that reads invalid metadata', function() {
         beforeEach(function() {
-          decompressor.readMetadata = function(requestId, onSuccess, onError) {
-            expect(requestId).to.equal(expectedRequestId);
-            onError();
-          };
+          decompressor.readMetadata.withArgs(expectedRequestId).callsArg(2);
           volume.readMetadata(onReadMetadataSuccessSpy, onReadMetadataErrorSpy,
                               opt_requestId);
         });
@@ -70,15 +120,15 @@ describe('Volume', function() {
         it('should call onError for volume.readMetadata', function() {
           expect(onReadMetadataErrorSpy.calledOnce).to.be.true;
         });
-      });
+      });  // Invalid metatada.
 
       // Valid metadata.
       describe('that reads correct metadata', function() {
         beforeEach(function() {
-          decompressor.readMetadata = function(requestId, onSuccess, onError) {
-            expect(requestId).to.equal(expectedRequestId);
-            onSuccess(METADATA);
-          };
+          decompressor.readMetadata.withArgs(expectedRequestId)
+              .callsArgWith(1, METADATA);
+          decompressor.readMetadata.throws(
+              'Unexpected argument for readMetadata.');
           volume.readMetadata(onReadMetadataSuccessSpy, onReadMetadataErrorSpy,
                               opt_requestId);
         });
@@ -118,7 +168,7 @@ describe('Volume', function() {
             expect(volume.metadata.modificationTime.getTime()).
                 to.equal(METADATA.modificationTime * 1000);
           });
-        });
+        });  // Test root directory.
 
         // Test file entry.
         describe('should have a file entry', function() {
@@ -139,7 +189,7 @@ describe('Volume', function() {
             expect(volume.metadata.entries['file'].modificationTime.getTime()).
                 to.equal(METADATA.entries['file'].modificationTime * 1000);
           });
-        });
+        });  // Test file entry.
 
         // Test onGetMetadataRequested.
         describe('and calls onGetMetadataRequested', function() {
@@ -180,7 +230,7 @@ describe('Volume', function() {
                   .to.be.true;
             });
           });
-        });
+        });  // Test onGetMetadataRequested.
 
         // Test onReadDirectoryRequested.
         describe('and calls onReadDirectoryRequested', function() {
@@ -242,7 +292,7 @@ describe('Volume', function() {
               expect(onSuccessSpy.calledWith(entries, false)).to.be.true;
             });
           });
-        });
+        });  // Test onReadDirectoryRequested.
 
         // Test onOpenFileRequested.
         describe('and calls onOpenFileRequested', function() {
@@ -251,26 +301,316 @@ describe('Volume', function() {
           beforeEach(function() {
             onSuccessSpy = sinon.spy();
             onErrorSpy = sinon.spy();
-            volume.onOpenFileRequested({}, onSuccessSpy, onErrorSpy);
           });
 
-          it('should not call onSuccess', function() {
-            expect(onSuccessSpy.called).to.be.false;
+          describe('with invalid options.mode', function() {
+            beforeEach(function() {
+              var options = {mode: 'invalid', create: false, filePath: '/file'};
+              volume.onOpenFileRequested(options, onSuccessSpy, onErrorSpy);
+            });
+
+            it('should not call onSuccess', function() {
+              expect(onSuccessSpy.called).to.be.false;
+            });
+
+            it('should call onError with INVALID_OPERATION', function() {
+              expect(onErrorSpy.calledWith('INVALID_OPERATION')).to.be.true;
+            });
           });
 
-          it('should call onError with INVALID_OPERATION', function() {
-            expect(onErrorSpy.calledWith('INVALID_OPERATION')).to.be.true;
+          describe('with options.create as true', function() {
+            beforeEach(function() {
+              var options = {mode: 'READ', create: true, filePath: '/file'};
+              volume.onOpenFileRequested(options, onSuccessSpy, onErrorSpy);
+            });
+
+            it('should not call onSuccess', function() {
+              expect(onSuccessSpy.called).to.be.false;
+            });
+
+            it('should call onError with INVALID_OPERATION', function() {
+              expect(onErrorSpy.calledWith('INVALID_OPERATION')).to.be.true;
+            });
           });
-        });
+
+          describe('with invalid filePath', function() {
+            beforeEach(function() {
+              var options = {mode: 'READ', create: false, filePath: '/invalid'};
+              volume.onOpenFileRequested(options, onSuccessSpy, onErrorSpy);
+            });
+
+            it('should not call onSuccess', function() {
+              expect(onSuccessSpy.called).to.be.false;
+            });
+
+            it('should call onError with INVALID_OPERATION', function() {
+              expect(onErrorSpy.calledWith('INVALID_OPERATION')).to.be.true;
+            });
+          });
+
+          describe('with valid options', function() {
+            var options;
+            beforeEach(function() {
+              options = {
+                mode: 'READ',
+                create: false,
+                requestId: OPEN_REQUEST_ID,
+                filePath: '/file'
+              };
+              decompressor.openFile.withArgs(
+                  options.requestId, options.filePath).callsArg(2);
+
+              expect(volume.openedFiles[options.requestId]).to.be.undefined;
+              volume.onOpenFileRequested(options, onSuccessSpy, onErrorSpy);
+            });
+
+            it('should not call onError', function() {
+              expect(onErrorSpy.called).to.be.false;
+            });
+
+            it('should call onSuccess', function() {
+              expect(onSuccessSpy.called).to.be.true;
+            });
+
+            it('should add open operation options to openedFiles', function() {
+              expect(volume.openedFiles[options.requestId]).to.equal(options);
+            });
+
+            // Test onCloseFileRequested.
+            describe('and calls onCloseFileRequested', function() {
+              var onSuccessSpy;
+              var onErrorSpy;
+              beforeEach(function() {
+                onSuccessSpy = sinon.spy();
+                onErrorSpy = sinon.spy();
+              });
+
+              describe('with invalid openRequestId', function() {
+                beforeEach(function() {
+                  var options = {
+                    requestId: CLOSE_REQUEST_ID,
+                    openRequestId: -1
+                  };
+                  volume.onCloseFileRequested(options, onSuccessSpy,
+                                              onErrorSpy);
+                });
+
+                it('should call onError', function() {
+                  expect(onErrorSpy.called).to.be.true;
+                });
+
+                it('should not call onSuccess', function() {
+                  expect(onSuccessSpy.called).to.be.false;
+                });
+              });
+
+              describe('with valid openRequestId', function() {
+                beforeEach(function() {
+                  onSuccessSpy = sinon.spy();
+                  onErrorSpy = sinon.spy();
+                  var options = {
+                    requestId: CLOSE_REQUEST_ID,
+                    openRequestId: OPEN_REQUEST_ID
+                  };
+                  decompressor.closeFile.withArgs(
+                      options.requestId, options.openRequestId).callsArg(2);
+
+                  volume.onCloseFileRequested(options, onSuccessSpy,
+                                              onErrorSpy);
+                });
+
+                it('should not call onError', function() {
+                  expect(onErrorSpy.called).to.be.false;
+                });
+
+                it('should call onSuccess', function() {
+                  expect(onSuccessSpy.called).to.be.true;
+                });
+
+                it('should remove open operation options from openedFiles',
+                    function() {
+                  expect(volume.openedFiles[options.requestId]).to.be.undefined;
+                });
+              });
+            });   // Test onCloseFileRequested.
+
+            // Test onReadFileRequested.
+            describe('and calls onReadFileRequested', function() {
+              var onSuccessSpy;
+              var onErrorSpy;
+              beforeEach(function() {
+                onSuccessSpy = sinon.spy();
+                onErrorSpy = sinon.spy();
+              });
+
+              describe('with invalid openRequestId', function() {
+                beforeEach(function() {
+                  var options = {
+                    requestId: READ_REQUEST_ID,
+                    openRequestId: -1,
+                    offset: 20,
+                    length: 50
+                  };
+                  volume.onReadFileRequested(options, onSuccessSpy, onErrorSpy);
+                });
+
+                it('should call onError', function() {
+                  expect(onErrorSpy.called).to.be.true;
+                });
+
+                it('should not call onSuccess', function() {
+                  expect(onSuccessSpy.called).to.be.false;
+                });
+              });
+
+              describe('with length 0', function() {
+                beforeEach(function() {
+                  var options = {
+                    requestId: READ_REQUEST_ID,
+                    openRequestId: OPEN_REQUEST_ID,
+                    offset: 0,
+                    length: 0  // <= 0 is invalid.
+                  };
+                  volume.onReadFileRequested(options, onSuccessSpy, onErrorSpy);
+                });
+
+                it('should not call onError', function() {
+                  expect(onErrorSpy.called).to.be.false;
+                });
+
+                it('should call onSuccess', function() {
+                  expect(onSuccessSpy.called).to.be.true;
+                });
+
+                it('should call onSuccess with empty buffer and no more data',
+                    function() {
+                  expect(onSuccessSpy.calledWith(new ArrayBuffer(0),
+                                                 false /* No more data. */))
+                      .to.be.true;
+                });
+              });
+
+              describe('with offset = file size', function() {
+                beforeEach(function() {
+                  var options = {
+                    requestId: READ_REQUEST_ID,
+                    openRequestId: OPEN_REQUEST_ID,
+                    offset: METADATA.entries['file'].size,
+                    length: METADATA.entries['file'].size / 2
+                  };
+                  decompressor.readFile.withArgs(
+                      options.requestId, options.openRequestId, options.offset,
+                      options.length).callsArg(4);
+
+                  volume.onReadFileRequested(options, onSuccessSpy, onErrorSpy);
+                });
+
+                it('should not call onError', function() {
+                  expect(onErrorSpy.called).to.be.false;
+                });
+
+                it('should call onSuccess with empty buffer and no more data',
+                    function() {
+                  expect(onSuccessSpy.calledWith(new ArrayBuffer(0),
+                                                 false /* No more data. */))
+                      .to.be.true;
+                });
+              });
+
+              describe('with offset > file size', function() {
+                beforeEach(function() {
+                  var options = {
+                    requestId: READ_REQUEST_ID,
+                    openRequestId: OPEN_REQUEST_ID,
+                    offset: METADATA.entries['file'].size * 2,
+                    length: METADATA.entries['file'].size / 2
+                  };
+                  decompressor.readFile.withArgs(
+                      options.requestId, options.openRequestId, options.offset,
+                      options.length).callsArg(4);
+
+                  volume.onReadFileRequested(options, onSuccessSpy, onErrorSpy);
+                });
+
+                it('should not call onError', function() {
+                  expect(onErrorSpy.called).to.be.false;
+                });
+
+                it('should call onSuccess with empty buffer and no more data',
+                    function() {
+                  expect(onSuccessSpy.calledWith(new ArrayBuffer(0),
+                                                 false /* No more data. */))
+                      .to.be.true;
+                });
+              });
+
+              describe('with offset 0 and length less than file size',
+                  function() {
+                beforeEach(function() {
+                  var options = {
+                    requestId: READ_REQUEST_ID,
+                    openRequestId: OPEN_REQUEST_ID,
+                    offset: 0,
+                    length: 1
+                  };
+                  decompressor.readFile.withArgs(
+                      options.requestId, options.openRequestId, options.offset,
+                      options.length).callsArg(4);
+
+                  volume.onReadFileRequested(options, onSuccessSpy, onErrorSpy);
+                });
+
+                it('should not call onError', function() {
+                  expect(onErrorSpy.called).to.be.false;
+                });
+
+                it('should call onSuccess', function() {
+                  expect(onSuccessSpy.called).to.be.true;
+                });
+              });
+
+              describe('with offset 0 and length bigger than file size',
+                  function() {
+                beforeEach(function() {
+                  var options = {
+                    requestId: READ_REQUEST_ID,
+                    openRequestId: OPEN_REQUEST_ID,
+                    offset: 0,
+                    length: METADATA.entries['file'].size * 2
+                  };
+                  decompressor.readFile.withArgs(
+                      options.requestId, options.openRequestId, options.offset,
+                      METADATA.entries['file'].size /* Max permitted length. */)
+                      .callsArg(4);
+
+                  volume.onReadFileRequested(options, onSuccessSpy, onErrorSpy);
+                });
+
+                it('should not call onError', function() {
+                  expect(onErrorSpy.called).to.be.false;
+                });
+
+                it('should call onSuccess', function() {
+                  expect(onSuccessSpy.called).to.be.true;
+                });
+              });
+            });  // Test onReadFileRequested.
+          });  // With valid options.
+        });  // Test onOpenFileRequested.
 
         // Test onCloseFileRequested.
-        describe('and calls onCloseFileRequested', function() {
+        describe('and calls onCloseFileRequested before onOpenFileRequested',
+            function() {
           var onSuccessSpy;
           var onErrorSpy;
           beforeEach(function() {
             onSuccessSpy = sinon.spy();
             onErrorSpy = sinon.spy();
-            volume.onCloseFileRequested({}, onSuccessSpy, onErrorSpy);
+            var options = {
+              requestId: CLOSE_REQUEST_ID,
+              openRequestId: OPEN_REQUEST_ID
+            };
+            volume.onCloseFileRequested(options, onSuccessSpy, onErrorSpy);
           });
 
           it('should not call onSuccess', function() {
@@ -280,7 +620,7 @@ describe('Volume', function() {
           it('should call onError with INVALID_OPERATION', function() {
             expect(onErrorSpy.calledWith('INVALID_OPERATION')).to.be.true;
           });
-        });
+        });  // Test onCloseFileRequested.
 
         // Test onReadFileRequested.
         describe('and calls onReadFileRequested', function() {
@@ -289,25 +629,30 @@ describe('Volume', function() {
           beforeEach(function() {
             onSuccessSpy = sinon.spy();
             onErrorSpy = sinon.spy();
-            volume.onReadFileRequested({}, onSuccessSpy, onErrorSpy);
+            var options = {
+              requestId: READ_REQUEST_ID,
+              openRequestId: OPEN_REQUEST_ID
+            };
+            volume.onReadFileRequested(options, onSuccessSpy, onErrorSpy);
           });
 
           it('should not call onSuccess', function() {
             expect(onSuccessSpy.called).to.be.false;
           });
 
-          it('should call onError with INVALID_OPERATION', function() {
+          it('should call the decompressor with correct request', function() {
             expect(onErrorSpy.calledWith('INVALID_OPERATION')).to.be.true;
           });
-        });
-      });
-  });
-  };
+        });  // Test onReadFileRequested.
+      }); // Valid metadata.
+    });
+  };  // End of volumeTests.
 
   // Test readMetadata for volume's that were just mounted.
-  volumeTests('with NO requestId', -1);
+  volumeTests('with NO requestId', EXPECTED_DEFAULT_READ_METADATA_REQUEST_ID);
 
   // Test readMetadata for volume's that are created after onSuspend, restart or
   // crashes.
-  volumeTests('with requestId (after suspend, restart, etc)', 1, 1);
+  volumeTests('with requestId (after suspend, restart, etc)',
+              METADATA_REQUEST_ID, METADATA_REQUEST_ID);
 });

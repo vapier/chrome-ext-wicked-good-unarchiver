@@ -1,4 +1,4 @@
-# Copyright (c) 2014 The Chromium Authors. All rights reserved.
+# Copyright 2014 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -15,7 +15,7 @@ CODE_DIR = ../../unrar/cpp
 include $(NACL_SDK_ROOT)/tools/common.mk
 
 TARGET = main
-LIBS = ppapi_simple nacl_io ppapi_cpp ppapi gtest gmock pthread
+LIBS = ppapi_simple nacl_io ppapi_cpp ppapi gtest pthread
 
 CFLAGS = -Wall -Wno-sign-compare -I$(CODE_DIR)
 SOURCES = \

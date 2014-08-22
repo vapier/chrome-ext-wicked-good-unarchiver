@@ -138,3 +138,9 @@ int archive_read_free(struct archive* archive) {
   return lib_archive_variables::fail_archive_read_free ? ARCHIVE_FATAL
                                                        : ARCHIVE_OK;
 }
+
+ssize_t archive_read_data(struct archive* archive,
+                          void* buffer,
+                          size_t length) {
+  return 0;
+}

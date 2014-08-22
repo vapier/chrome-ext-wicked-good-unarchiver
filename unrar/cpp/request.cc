@@ -6,10 +6,12 @@
 
 #include <sstream>
 
+namespace {
+
 // Creates a basic request with the mandatory fields.
-static pp::VarDictionary CreateBasicRequest(const int operation,
-                                            const std::string& file_system_id,
-                                            const std::string& request_id) {
+pp::VarDictionary CreateBasicRequest(const int operation,
+                                     const std::string& file_system_id,
+                                     const std::string& request_id) {
   pp::VarDictionary request;
   request.Set(request::key::kOperation, operation);
   request.Set(request::key::kFileSystemId, file_system_id);
@@ -17,14 +19,16 @@ static pp::VarDictionary CreateBasicRequest(const int operation,
   return request;
 }
 
+}  // namespace
+
 pp::VarDictionary request::CreateReadMetadataDoneResponse(
     const std::string& file_system_id,
     const std::string& request_id,
     const pp::VarDictionary& metadata) {
-  pp::VarDictionary request =
+  pp::VarDictionary response =
       CreateBasicRequest(READ_METADATA_DONE, file_system_id, request_id);
-  request.Set(request::key::kMetadata, metadata);
-  return request;
+  response.Set(request::key::kMetadata, metadata);
+  return response;
 }
 
 pp::VarDictionary request::CreateReadChunkRequest(
@@ -42,6 +46,34 @@ pp::VarDictionary request::CreateReadChunkRequest(
   return request;
 }
 
+pp::VarDictionary request::CreateOpenFileDoneResponse(
+    const std::string& file_system_id,
+    const std::string& request_id) {
+  return CreateBasicRequest(OPEN_FILE_DONE, file_system_id, request_id);
+}
+
+pp::VarDictionary request::CreateCloseFileDoneResponse(
+    const std::string& file_system_id,
+    const std::string& request_id,
+    const std::string& open_request_id) {
+  pp::VarDictionary response =
+      CreateBasicRequest(CLOSE_FILE_DONE, file_system_id, request_id);
+  response.Set(request::key::kOpenRequestId, open_request_id);
+  return response;
+}
+
+pp::VarDictionary request::CreateReadFileDoneResponse(
+    const std::string& file_system_id,
+    const std::string& request_id,
+    const pp::VarArrayBuffer& array_buffer,
+    bool has_more_data) {
+  pp::VarDictionary response =
+      CreateBasicRequest(READ_FILE_DONE, file_system_id, request_id);
+  response.Set(request::key::kReadFileData, array_buffer);
+  response.Set(request::key::kHasMoreData, has_more_data);
+  return response;
+}
+
 pp::VarDictionary request::CreateFileSystemError(
     const std::string& error,
     const std::string& file_system_id,
@@ -50,4 +82,12 @@ pp::VarDictionary request::CreateFileSystemError(
       CreateBasicRequest(FILE_SYSTEM_ERROR, file_system_id, request_id);
   request.Set(request::key::kError, error);
   return request;
+}
+
+int64_t request::GetInt64FromString(const pp::VarDictionary& dictionary,
+                                    const std::string& request_key) {
+  std::stringstream ss_int64(dictionary.Get(request_key).AsString());
+  int64_t int64_value;
+  ss_int64 >> int64_value;
+  return int64_value;
 }

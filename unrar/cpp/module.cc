@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "request.h"
-#include "volume.h"
-
 #include <sstream>
 
 #include "ppapi/cpp/instance.h"
 #include "ppapi/cpp/logging.h"
 #include "ppapi/cpp/module.h"
 #include "ppapi/cpp/var_dictionary.h"
+
+#include "request.h"
+#include "volume.h"
 
 // An instance for every "embed" in the web page. For this extension only one
 // "embed" is necessary.
@@ -19,7 +19,8 @@ class NaclArchiveInstance : public pp::Instance {
   explicit NaclArchiveInstance(PP_Instance instance) : pp::Instance(instance) {}
   virtual ~NaclArchiveInstance() {
     for (std::map<std::string, Volume*>::iterator iterator = volumes_.begin();
-         iterator != volumes_.end(); iterator++) {
+         iterator != volumes_.end();
+         ++iterator) {
       delete iterator->second;
     }
   }
@@ -42,15 +43,12 @@ class NaclArchiveInstance : public pp::Instance {
     // Process operation.
     switch (operation) {
       case request::READ_METADATA: {
+        PP_DCHECK(var_dict.Get(request::key::kArchiveSize).is_string());
         Volume* volume = CreateOrGetVolume(file_system_id, request_id);
-        if (volume) {
-          PP_DCHECK(var_dict.Get(request::key::kArchiveSize).is_string());
-          std::stringstream ss_archive_size(
-              var_dict.Get(request::key::kArchiveSize).AsString());
-          int64_t archive_size;
-          ss_archive_size >> archive_size;
-          volume->ReadMetadata(request_id, archive_size);
-        }
+        if (volume)
+          volume->ReadMetadata(request_id,
+                               request::GetInt64FromString(
+                                   var_dict, request::key::kArchiveSize));
         break;
       }
 
@@ -64,6 +62,18 @@ class NaclArchiveInstance : public pp::Instance {
         // No need to initialize volume as this is a response to READ_CHUNK
         // sent from NaCl.
         ReadChunkError(file_system_id, request_id);
+        break;
+
+      case request::OPEN_FILE:
+        OpenFile(var_dict, file_system_id, request_id);
+        break;
+
+      case request::CLOSE_FILE:
+        CloseFile(var_dict, file_system_id, request_id);
+        break;
+
+      case request::READ_FILE:
+        ReadFile(var_dict, file_system_id, request_id);
         break;
 
       case request::CLOSE_VOLUME: {
@@ -131,6 +141,50 @@ class NaclArchiveInstance : public pp::Instance {
       PostMessage(request::CreateFileSystemError(
           "No Volume for this file system", file_system_id, request_id));
     }
+  }
+
+  void OpenFile(const pp::VarDictionary& var_dict,
+                const std::string& file_system_id,
+                const std::string& request_id) {
+    PP_DCHECK(var_dict.Get(request::key::kFilePath).is_string());
+    std::string file_path(var_dict.Get(request::key::kFilePath).AsString());
+
+    PP_DCHECK(var_dict.Get(request::key::kArchiveSize).is_string());
+    int64_t archive_size =
+        request::GetInt64FromString(var_dict, request::key::kArchiveSize);
+
+    Volume* volume = CreateOrGetVolume(file_system_id, request_id);
+    if (volume)
+      volume->OpenFile(request_id, file_path, archive_size);
+  }
+
+  void CloseFile(const pp::VarDictionary& var_dict,
+                 const std::string& file_system_id,
+                 const std::string& request_id) {
+    PP_DCHECK(var_dict.Get(request::key::kOpenRequestId).is_string());
+    std::string open_request_id(
+        var_dict.Get(request::key::kOpenRequestId).AsString());
+
+    std::map<std::string, Volume*>::iterator it = volumes_.find(file_system_id);
+    PP_DCHECK(it != volumes_.end());  // Should call CloseFile after OpenFile.
+
+    it->second->CloseFile(request_id, open_request_id);
+  }
+
+  void ReadFile(const pp::VarDictionary& var_dict,
+                const std::string& file_system_id,
+                const std::string& request_id) {
+    PP_DCHECK(var_dict.Get(request::key::kOpenRequestId).is_string());
+    PP_DCHECK(var_dict.Get(request::key::kOffset).is_string());
+    PP_DCHECK(var_dict.Get(request::key::kLength).is_int());
+
+    std::map<std::string, Volume*>::iterator it = volumes_.find(file_system_id);
+    PP_DCHECK(it != volumes_.end());  // Should call ReadFile after OpenFile.
+
+    // Passing the entire dictionary because pp::CompletionCallbackFactory
+    // cannot create callbacks with more than 3 parameters. Here we need 4:
+    // request_id, open_request_id, offset and length.
+    it->second->ReadFile(request_id, var_dict);
   }
 
   // A map that holds for every opened archive its instance. The key is the file

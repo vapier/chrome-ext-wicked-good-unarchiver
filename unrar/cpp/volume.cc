@@ -1,16 +1,18 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "request.h"
 #include "volume.h"
-#include "volume_reader_javascript_stream.h"
 
 #include <sstream>
 
+#include "request.h"
+#include "volume_reader_javascript_stream.h"
+
 namespace {
 
-const char PATH_DELIMITER[] = "/";
+const char kPathDelimiter[] = "/";
+const int32_t kReadBufferSizeMax = 512 * 1024;  // 512 KB.
 
 // Posts a file system error message.
 inline void PostFileSystemError(const std::string& message,
@@ -19,31 +21,6 @@ inline void PostFileSystemError(const std::string& message,
                                 pp::Instance* instance) {
   instance->PostMessage(
       request::CreateFileSystemError(message, file_system_id, request_id));
-}
-
-// Gets the JavaScript VolumeReader. In case of any error, sends an error
-// message to JavaScript and returns NULL.
-VolumeReaderJavaScriptStream* GetJavaScriptVolumeReader(
-    const std::string& file_system_id,
-    const std::string& request_id,
-    std::map<std::string, VolumeArchive*>* worker_reads_in_progress,
-    pp::Instance* instance) {
-  // TODO(cmihail): This map should be lock guarded, or use a thread safe map.
-  // For now is ok as only READ_METADATA is supported and it will never go
-  // into races. But once extracting files is added the code becomes prone to
-  // races.
-  std::map<std::string, VolumeArchive*>::iterator it =
-      worker_reads_in_progress->find(request_id);
-
-  if (it != worker_reads_in_progress->end()) {
-    return static_cast<VolumeReaderJavaScriptStream*>(it->second->reader());
-  } else {
-    PostFileSystemError("No VolumeReader for <" + request_id + ">",
-                        file_system_id,
-                        request_id,
-                        instance);
-    return NULL;
-  }
 }
 
 // size is int64_t and modification_time is time_t because this is how
@@ -81,7 +58,7 @@ void ConstructMetadata(const std::string& entry_path,
   pp::VarDictionary parent_entries =
       pp::VarDictionary(parent_metadata->Get("entries"));
 
-  unsigned int position = entry_path.find(PATH_DELIMITER);
+  unsigned int position = entry_path.find(kPathDelimiter);
   pp::VarDictionary entry_metadata;
   std::string entry_name;
 
@@ -114,7 +91,7 @@ void ConstructMetadata(const std::string& entry_path,
     // Continue to construct metadata for all directories on the path to the
     // to the entry and for the entry itself.
     std::string entry_path_without_next_parent = entry_path.substr(
-        position + sizeof(PATH_DELIMITER) - 1 /* Last char is '\0'. */);
+        position + sizeof(kPathDelimiter) - 1 /* Last char is '\0'. */);
 
     ConstructMetadata(entry_path_without_next_parent,
                       size,
@@ -128,26 +105,47 @@ void ConstructMetadata(const std::string& entry_path,
   parent_entries.Set(entry_name, entry_metadata);
   parent_metadata->Set("entries", parent_entries);
 }
+
 }  // namespace
+
+// An internal implementation of JavaScriptRequestor.
+class VolumeJavaScriptRequestor : public JavaScriptRequestor {
+ public:
+  explicit VolumeJavaScriptRequestor(Volume* volume) : volume_(volume) {}
+
+  virtual void RequestFileChunk(const std::string& request_id,
+                                int64_t offset,
+                                int32_t bytes_to_read) {
+    volume_->instance()->PostMessage(request::CreateReadChunkRequest(
+        volume_->file_system_id(), request_id, offset, bytes_to_read));
+  }
+
+ private:
+  Volume* volume_;
+};
 
 Volume::Volume(pp::Instance* instance, const std::string& file_system_id)
     : instance_(instance),
       file_system_id_(file_system_id),
       worker_(instance),
       callback_factory_(this) {
+  requestor_ = new VolumeJavaScriptRequestor(this);
 }
 
 Volume::~Volume() {
   worker_.Join();
+
   typedef std::map<std::string, VolumeArchive*>::iterator iterator_type;
   for (iterator_type iterator = worker_reads_in_progress_.begin();
        iterator != worker_reads_in_progress_.end();
-       iterator++) {
+       ++iterator) {
     // No need to call CleanupVolumeArchive as it will erase elements from map.
     // The map will be freed anyway because Volume is deconstructed.
     iterator->second->Cleanup();
     delete iterator->second;
   }
+
+  delete requestor_;
 }
 
 bool Volume::Init() {
@@ -158,21 +156,43 @@ void Volume::ReadMetadata(const std::string& request_id, int64_t archive_size) {
   worker_.message_loop().PostWork(callback_factory_.NewCallback(
       &Volume::ReadMetadataCallback, request_id, archive_size));
 }
+
+void Volume::OpenFile(const std::string& request_id,
+                      const std::string& file_path,
+                      int64_t archive_size) {
+  worker_.message_loop().PostWork(callback_factory_.NewCallback(
+      &Volume::OpenFileCallback, request_id, file_path, archive_size));
+}
+
+void Volume::CloseFile(const std::string& request_id,
+                       const std::string& open_request_id) {
+  // Though close file could be executed on main thread, we send it to worker_
+  // in order to ensure thread safety.
+  worker_.message_loop().PostWork(callback_factory_.NewCallback(
+      &Volume::CloseFileCallback, request_id, open_request_id));
+}
+
+void Volume::ReadFile(const std::string& request_id,
+                      const pp::VarDictionary& dictionary) {
+  worker_.message_loop().PostWork(callback_factory_.NewCallback(
+      &Volume::ReadFileCallback, request_id, dictionary));
+}
+
 void Volume::ReadChunkDone(const std::string& request_id,
                            const pp::VarArrayBuffer& array_buffer) {
-  VolumeReaderJavaScriptStream* volume_reader = GetJavaScriptVolumeReader(
-      file_system_id_, request_id, &worker_reads_in_progress_, instance_);
-  if (!volume_reader)
-    return;
+  VolumeArchive* volume_archive = GetVolumeArchive(request_id);
+  // ReadChunkDone should be called only for VolumeReaderJavaScriptStream.
+  VolumeReaderJavaScriptStream* volume_reader =
+      static_cast<VolumeReaderJavaScriptStream*>(volume_archive->reader());
 
   volume_reader->SetBufferAndSignal(array_buffer);
 }
 
 void Volume::ReadChunkError(const std::string& request_id) {
-  VolumeReaderJavaScriptStream* volume_reader = GetJavaScriptVolumeReader(
-      file_system_id_, request_id, &worker_reads_in_progress_, instance_);
-  if (!volume_reader)
-    return;
+  VolumeArchive* volume_archive = GetVolumeArchive(request_id);
+  // ReadChunkError should be called only for VolumeReaderJavaScriptStream.
+  VolumeReaderJavaScriptStream* volume_reader =
+      static_cast<VolumeReaderJavaScriptStream*>(volume_archive->reader());
 
   volume_reader->ReadErrorSignal();
   // Resource cleanup will be done by the blocked thread as the error will
@@ -190,15 +210,15 @@ void Volume::ReadMetadataCallback(int32_t /*result*/,
     return;
 
   // Read and construct metadata.
-  pp::VarDictionary root_metadata = CreateEntry(PATH_DELIMITER, true, 0, 0);
+  pp::VarDictionary root_metadata = CreateEntry(kPathDelimiter, true, 0, 0);
 
-  const char* pathname;
+  const char* path_name;
   int64_t size;
   bool is_directory;
   time_t modification_time;
   for (;;) {
     if (!volume_archive->GetNextHeader(
-            &pathname, &size, &is_directory, &modification_time)) {
+            &path_name, &size, &is_directory, &modification_time)) {
       PostFileSystemError(volume_archive->error_message(),
                           file_system_id_,
                           request_id,
@@ -207,11 +227,11 @@ void Volume::ReadMetadataCallback(int32_t /*result*/,
       return;
     }
 
-    if (!pathname)  // End of archive.
+    if (!path_name)  // End of archive.
       break;
 
     ConstructMetadata(
-        pathname, size, is_directory, modification_time, &root_metadata);
+        path_name, size, is_directory, modification_time, &root_metadata);
   }
 
   // Free resources. In case of an error post a message, as this would be the
@@ -224,10 +244,122 @@ void Volume::ReadMetadataCallback(int32_t /*result*/,
       file_system_id_, request_id, root_metadata));
 }
 
+void Volume::OpenFileCallback(int32_t /*result*/,
+                              const std::string& request_id,
+                              const std::string& file_path,
+                              int64_t archive_size) {
+  VolumeArchive* volume_archive = CreateVolumeArchive(request_id, archive_size);
+  if (!volume_archive)
+    return;
+
+  const char* path_name;
+  int64_t size;
+  bool is_directory;
+  time_t modification_time;
+  for (;;) {
+    if (!volume_archive->GetNextHeader(
+            &path_name, &size, &is_directory, &modification_time)) {
+      PostFileSystemError(volume_archive->error_message(),
+                          file_system_id_,
+                          request_id,
+                          instance_);
+      CleanupVolumeArchive(volume_archive, false);
+      return;
+    }
+
+    if (!path_name) {
+      PP_DCHECK(false);  // Should never get here. JavaScript should require
+                         // the extraction of a valid file or never make the
+                         // call if file_path is invalid.
+      break;
+    }
+
+    if (file_path.compare(std::string(kPathDelimiter) + path_name) == 0)
+      break;  // File reached. Data should be obtained by calling
+              // VolumeArchive::ReadData.
+  }
+
+  // Send successful opened file response to NaCl.
+  instance_->PostMessage(
+      request::CreateOpenFileDoneResponse(file_system_id_, request_id));
+}
+
+void Volume::CloseFileCallback(int32_t /*result*/,
+                               const std::string& request_id,
+                               const std::string& open_request_id) {
+  // Obtain the VolumeArchive for the opened file using open_request_id.
+  // The volume should have been created using Volume::OpenFile.
+  VolumeArchive* volume_archive = GetVolumeArchive(open_request_id);
+  if (!CleanupVolumeArchive(volume_archive, false)) {
+    // Error send using request_id, not open_request_id.
+    PostFileSystemError(volume_archive->error_message(),
+                        file_system_id_,
+                        request_id,
+                        instance_);
+    return;
+  }
+
+  instance_->PostMessage(request::CreateCloseFileDoneResponse(
+      file_system_id_, request_id, open_request_id));
+}
+
+void Volume::ReadFileCallback(int32_t /*result*/,
+                              const std::string& request_id,
+                              const pp::VarDictionary& dictionary) {
+  std::string open_request_id(
+      dictionary.Get(request::key::kOpenRequestId).AsString());
+  int64_t offset =
+      request::GetInt64FromString(dictionary, request::key::kOffset);
+  int32_t length(dictionary.Get(request::key::kLength).AsInt());
+
+  // Get the correspondent VolumeArchive to the opened file. Any errors
+  // should be send to JavaScript using request_id, NOT open_request_id.
+  VolumeArchive* volume_archive =
+      GetVolumeArchive(open_request_id /* The opened file request id. */);
+
+  // Decompress data and send it to JavaScript. In case length is too big, we
+  // will send multiple chunks with limit kReadBufferSizeMax per chunk in
+  // order to avoid out of memory issues.
+  while (length > 0) {
+    int32_t buffer_size;
+    bool has_more_data;
+    if (length > kReadBufferSizeMax) {
+      has_more_data = true;
+      buffer_size = kReadBufferSizeMax;
+    } else {
+      has_more_data = false;
+      buffer_size = length;
+    }
+
+    pp::VarArrayBuffer array_buffer(buffer_size);
+    char* array_buffer_data = static_cast<char*>(array_buffer.Map());
+
+    if (!volume_archive->ReadData(offset, buffer_size, array_buffer_data)) {
+      // Error messages should be sent to the read request (request_id), not
+      // open request (open_request_id), as the last one has finished and this
+      // is a read file.
+      PostFileSystemError(volume_archive->error_message(),
+                          file_system_id_,
+                          request_id,
+                          instance_);
+      // Should not cleanup VolumeArchive as Volume::CloseFile will be called in
+      // case of failure.
+      return;
+    }
+
+    // Send response back to ReadFile request.
+    instance_->PostMessage(request::CreateReadFileDoneResponse(
+        file_system_id_, request_id, array_buffer, has_more_data));
+
+    length -= buffer_size;
+    offset += buffer_size;
+  }
+}
+
 VolumeArchive* Volume::CreateVolumeArchive(const std::string& request_id,
                                            int64_t archive_size) {
-  VolumeReader* reader = new VolumeReaderJavaScriptStream(
-      file_system_id_, request_id, archive_size, instance_);
+  VolumeReader* reader =
+      new VolumeReaderJavaScriptStream(request_id, archive_size, requestor_);
   if (reader->Open() != ARCHIVE_OK) {
     // TODO(cmihail): In case we have another VolumeReader implementation we
     // could use that as a backup. e.g. If we have both FileIO and JavaScript
@@ -240,7 +372,6 @@ VolumeArchive* Volume::CreateVolumeArchive(const std::string& request_id,
 
   // Pass VolumeReader ownership to VolumeArchive.
   VolumeArchive* volume_archive = new VolumeArchive(request_id, reader);
-
   // VolumeArchive::Init() will call READ_CHUNK for getting archive headers.
   worker_reads_in_progress_.insert(
       std::pair<std::string, VolumeArchive*>(request_id, volume_archive));
@@ -271,4 +402,12 @@ bool Volume::CleanupVolumeArchive(VolumeArchive* volume_archive,
 
   delete volume_archive;
   return returnValue;
+}
+
+VolumeArchive* Volume::GetVolumeArchive(const std::string& request_id) {
+  std::map<std::string, VolumeArchive*>::iterator it =
+      worker_reads_in_progress_.find(request_id);
+
+  PP_DCHECK(it != worker_reads_in_progress_.end());
+  return it->second;
 }

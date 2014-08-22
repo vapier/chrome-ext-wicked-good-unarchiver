@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,19 +8,18 @@
 
 #include "archive.h"
 #include "ppapi/cpp/logging.h"
+
 #include "request.h"
 
 VolumeReaderJavaScriptStream::VolumeReaderJavaScriptStream(
-    const std::string& file_system_id,
     const std::string& request_id,
     int64_t archive_size,
-    pp::Instance* const instance) : file_system_id_(file_system_id),
-                                    request_id_(request_id),
-                                    archive_size_(archive_size),
-                                    instance_(instance),
-                                    available_data_(false),
-                                    read_error_(false),
-                                    offset_(0) {
+    JavaScriptRequestor* const requestor) : request_id_(request_id),
+                                            archive_size_(archive_size),
+                                            requestor_(requestor),
+                                            available_data_(false),
+                                            read_error_(false),
+                                            offset_(0) {
   pthread_mutex_init(&available_data_lock_, NULL);
   pthread_cond_init(&available_data_cond_, NULL);
 }
@@ -65,8 +64,7 @@ ssize_t VolumeReaderJavaScriptStream::Read(size_t bytes_to_read,
 
   // Ask for more data from JavaScript.
   available_data_ = false;
-  instance_->PostMessage(request::CreateReadChunkRequest(
-      file_system_id_, request_id_, offset_, bytes_to_read));
+  requestor_->RequestFileChunk(request_id_, offset_, bytes_to_read);
 
   // Wait for data from JavaScript.
   pthread_mutex_lock(&available_data_lock_);

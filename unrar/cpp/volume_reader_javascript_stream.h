@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,16 +8,16 @@
 #include <pthread.h>
 
 #include "archive.h"
-#include "ppapi/cpp/instance.h"
 #include "ppapi/cpp/var_array_buffer.h"
+
+#include "javascript_requestor.h"
 #include "volume_reader.h"
 
 class VolumeReaderJavaScriptStream : public VolumeReader {
  public:
-  VolumeReaderJavaScriptStream(const std::string& file_system_id,
-                               const std::string& request_id,
+  VolumeReaderJavaScriptStream(const std::string& request_id,
                                int64_t archive_size,
-                               pp::Instance* const instance);
+                               JavaScriptRequestor* requestor);
 
   virtual ~VolumeReaderJavaScriptStream();
 
@@ -51,11 +51,10 @@ class VolumeReaderJavaScriptStream : public VolumeReader {
   int64_t offset() const { return offset_; }
 
  private:
-  std::string file_system_id_;  // The volume's file system id.
   std::string request_id_;  // The request id for which the reader was created.
-  int64_t archive_size_;  // The archive size.
-  pp::Instance* const instance_;  // A pp::Instance used to ask for data from
-                                  // JavaScript.
+  int64_t archive_size_;    // The archive size.
+  JavaScriptRequestor* requestor_;  // A requestor that makes calls to
+                                    // JavaScript to obtain file chunks.
 
   pp::VarArrayBuffer array_buffer_;  // The actual data used by libarchive.
   bool available_data_;  // Used by mutex / cond to synchronize with JavaScript.

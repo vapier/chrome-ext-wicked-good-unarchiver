@@ -242,3 +242,5 @@ TEST_F(VolumeArchiveTest, CleanupAfterInitFailure) {
   EXPECT_TRUE(volume_archive->Cleanup());
   EXPECT_TRUE(volume_archive->reader() == NULL);
 }
+
+// TODO(cmihail): Add tests for VolumeArchive::ReadData.
