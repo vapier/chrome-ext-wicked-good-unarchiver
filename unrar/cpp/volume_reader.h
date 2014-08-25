@@ -31,7 +31,8 @@ class VolumeReader {
   virtual int64_t Skip(int64_t bytes_to_skip) = 0;
 
   // Tries to seek to offset from whence. Returns the resulting offset location
-  // or ARCHIVE_FATAL in case of errors.
+  // or ARCHIVE_FATAL in case of errors. Similar to
+  // http://www.cplusplus.com/reference/cstdio/fseek/
   virtual int64_t Seek(int64_t offset, int whence) = 0;
 
   // Closes the reader. Use return values like ARCHIVE_OK or ARCHIVE_FATAL

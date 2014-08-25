@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "request.h"
 #include "volume_reader_javascript_stream.h"
 
 #include <algorithm>
 
 #include "archive.h"
 #include "ppapi/cpp/logging.h"
+#include "request.h"
 
 VolumeReaderJavaScriptStream::VolumeReaderJavaScriptStream(
     const std::string& file_system_id,

@@ -5,13 +5,12 @@
 #ifndef VOLUME_READER_JAVSCRIPT_STREAM_H_
 #define VOLUME_READER_JAVSCRIPT_STREAM_H_
 
-#include "archive.h"
-#include "volume_reader.h"
-
 #include <pthread.h>
 
+#include "archive.h"
 #include "ppapi/cpp/instance.h"
 #include "ppapi/cpp/var_array_buffer.h"
+#include "volume_reader.h"
 
 class VolumeReaderJavaScriptStream : public VolumeReader {
  public:
@@ -48,6 +47,8 @@ class VolumeReaderJavaScriptStream : public VolumeReader {
 
   // See volume_reader.h for description.
   virtual int Close();
+
+  int64_t offset() const { return offset_; }
 
  private:
   std::string file_system_id_;  // The volume's file system id.
