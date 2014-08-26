@@ -4,37 +4,37 @@
 
 'use strict';
 
-/**
- * @type {string}
- * @const
- */
-var FILE_SYSTEM_ID = 'id';
-
-/**
- * @type {number}
- * @const
- */
-var REQUEST_ID = 10;
-
-/**
- * @type {number}
- * @const
- */
-var ARCHIVE_SIZE = 5000;
-
-/**
- * @type {ArrayBuffer}
- * @const
- */
-var CHUNK_BUFFER = new ArrayBuffer(5);
-
-/**
- * @type {string}
- * @const
- */
-var CLOSE_VOLUME_REQUEST_ID = '-1';
-
 describe('On calling', function() {
+  /**
+   * @type {string}
+   * @const
+   */
+  var FILE_SYSTEM_ID = 'id';
+
+  /**
+   * @type {number}
+   * @const
+   */
+  var REQUEST_ID = 10;
+
+  /**
+   * @type {number}
+   * @const
+   */
+  var ARCHIVE_SIZE = 5000;
+
+  /**
+   * @type {ArrayBuffer}
+   * @const
+   */
+  var CHUNK_BUFFER = new ArrayBuffer(5);
+
+  /**
+   * @type {string}
+   * @const
+   */
+  var CLOSE_VOLUME_REQUEST_ID = '-1';
+
   describe('request.createReadMetadataRequest should create a request',
            function() {
     var readMetadataRequest;

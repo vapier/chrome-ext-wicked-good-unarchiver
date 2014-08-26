@@ -4,25 +4,25 @@
 
 'use strict';
 
-/**
- * Fake metadata used to test volume's methods.
- * @type {Object.<string, Object>}
- */
-var METADATA = {
-  name: '/',
-  size: 0,
-  isDirectory: true,
-  modificationTime: 3000 /* In seconds. */,
-  entries: {
-    'file': {name: 'file', size: 50, isDirectory: false,
-             modificationTime: 20000 /* In seconds. */},
-    'dir': {name: 'dir', size: 0, isDirectory: true,
-            modificationTime: 12000 /* In seconds. */,
-            entries: {}}
-  }
-};
-
 describe('Volume', function() {
+  /**
+   * Fake metadata used to test volume's methods.
+   * @type {Object.<string, Object>}
+   */
+  var METADATA = {
+    name: '/',
+    size: 0,
+    isDirectory: true,
+    modificationTime: 3000 /* In seconds. */,
+    entries: {
+      'file': {name: 'file', size: 50, isDirectory: false,
+               modificationTime: 20000 /* In seconds. */},
+      'dir': {name: 'dir', size: 0, isDirectory: true,
+              modificationTime: 12000 /* In seconds. */,
+              entries: {}}
+    }
+  };
+
   var volume;
   var decompressor;
   var onReadMetadataSuccessSpy;

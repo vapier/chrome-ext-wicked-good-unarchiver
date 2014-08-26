@@ -4,25 +4,26 @@
 
 'use strict';
 
-/**
- * @type {string}
- * @const
- */
-var FILE_SYSTEM_ID = 'fileSystemId';
-
-/**
- * @type {number}
- * @const
- */
-var REQUEST_ID = 10;
-
-/**
- * @type {Blob}
- * @const
- */
-var BLOB = new Blob([new Uint8Array(100)], {type: 'application/octet-stream'});
-
 describe('Decompressor', function() {
+  /**
+   * @type {string}
+   * @const
+   */
+  var FILE_SYSTEM_ID = 'fileSystemId';
+
+  /**
+   * @type {number}
+   * @const
+   */
+  var REQUEST_ID = 10;
+
+  /**
+   * @type {Blob}
+   * @const
+   */
+  var BLOB = new Blob([new Uint8Array(100)],
+                      {type: 'application/octet-stream'});
+
   var naclModule;
   var decompressor;
   var blobContents;
@@ -136,7 +137,9 @@ describe('Decompressor', function() {
     describe('and receives a processMessage with FILE_SYSTEM_ERROR',
              function() {
       beforeEach(function() {
-        decompressor.processMessage({} /* Not important. */,
+        var data = {};
+        data[request.Key.ERROR] = 'Expected error at reading metadata.';
+        decompressor.processMessage(data,
                                     request.Operation.FILE_SYSTEM_ERROR,
                                     REQUEST_ID);
       });

@@ -113,8 +113,9 @@ Decompressor.prototype.processMessage = function(data, operation, requestId) {
       return;
 
     case request.Operation.FILE_SYSTEM_ERROR:
-      console.error('File system error for <' + this.fileSystemId_ +
-                    '>: ' + data[request.Key.ERROR] + '.');
+      console.error('File system error for <' + this.fileSystemId_ + '>: ' +
+                    data[request.Key.ERROR]);  // The error should contain
+                                               // the '.' at the end.
       requestInProgress.onError('FAILED');
       break;
 
