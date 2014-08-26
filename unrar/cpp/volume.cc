@@ -8,47 +8,22 @@
 
 #include <sstream>
 
-static const char PATH_DELIMITER[] = "/";
+namespace {
 
-Volume::Volume(pp::Instance* instance, const std::string& file_system_id)
-  : instance_(instance),
-    file_system_id_(file_system_id),
-    worker_(instance),
-    callback_factory_(this) {}
-
-Volume::~Volume() {
-  worker_.Join();
-  typedef std::map<std::string, VolumeArchive*>::iterator iterator_type;
-  for (iterator_type iterator = worker_reads_in_progress_.begin();
-       iterator != worker_reads_in_progress_.end(); iterator++) {
-    // No need to call CleanupVolumeArchive as it will erase elements from map.
-    // The map will be freed anyway because Volume is deconstructed.
-    iterator->second->Cleanup();
-    delete iterator->second;
-  }
-}
-
-bool Volume::Init() {
-  return worker_.Start();
-}
-
-void Volume::ReadMetadata(const std::string& request_id, int64_t archive_size) {
-  worker_.message_loop().PostWork(callback_factory_.NewCallback(
-      &Volume::ReadMetadataCallback, request_id, archive_size));
-}
+const char PATH_DELIMITER[] = "/";
 
 // Posts a file system error message.
-static inline void PostFileSystemError(const std::string& message,
-                                       const std::string& file_system_id,
-                                       const std::string& request_id,
-                                       pp::Instance* instance) {
+inline void PostFileSystemError(const std::string& message,
+                                const std::string& file_system_id,
+                                const std::string& request_id,
+                                pp::Instance* instance) {
   instance->PostMessage(
       request::CreateFileSystemError(message, file_system_id, request_id));
 }
 
 // Gets the JavaScript VolumeReader. In case of any error, sends an error
 // message to JavaScript and returns NULL.
-static VolumeReaderJavaScriptStream* GetJavaScriptVolumeReader(
+VolumeReaderJavaScriptStream* GetJavaScriptVolumeReader(
     const std::string& file_system_id,
     const std::string& request_id,
     std::map<std::string, VolumeArchive*>* worker_reads_in_progress,
@@ -71,36 +46,12 @@ static VolumeReaderJavaScriptStream* GetJavaScriptVolumeReader(
   }
 }
 
-void Volume::ReadChunkDone(const std::string& request_id,
-                           const pp::VarArrayBuffer& array_buffer) {
-  VolumeReaderJavaScriptStream* volume_reader = GetJavaScriptVolumeReader(
-      file_system_id_, request_id, &worker_reads_in_progress_, instance_);
-  if (!volume_reader)
-    return;
-
-  volume_reader->SetBufferAndSignal(array_buffer);
-}
-
-void Volume::ReadChunkError(const std::string& request_id) {
-  VolumeReaderJavaScriptStream* volume_reader = GetJavaScriptVolumeReader(
-      file_system_id_, request_id, &worker_reads_in_progress_, instance_);
-  if (!volume_reader)
-    return;
-
-  volume_reader->ReadErrorSignal();
-  // Resource cleanup will be done by the blocked thread as the error will
-  // be forward to libarchive once that thread unblocks. Due to how libarchive
-  // works, both the JavaScript read error and libarchive errors will be
-  // processed similarly, so it's better to leave the error handle to the
-  // other thread.
-}
-
 // size is int64_t and modification_time is time_t because this is how
 // libarchive is going to pass them to us.
-static pp::VarDictionary CreateEntry(const std::string& name,
-                                     bool is_directory,
-                                     int64_t size,
-                                     time_t modification_time) {
+pp::VarDictionary CreateEntry(const std::string& name,
+                              bool is_directory,
+                              int64_t size,
+                              time_t modification_time) {
   pp::VarDictionary entry_metadata;
   entry_metadata.Set("isDirectory", is_directory);
   entry_metadata.Set("name", name);
@@ -119,11 +70,11 @@ static pp::VarDictionary CreateEntry(const std::string& name,
   return entry_metadata;
 }
 
-static void ConstructMetadata(const std::string& entry_path,
-                              int64_t size,
-                              bool is_directory,
-                              time_t modification_time,
-                              pp::VarDictionary* parent_metadata) {
+void ConstructMetadata(const std::string& entry_path,
+                       int64_t size,
+                       bool is_directory,
+                       time_t modification_time,
+                       pp::VarDictionary* parent_metadata) {
   if (entry_path == "")
     return;
 
@@ -177,6 +128,59 @@ static void ConstructMetadata(const std::string& entry_path,
   parent_entries.Set(entry_name, entry_metadata);
   parent_metadata->Set("entries", parent_entries);
 }
+}  // namespace
+
+Volume::Volume(pp::Instance* instance, const std::string& file_system_id)
+    : instance_(instance),
+      file_system_id_(file_system_id),
+      worker_(instance),
+      callback_factory_(this) {
+}
+
+Volume::~Volume() {
+  worker_.Join();
+  typedef std::map<std::string, VolumeArchive*>::iterator iterator_type;
+  for (iterator_type iterator = worker_reads_in_progress_.begin();
+       iterator != worker_reads_in_progress_.end();
+       iterator++) {
+    // No need to call CleanupVolumeArchive as it will erase elements from map.
+    // The map will be freed anyway because Volume is deconstructed.
+    iterator->second->Cleanup();
+    delete iterator->second;
+  }
+}
+
+bool Volume::Init() {
+  return worker_.Start();
+}
+
+void Volume::ReadMetadata(const std::string& request_id, int64_t archive_size) {
+  worker_.message_loop().PostWork(callback_factory_.NewCallback(
+      &Volume::ReadMetadataCallback, request_id, archive_size));
+}
+void Volume::ReadChunkDone(const std::string& request_id,
+                           const pp::VarArrayBuffer& array_buffer) {
+  VolumeReaderJavaScriptStream* volume_reader = GetJavaScriptVolumeReader(
+      file_system_id_, request_id, &worker_reads_in_progress_, instance_);
+  if (!volume_reader)
+    return;
+
+  volume_reader->SetBufferAndSignal(array_buffer);
+}
+
+void Volume::ReadChunkError(const std::string& request_id) {
+  VolumeReaderJavaScriptStream* volume_reader = GetJavaScriptVolumeReader(
+      file_system_id_, request_id, &worker_reads_in_progress_, instance_);
+  if (!volume_reader)
+    return;
+
+  volume_reader->ReadErrorSignal();
+  // Resource cleanup will be done by the blocked thread as the error will
+  // be forward to libarchive once that thread unblocks. Due to how libarchive
+  // works, both the JavaScript read error and libarchive errors will be
+  // processed similarly, so it's better to leave the error handle to the
+  // other thread.
+}
 
 void Volume::ReadMetadataCallback(int32_t /*result*/,
                                   const std::string& request_id,
@@ -222,8 +226,6 @@ void Volume::ReadMetadataCallback(int32_t /*result*/,
 
 VolumeArchive* Volume::CreateVolumeArchive(const std::string& request_id,
                                            int64_t archive_size) {
-  // The VolumeReader memory will be handled by VolumeArchive once it is
-  // created.
   VolumeReader* reader = new VolumeReaderJavaScriptStream(
       file_system_id_, request_id, archive_size, instance_);
   if (reader->Open() != ARCHIVE_OK) {
@@ -236,7 +238,9 @@ VolumeArchive* Volume::CreateVolumeArchive(const std::string& request_id,
     return NULL;
   }
 
+  // Pass VolumeReader ownership to VolumeArchive.
   VolumeArchive* volume_archive = new VolumeArchive(request_id, reader);
+
   // VolumeArchive::Init() will call READ_CHUNK for getting archive headers.
   worker_reads_in_progress_.insert(
       std::pair<std::string, VolumeArchive*>(request_id, volume_archive));

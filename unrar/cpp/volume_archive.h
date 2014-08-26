@@ -5,22 +5,32 @@
 #ifndef VOLUME_ARCHIVE_H_
 #define VOLUME_ARCHIVE_H_
 
-#include "volume_reader.h"
-
 #include <string>
 
 #include "archive.h"
 #include "ppapi/cpp/instance.h"
+#include "volume_reader.h"
+
+// Error messages specific to VolumeArchive.
+namespace volume_archive_errors {
+
+const char kArchiveReadNewError[] = "Could not allocate archive.";
+const char kArchiveSupportErrorPrefix[] = "Error at support rar/zip format: ";
+const char kArchiveOpenErrorPrefix[] = "Error at open archive: ";
+const char kArchiveNextHeaderErrorPrefix[] =
+    "Error at reading next header for metadata: ";
+const char kArchiveReadFreeErrorPrefix[] = "Error at archive free: ";
+
+}  // namespace volume_archive_errors
 
 // Defines a wrapper for libarchive operations.
 class VolumeArchive {
  public:
   // VolumeReader should be allocated with new and the memory handling should be
-  // handled by VolumeArchive.
-  explicit VolumeArchive(const std::string& request_id, VolumeReader* reader)
-      : request_id_(request_id), reader_(reader), archive_(NULL) {}
+  // done by VolumeArchive.
+  VolumeArchive(const std::string& request_id, VolumeReader* reader);
 
-  virtual ~VolumeArchive() {}
+  virtual ~VolumeArchive();
 
   // Initializes VolumeArchive. Should be called only once.
   // In case of any errors call VolumeArchive::Cleanup.

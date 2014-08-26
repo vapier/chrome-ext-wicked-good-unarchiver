@@ -19,9 +19,12 @@ LIBS = ppapi_simple nacl_io ppapi_cpp ppapi gtest gmock pthread
 
 CFLAGS = -Wall -Wno-sign-compare -I$(CODE_DIR)
 SOURCES = \
+  fake_lib_archive.cc \
   main.cc \
   $(CODE_DIR)/request.cc \
   request_test.cc \
+  $(CODE_DIR)/volume_archive.cc \
+  volume_archive_test.cc \
   $(CODE_DIR)/volume_reader_javascript_stream.cc \
   volume_reader_javascript_stream_test.cc
 
