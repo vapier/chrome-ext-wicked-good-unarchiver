@@ -36,3 +36,8 @@ $(eval $(call LINK_RULE,$(TARGET),$(SOURCES),$(LIBS),$(DEPS)))
 endif
 
 $(eval $(call NMF_RULE,$(TARGET),))
+
+# Debug rule for testing. make debug will try to run Chrome with index.html,
+# but there is no index.html.
+debug_for_tests: all
+DEBUG: debug_for_tests

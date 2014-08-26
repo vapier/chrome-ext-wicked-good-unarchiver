@@ -7,9 +7,9 @@ See https://code.google.com/p/naclports/wiki/HowTo_Checkout?tm=4
 Build the NaCl module.
 > cd unrar  # Location of the cloned files.
 > make  # For NaCl.
-> make debug  # For NaCl debug.
+> make debug_for_tests  # For NaCl debug.
 > make VALID_TOOLCHAINS=pnacl  # For PNaCl.
-> make VALID_TOOLCHAINS=pnacl debug  # For PNaCl debug.
+> make VALID_TOOLCHAINS=pnacl debug_for_tests  # For PNaCl debug.
 
 In order to use Release / Debug or NaCl / PNaCl see js/background for
 instructions.
