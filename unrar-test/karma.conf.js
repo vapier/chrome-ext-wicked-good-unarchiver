@@ -41,6 +41,10 @@ module.exports = function(config) {
       // Test files.
       {pattern: '../unrar-test/archives/*.rar', watched: false,
                 included: false, served: true},
+      {pattern: '../unrar-test/archives/*.zip', watched: false,
+                included: false, served: true},
+      '../unrar-test/js/integration_test_helper.js',  // Should be added before
+                                                      // the other tests.
       '../unrar-test/js/*.js'
     ],
 
@@ -60,7 +64,7 @@ module.exports = function(config) {
     reporters: ['progress'],
 
     /**
-     * Web server port. Update ARCHIVE_BASE_URL in integration_test.js if
+     * Web server port. Update ARCHIVE_BASE_URL in integration_test_helper.js if
      * modified.
      * @type {number}
      */
