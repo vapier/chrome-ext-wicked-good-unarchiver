@@ -11,40 +11,74 @@
  */
 var restoreCheck = function(volumeInformation) {
   var fileSystemId = volumeInformation.fileSystemId;
-  var suffix = 'for <' + volumeInformation.fileSystemId + '>';
+  var suffix = 'for <' + fileSystemId + '>';
 
-  // Call onGetMetatadaRequested, which should restore the volume state.
-  describe('and then calls onGetMetadataRequested ' + suffix, function() {
-    var rootMetadata;
+  // Call onGetMetatadaRequested, which should restore the volume state. Restore
+  // should work even in case of multiple requests that don't wait for the end
+  // of the previous requests.
+  describe('and then calls onGetMetadataRequested ' + suffix + ' several times',
+           function() {
+    var rootMetadataResult;
+    var promiseError;
 
     beforeEach(function(done) {
       expect(app.volumes[fileSystemId]).to.be.undefined;
 
-      var options = {
-        fileSystemId: fileSystemId,
-        entryPath: '/',  // Ask for root metadata.
-        requestId: 1
+      var createGetMetadataRequestPromise = function(requestId) {
+        return new Promise(function(fulfill, reject) {
+          var options = {
+            fileSystemId: fileSystemId,
+            requestId: requestId,
+            entryPath: '/'  // Ask for root metadata.
+          };
+
+          app.onGetMetadataRequested(options, function(entryMetadata) {
+            fulfill(entryMetadata);
+          }, function(error) {
+            reject('app.onGetMetadataRequested error: ' + error);
+          });
+        });
       };
 
-      app.onGetMetadataRequested(options, function(entryMetadata) {
-        rootMetadata = entryMetadata;
+      var promises = [
+        createGetMetadataRequestPromise(1),
+        createGetMetadataRequestPromise(2),
+        createGetMetadataRequestPromise(3),
+        createGetMetadataRequestPromise(4)
+      ];
+
+      Promise.all(promises).then(function(result) {
+        rootMetadataResult = result;
         done();
-      }, function() {
-        // Force failure, first 2 parameters don't matter.
-        assert.fail(undefined, undefined, 'Could not get entry metadata.');
+      }, function(error) {
+        promiseError = error;
         done();
       });
+    });
+
+    it('should not throw an error', function() {
+      if (promiseError)
+        console.error(promiseError.stack || promiseError);
+      expect(promiseError).to.be.undefined;
     });
 
     it('should load the volume', function() {
       expect(app.volumes[fileSystemId]).to.not.be.undefined;
     });
 
-    it('should return correct entry metadata', function() {
-      expect(rootMetadata).to.equal(app.volumes[fileSystemId].metadata);
+    it('should return correct metadata for all calls', function() {
+      // rootMetadataResult is undefined only if Promise.all doesn't
+      // successfully fulfill.
+      expect(rootMetadataResult).to.not.be.undefined;
+      rootMetadataResult.forEach(function(rootMetadata) {
+        expect(rootMetadata).to.equal(app.volumes[fileSystemId].metadata);
+      });
     });
 
     it('should call chrome.storage.local.get only once', function() {
+      // In case this is called multiple times then restore calls weren't
+      // chained. This holds only for restore calls made to the same file
+      // system.
       expect(chrome.storage.local.get.calledOnce).to.be.true;
     });
   });
@@ -57,8 +91,8 @@ var restoreCheck = function(volumeInformation) {
 
       var options = {
         fileSystemId: fileSystemId,
-        directoryPath: '/',  // Ask for root directory entries.
-        requestId: 1
+        requestId: 1,
+        directoryPath: '/'  // Ask for root directory entries.
       };
 
       app.onReadDirectoryRequested(options, function(entries) {
@@ -174,6 +208,18 @@ var unmountCheck = function(volumeInformation) {
   });
 };
 
+/**
+ * Simulates extension unload in case of suspend or restarts by clearing
+ * 'app' members. No need to remove the NaCl module. The reason is that we have
+ * to load the NaCl module manually by ourself anyway (in real scenarios the
+ * browser does it), so this will only take extra time without really testing
+ * anything.
+ */
+var unloadExtension = function() {
+  app.volumes = {};
+  app.volumeLoadedPromises = {};
+};
+
 // Init helper.
 // TODO(cmihail): Add tests for files inside small_rar.rar and small_zip.zip.
 var initPromise = tests_helper.init(['small_rar.rar', 'small_zip.zip']);
@@ -192,8 +238,8 @@ describe('Unpacker extension', function() {
       initPromise.then(function() {
         successfulTestsHelperInit = true;
         done();
-      }, function(error) {
-        console.error(error);
+      }).catch(function(error) {
+        console.error(error.stack || error);
         done();
       });
     });
@@ -226,7 +272,7 @@ describe('Unpacker extension', function() {
   });
 
   afterEach(function() {
-    app.volumes = {};  // Clear volumes.
+    unloadExtension();
   });
 
   // Check if volumes were correctly loaded.
@@ -260,10 +306,7 @@ describe('Unpacker extension', function() {
   describe('that receives a suspend page event', function() {
     beforeEach(function() {
       app.onSuspend();  // This gets called before suspend.
-      app.volumes = {};  // Removes all volumes from memory.
-      // No need to remove NaCl. The reason is that we have to load NaCl
-      // manually by ourself anyway (in real scenarios the browser does it),
-      // so this will only take extra time without really testing anything.
+      unloadExtension();
     });
 
     it('should call retainEntry again', function() {
@@ -289,7 +332,7 @@ describe('Unpacker extension', function() {
   // Test restore after restarts, crashes, etc.
   describe('that is restarted', function() {
     beforeEach(function() {
-      app.volumes = {};  // Removes all volumes from memory.
+      unloadExtension();
       app.onStartup();  // This gets called after restart.
 
       // Reset spies and stubs.
