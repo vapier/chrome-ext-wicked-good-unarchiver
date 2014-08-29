@@ -179,7 +179,7 @@ var unmountCheck = function(volumeInformation) {
 var initPromise = tests_helper.init(['small_rar.rar', 'small_zip.zip']);
 
 // Run tests.
-describe('Unrar extension', function() {
+describe('Unpacker extension', function() {
   var successfulTestsHelperInit = false;
 
   before(function(done) {

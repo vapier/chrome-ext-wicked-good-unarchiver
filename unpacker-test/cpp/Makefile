@@ -10,7 +10,7 @@ VALID_TOOLCHAINS := newlib pnacl
 NACL_SDK_ROOT ?= $(abspath $(CURDIR)/../../..)
 
 # The directory where the NaCl code to test is.
-CODE_DIR = ../../unrar/cpp
+CODE_DIR = ../../unpacker/cpp
 
 include $(NACL_SDK_ROOT)/tools/common.mk
 

@@ -4,7 +4,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-cd ../unrar/
+cd ../unpacker/
 make debug_for_tests
-cd ../unrar-test/
+cd ../unpacker-test/
 karma start

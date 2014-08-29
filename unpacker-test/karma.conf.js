@@ -14,7 +14,7 @@ module.exports = function(config) {
      * Base path that will be used to resolve all patterns (eg. files, exclude).
      * @type {string}
      */
-    basePath: '../unrar',
+    basePath: '../unpacker',
 
     /**
      * Frameworks to use. Available frameworks:
@@ -39,13 +39,13 @@ module.exports = function(config) {
       {pattern: 'js/*.js', watched: true, included: true, served: true},
 
       // Test files.
-      {pattern: '../unrar-test/archives/*.rar', watched: false,
+      {pattern: '../unpacker-test/archives/*.rar', watched: false,
                 included: false, served: true},
-      {pattern: '../unrar-test/archives/*.zip', watched: false,
+      {pattern: '../unpacker-test/archives/*.zip', watched: false,
                 included: false, served: true},
-      '../unrar-test/js/integration_test_helper.js',  // Should be added before
+      '../unpacker-test/js/integration_test_helper.js',  // Should be added before
                                                       // the other tests.
-      '../unrar-test/js/*.js'
+      '../unpacker-test/js/*.js'
     ],
 
     /**
@@ -110,7 +110,7 @@ module.exports = function(config) {
 
     /**
      * The browsers to start. Only 'Chrome-dev' defined above is required
-     * for the unrar extension.
+     * for the unpacker extension.
      * @type {Array.<string>}
      */
     browsers: ['Chrome-dev'],
