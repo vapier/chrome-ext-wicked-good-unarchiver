@@ -38,6 +38,8 @@ endif
 $(eval $(call NMF_RULE,$(TARGET),))
 
 # Debug rule for testing. make debug will try to run Chrome with index.html,
-# but there is no index.html.
+# but there is no index.html. Every rule that constains "debug" will build and
+# use the debug executables (see #line 113 from $NACL_SDK_ROOT/tools/common.mk
+# with findstring).
+.PHONY: debug_for_tests
 debug_for_tests: all
-DEBUG: debug_for_tests

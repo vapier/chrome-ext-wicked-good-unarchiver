@@ -176,7 +176,10 @@ class NaclArchiveInstance : public pp::Instance {
                 const std::string& request_id) {
     PP_DCHECK(var_dict.Get(request::key::kOpenRequestId).is_string());
     PP_DCHECK(var_dict.Get(request::key::kOffset).is_string());
+
     PP_DCHECK(var_dict.Get(request::key::kLength).is_int());
+    // TODO(cmihail): Make kLength a int64_t and add more PP_DCHECKs.
+    PP_DCHECK(var_dict.Get(request::key::kLength).AsInt() > 0);
 
     std::map<std::string, Volume*>::iterator it = volumes_.find(file_system_id);
     PP_DCHECK(it != volumes_.end());  // Should call ReadFile after OpenFile.

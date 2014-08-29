@@ -6,31 +6,12 @@
   found in the LICENSE file.
   -->
 <head>
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="-1">
   <title>Testing with gtest</title>
+  <script src="index.js"></script>
 </head>
 <body>
   <h1>Testing with gtest</h1>
-  <div id="listener">
-    <script>
-      var listener = document.getElementById('listener');
-      listener.addEventListener('load', function() {
-        window.close();  // Kill browser once NaCl module is loaded. Tests are
-                         // run when NaCl module is loading, so by the time we
-                         // get the 'load' event, tests were already run.
-      }, true);
-      // No need to handle messages from NaCl. Tests output is displayed only to
-      // stdout.
-    </script>
-
-    <!--
-      For NaCl use 'newlib/[Release|Debug]/module.nmf' as "src" and
-      'application/x-nacl' as mime type.
-      For PNaCl use 'pnacl/[Release|Debug]/module.nmf' as "src" and
-      and 'application/x-pnacl' as mime type.
-    !-->
-    <embed width=0 height=0
-           src="newlib/Release/main.nmf"
-           type="application/x-nacl" />
-  </div>
 </body>
 </html>

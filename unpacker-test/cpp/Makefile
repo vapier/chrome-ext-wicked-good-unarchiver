@@ -14,16 +14,29 @@ CODE_DIR = ../../unpacker/cpp
 
 include $(NACL_SDK_ROOT)/tools/common.mk
 
+# For NaCl use 'newlib/[Release|Debug]/module.nmf' as pathToNmfFile and
+# 'application/x-nacl' as mimeType.
+# For PNaCl use 'pnacl/[Release|Debug]/module.nmf' as pathToNmfFile and
+# and 'application/x-pnacl' as mimeType.
+TEST_PAGE = index.html
+
+# By default CONFIG is Release, but in case of using a rule that contains the
+# "debug" string it will be set to Debug. See $NACL_SDK_ROOT/tools/common.mk.
+TEST_PAGE_CONFIG = \
+  "$(TEST_PAGE)?pathToNmfFile=newlib/$(CONFIG)/main.nmf&mimeType=application/x-nacl"
+
 TARGET = main
 LIBS = ppapi_simple nacl_io ppapi_cpp ppapi gtest pthread
 
 CFLAGS = -Wall -Wno-sign-compare -I$(CODE_DIR)
 SOURCES = \
   fake_lib_archive.cc \
+  fake_volume_reader.cc \
   main.cc \
   $(CODE_DIR)/request.cc \
   request_test.cc \
   $(CODE_DIR)/volume_archive.cc \
+  volume_archive_read_test.cc \
   volume_archive_test.cc \
   $(CODE_DIR)/volume_reader_javascript_stream.cc \
   volume_reader_javascript_stream_test.cc
@@ -42,3 +55,18 @@ $(eval $(call LINK_RULE,$(TARGET),$(SOURCES),$(LIBS),$(DEPS)))
 endif
 
 $(eval $(call NMF_RULE,$(TARGET),))
+
+# Run tests. By default it will run the Release tests, but if used as a
+# dependency rule to debug_tests_run then it will run the Debug tests.
+.PHONY: tests_run
+tests_run: check_for_chrome all $(TEST_PAGE)
+	$(RUN_PY) -C $(CURDIR) -P $(TEST_PAGE_CONFIG) \
+	    $(addprefix -E ,$(CHROME_ENV)) -- $(CHROME_PATH_ESCAPE) \
+	    $(CHROME_ARGS) \
+	    --register-pepper-plugins="$(PPAPI_DEBUG),$(PPAPI_RELEASE)"
+
+# Run Debug tests. Every rule that contains "debug" will build and use the
+# debug executables (see #line 113 from $NACL_SDK_ROOT/tools/common.mk with
+# findstring).
+.PHONY: debug_tests_run
+debug_tests_run: tests_run

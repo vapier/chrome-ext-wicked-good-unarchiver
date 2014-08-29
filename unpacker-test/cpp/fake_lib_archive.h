@@ -8,17 +8,34 @@
 #ifndef FAKE_LIB_ARCHIVE_H_
 #define FAKE_LIB_ARCHIVE_H_
 
-#include <climits>
+#include <limits>
 
 #include "archive.h"
 
 // Variables used by libarchive in tests.
 namespace lib_archive_variables {
 
+// A fake error returned by libarchive in case of failures.
 const char kArchiveError[] = "An archive error.";
+
+// A fake path name for libarchive entries.
 const char kPathName[] = "path/to/file";  // Archives contain paths
                                           // without root "/".
-const int64_t kSize = LLONG_MAX - 50;     // Bigger than int32_t.
+
+// The fake archive data.
+const char kArchiveData[] =
+    "Fake data contained by the archive. Content is "
+    "not important and it is used strictly for testing.";
+
+// The maximum amount of data that can be read with a single archive_read_data
+// call. In case this threshold is passed archive_read_data will return
+// ARCHIVE_FATAL. This variable is used to simulate archive_read_data failures.
+const size_t kArchiveReadDataErrorThreshold = 1024;  // 1 KB.
+
+// The fake size for libarchive entries. Bigger than int32_t.
+const int64_t kSize = std::numeric_limits<int64_t>::max() - 50;
+
+// The fake modification time for libarchive entries.
 const time_t kModificationTime = 500;
 
 // Bool variables used to force failure responses for libarchive API.

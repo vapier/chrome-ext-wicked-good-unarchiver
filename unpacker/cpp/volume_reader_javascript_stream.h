@@ -15,6 +15,10 @@
 
 class VolumeReaderJavaScriptStream : public VolumeReader {
  public:
+  // request_id is used by requestor to ask for more data.
+  // archive_size is used by Seek method in order to seek from volume's
+  // archive end.
+  // requestor is used to request more data from JavaScript.
   VolumeReaderJavaScriptStream(const std::string& request_id,
                                int64_t archive_size,
                                JavaScriptRequestor* requestor);

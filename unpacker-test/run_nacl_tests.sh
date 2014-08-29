@@ -5,4 +5,18 @@
 # found in the LICENSE file.
 
 cd cpp
-make run
+
+# Run Release tests.
+echo "============================================="
+echo "============== Release tests ================"
+echo "============================================="
+echo ""
+make tests_run
+
+# Run Debug tests.
+echo ""
+echo "============================================="
+echo "=============== Debug tests ================="
+echo "============================================="
+echo ""
+make debug_tests_run

@@ -19,9 +19,12 @@ class VolumeReader {
   // specific to libarchive.
   virtual int Open() = 0;
 
-  // Tries to read bytes_to_read from the archive and store them at
-  // destination_buffer. The operation must be synchronous (libarchive
-  // requirement), so it should NOT be done on the main thread.
+  // Tries to read bytes_to_read from the archive. The result will be stored at
+  // *destination_buffer, which is the address of a buffer handled by
+  // VolumeReaderJavaScriptStream. *destination_buffer must be available until
+  // the next VolumeReader:Read call or until VolumeReader is destructed.
+  // The operation must be synchronous (libarchive requirement), so it
+  // should NOT be done on the main thread.
   // Returns the actual number of read bytes.
   virtual ssize_t Read(size_t bytes_to_read,
                        const void** destination_buffer) = 0;

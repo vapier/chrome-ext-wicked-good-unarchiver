@@ -5,16 +5,15 @@
 #include "volume_reader_javascript_stream.h"
 
 #include <pthread.h>
-#include <climits>
+#include <limits>
 #include <string>
 
 #include "gtest/gtest.h"
 
 namespace {
 
-const char kFileSystemId[] = "id";
+// The request id for which the VolumeReaderJavaScriptStream is created.
 const char kRequestId[] = "1";
-const int64_t kArchiveSize = LLONG_MAX - 100;  // Used to test values
 
 }  // namespace
 
@@ -73,18 +72,31 @@ class FakeJavaScriptRequestor : public JavaScriptRequestor {
   int32_t bytes_to_read_;
 };
 
-// Class used by TEST_F macro to initialize test environment.
+// Class used by TEST_F macro to initialize the environment for testing
+// VolumeReaderJavaScriptStream methods.
 class VolumeReaderJavaScriptStreamTest : public testing::Test {
  protected:
+  VolumeReaderJavaScriptStreamTest()
+      : kArchiveSize(std::numeric_limits<int64_t>::max() - 100),
+        fake_javascript_requestor(NULL), volume_reader(NULL) {}
+
   virtual void SetUp() {
+    fake_javascript_requestor = new FakeJavaScriptRequestor();
     volume_reader = new VolumeReaderJavaScriptStream(
-        std::string(kRequestId), kArchiveSize, &fake_javascript_requestor);
-    fake_javascript_requestor.SetVolumeReader(volume_reader);
+        std::string(kRequestId), kArchiveSize, fake_javascript_requestor);
+    fake_javascript_requestor->SetVolumeReader(volume_reader);
   }
 
-  virtual void TearDown() { delete volume_reader; }
+  virtual void TearDown() {
+    delete volume_reader;
+    volume_reader = NULL;
+    delete fake_javascript_requestor;
+    fake_javascript_requestor = NULL;
+  }
 
-  FakeJavaScriptRequestor fake_javascript_requestor;
+  // The volume's archive size. Used to test values greater than int32_t.
+  const int64_t kArchiveSize;
+  FakeJavaScriptRequestor* fake_javascript_requestor;
   VolumeReaderJavaScriptStream* volume_reader;
 };
 
@@ -100,8 +112,7 @@ TEST_F(VolumeReaderJavaScriptStreamTest, Skip) {
   EXPECT_EQ(1, volume_reader->offset());
 
   // Skip with value greater than int32_t.
-  int64_t bigBytesToSkipNum = INT_MAX;
-  bigBytesToSkipNum += 50;
+  int64_t bigBytesToSkipNum = std::numeric_limits<int32_t>::max() + 50;
   EXPECT_EQ(bigBytesToSkipNum, volume_reader->Skip(bigBytesToSkipNum));
   EXPECT_EQ(bigBytesToSkipNum + 1 /* +1 from first call. */,
             volume_reader->offset());
@@ -123,8 +134,7 @@ TEST_F(VolumeReaderJavaScriptStreamTest, Seek) {
   EXPECT_EQ(5, volume_reader->offset());
 
   // Seek from current with value greater than int32_t.
-  int64_t positiveSkipValue = INT_MAX;
-  positiveSkipValue += 50;
+  int64_t positiveSkipValue = std::numeric_limits<int32_t>::max() + 50;
   EXPECT_EQ(positiveSkipValue + 5 /* +5 from last Seek call. */,
             volume_reader->Seek(positiveSkipValue, SEEK_CUR));
   EXPECT_EQ(positiveSkipValue + 5, volume_reader->offset());
@@ -168,11 +178,11 @@ TEST_F(VolumeReaderJavaScriptStreamTest, Seek) {
 TEST_F(VolumeReaderJavaScriptStreamTest, Read) {
   EXPECT_EQ(0, volume_reader->offset());
 
-  pp::VarArrayBuffer array_buffer = fake_javascript_requestor.array_buffer();
+  pp::VarArrayBuffer array_buffer = fake_javascript_requestor->array_buffer();
   int32_t array_buffer_size = array_buffer.ByteLength();
 
   // Valid read with bytes_to_read = array_buffer_size.
-  const void* buffer;
+  const void* buffer = NULL;
   size_t bytes_to_read = array_buffer_size;
   int read_bytes = volume_reader->Read(bytes_to_read, &buffer);
   EXPECT_EQ(array_buffer_size, read_bytes);

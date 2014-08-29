@@ -4,72 +4,59 @@
 
 #include "volume_archive.h"
 
-#include <climits>
-
 #include "fake_lib_archive.h"
+#include "fake_volume_reader.h"
 #include "gtest/gtest.h"
 
 namespace {
 
+// The request id for which the tested VolumeArchive is created.
 const char kRequestId[] = "1";
 
 }  // namespace
 
-// A fake VolumeReader for libarchive custom functions for processing archives
-// data.
-class FakeVolumeReader : public VolumeReader {
- public:
-  // The calls to VolumeReader are tested by integration tests as they are used
-  // only by libarchive.
-  int Open() { return ARCHIVE_OK; }
-  ssize_t Read(size_t bytes_to_read, const void** destination_buffer) {
-    return 0;  // Not important.
-  }
-  int64_t Skip(int64_t bytes_to_skip) { return 0; /* Not important. */ }
-  int64_t Seek(int64_t offset, int whence) { return 0; /* Not important. */ }
-  int Close() { return ARCHIVE_OK; }
-};
-
-// Class used by TEST_F macro to initialize test environment.
+// Class used by TEST_F macro to initialize the environment for testing
+// VolumeArchive methods except for Read.
 class VolumeArchiveTest : public testing::Test {
  protected:
+  VolumeArchiveTest() : volume_archive(NULL) {}
+
   virtual void SetUp() {
     lib_archive_variables::ResetVariables();
-    fake_reader = new FakeVolumeReader();
-    volume_archive = new VolumeArchive(std::string(kRequestId), fake_reader);
+    // Pass FakeVolumeReader ownership to VolumeArchive.
+    volume_archive = new VolumeArchive(std::string(kRequestId),
+                                       new FakeVolumeReader());
   }
 
   virtual void TearDown() {
-    // fake_reader is deleted by VolumeArchive.
     volume_archive->Cleanup();
     delete volume_archive;
+    volume_archive = NULL;
   }
 
-  FakeVolumeReader* fake_reader;
   VolumeArchive* volume_archive;
 };
 
 TEST_F(VolumeArchiveTest, Constructor) {
   EXPECT_EQ(volume_archive->request_id(), kRequestId);
-  EXPECT_EQ(volume_archive->reader(), fake_reader);
 }
 
 TEST_F(VolumeArchiveTest, InitArchiveNewFailure) {
   // Test archive_read_new failure.
   lib_archive_variables::fail_archive_read_new = true;
   EXPECT_FALSE(volume_archive->Init());
-  EXPECT_EQ(volume_archive_errors::kArchiveReadNewError,
+  EXPECT_EQ(volume_archive_constants::kArchiveReadNewError,
             volume_archive->error_message());
 }
 
 TEST_F(VolumeArchiveTest, InitArchiveSupportFailures) {
-  std::string support_error =
-      std::string(volume_archive_errors::kArchiveSupportErrorPrefix) +
-      lib_archive_variables::kArchiveError;
-
   // Test rar support failure.
   lib_archive_variables::fail_archive_rar_support = true;
   EXPECT_FALSE(volume_archive->Init());
+
+  std::string support_error =
+      std::string(volume_archive_constants::kArchiveSupportErrorPrefix) +
+      lib_archive_variables::kArchiveError;
   EXPECT_EQ(support_error, volume_archive->error_message());
 
   // Test zip support failure.
@@ -80,13 +67,13 @@ TEST_F(VolumeArchiveTest, InitArchiveSupportFailures) {
 }
 
 TEST_F(VolumeArchiveTest, InitOpenFailures) {
-  std::string open_error =
-      std::string(volume_archive_errors::kArchiveOpenErrorPrefix) +
-      lib_archive_variables::kArchiveError;
-
   // Test set read callback failure.
   lib_archive_variables::fail_archive_set_read_callback = true;
   EXPECT_FALSE(volume_archive->Init());
+
+  std::string open_error =
+      std::string(volume_archive_constants::kArchiveOpenErrorPrefix) +
+      lib_archive_variables::kArchiveError;
   EXPECT_EQ(open_error, volume_archive->error_message());
 
   // Test set skip callback failure.
@@ -128,10 +115,10 @@ TEST_F(VolumeArchiveTest, InitSuccess) {
 TEST_F(VolumeArchiveTest, GetNextHeaderSuccess) {
   std::string expected_path_name =
       std::string(lib_archive_variables::kPathName);
-  const char* path_name;
-  int64_t size;
-  bool is_directory;
-  time_t modification_time;
+  const char* path_name = NULL;
+  int64_t size = 0;
+  bool is_directory = false;
+  time_t modification_time = 0;
 
   // Test GetNextHeader for files.
   lib_archive_variables::archive_read_next_header_return_value = ARCHIVE_OK;
@@ -162,10 +149,10 @@ TEST_F(VolumeArchiveTest, GetNextHeaderEndOfArchive) {
 
   // Test GetNextHeader when at the end of archive.
   lib_archive_variables::archive_read_next_header_return_value = ARCHIVE_EOF;
-  const char* pathname;
-  int64_t size;
-  bool is_directory;
-  time_t modification_time;
+  const char* pathname = NULL;
+  int64_t size = 0;
+  bool is_directory = false;
+  time_t modification_time = 0;
 
   EXPECT_TRUE(volume_archive->GetNextHeader(
       &pathname, &size, &is_directory, &modification_time));
@@ -173,20 +160,21 @@ TEST_F(VolumeArchiveTest, GetNextHeaderEndOfArchive) {
 }
 
 TEST_F(VolumeArchiveTest, GetNextHeaderFailure) {
-  std::string next_header_error =
-      std::string(volume_archive_errors::kArchiveNextHeaderErrorPrefix) +
-      lib_archive_variables::kArchiveError;
   EXPECT_TRUE(volume_archive->Init());
 
   // Test failure GetNextHeader.
   lib_archive_variables::archive_read_next_header_return_value = ARCHIVE_FATAL;
-  const char* pathname;
-  int64_t size;
-  bool is_directory;
-  time_t modification_time;
+  const char* pathname = NULL;
+  int64_t size = 0;
+  bool is_directory = false;
+  time_t modification_time = 0;
 
   EXPECT_FALSE(volume_archive->GetNextHeader(
       &pathname, &size, &is_directory, &modification_time));
+
+  std::string next_header_error =
+      std::string(volume_archive_constants::kArchiveNextHeaderErrorPrefix) +
+      lib_archive_variables::kArchiveError;
   EXPECT_EQ(next_header_error, volume_archive->error_message());
 }
 
@@ -196,22 +184,22 @@ TEST_F(VolumeArchiveTest, CleanupSuccess) {
 
   // Test successful Cleanup after successful Init.
   EXPECT_TRUE(volume_archive->Cleanup());
-  EXPECT_TRUE(volume_archive->reader() == NULL);
+  EXPECT_EQ(NULL, volume_archive->reader());
 }
 
 TEST_F(VolumeArchiveTest, CleanupFailure) {
-  std::string free_error =
-      std::string(volume_archive_errors::kArchiveReadFreeErrorPrefix) +
-      lib_archive_variables::kArchiveError;
-
   EXPECT_TRUE(volume_archive->reader() != NULL);
   EXPECT_TRUE(volume_archive->Init());
 
   // Test failure Cleanup after successful Init.
   lib_archive_variables::fail_archive_read_free = true;
   EXPECT_TRUE(!volume_archive->Cleanup());
+
+  std::string free_error =
+      std::string(volume_archive_constants::kArchiveReadFreeErrorPrefix) +
+      lib_archive_variables::kArchiveError;
   EXPECT_EQ(free_error, volume_archive->error_message());
-  EXPECT_TRUE(volume_archive->reader() == NULL);
+  EXPECT_EQ(NULL, volume_archive->reader());
 }
 
 TEST_F(VolumeArchiveTest, CleanupAfterCleanup) {
@@ -220,16 +208,16 @@ TEST_F(VolumeArchiveTest, CleanupAfterCleanup) {
 
   // Test Cleanup after Cleanup.
   EXPECT_TRUE(volume_archive->Cleanup());
-  EXPECT_TRUE(volume_archive->reader() == NULL);
+  EXPECT_EQ(NULL, volume_archive->reader());
 
   EXPECT_TRUE(volume_archive->Cleanup());
-  EXPECT_TRUE(volume_archive->reader() == NULL);
+  EXPECT_EQ(NULL, volume_archive->reader());
 
   // Cleanup is successful because archive_ was set to NULL by previous Cleanup
   // and archive_read_free will not be called in this case.
   lib_archive_variables::fail_archive_read_free = true;
   EXPECT_TRUE(volume_archive->Cleanup());
-  EXPECT_TRUE(volume_archive->reader() == NULL);
+  EXPECT_EQ(NULL, volume_archive->reader());
 }
 
 TEST_F(VolumeArchiveTest, CleanupAfterInitFailure) {
@@ -240,7 +228,5 @@ TEST_F(VolumeArchiveTest, CleanupAfterInitFailure) {
 
   // Test Cleanup after Init failure.
   EXPECT_TRUE(volume_archive->Cleanup());
-  EXPECT_TRUE(volume_archive->reader() == NULL);
+  EXPECT_EQ(NULL, volume_archive->reader());
 }
-
-// TODO(cmihail): Add tests for VolumeArchive::ReadData.

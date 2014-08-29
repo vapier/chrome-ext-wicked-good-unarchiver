@@ -4,7 +4,7 @@
 
 #include "request.h"
 
-#include <climits>
+#include <limits>
 #include <sstream>
 
 #include "gtest/gtest.h"
@@ -14,7 +14,6 @@ namespace {
 const char kFileSystemId[] = "id";
 const char kRequestId[] = "0";
 const char kError[] = "error";
-const int64_t kOffset = LLONG_MAX;  // Biggest int64_t.
 const int32_t kLength = 100;
 
 }  // namespace
@@ -43,8 +42,9 @@ TEST(request, CreateReadMetadataDoneResponse) {
 }
 
 TEST(request, CreateReadChunkRequest) {
+  int64_t expected_offset = std::numeric_limits<int64_t>::max();
   pp::VarDictionary read_chunk = request::CreateReadChunkRequest(
-      kFileSystemId, kRequestId, kOffset, kLength);
+      kFileSystemId, kRequestId, expected_offset, kLength);
 
   EXPECT_TRUE(read_chunk.Get(request::key::kOperation).is_int());
   EXPECT_EQ(request::READ_CHUNK,
@@ -61,7 +61,7 @@ TEST(request, CreateReadChunkRequest) {
   std::stringstream ss_offset(read_chunk.Get(request::key::kOffset).AsString());
   int64_t offset;
   ss_offset >> offset;
-  EXPECT_EQ(kOffset, offset);
+  EXPECT_EQ(expected_offset, offset);
 
   EXPECT_TRUE(read_chunk.Get(request::key::kLength).is_int());
   EXPECT_EQ(kLength, read_chunk.Get(request::key::kLength).AsInt());

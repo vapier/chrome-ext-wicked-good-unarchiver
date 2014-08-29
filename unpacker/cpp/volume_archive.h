@@ -12,15 +12,20 @@
 
 #include "volume_reader.h"
 
-// Error messages specific to VolumeArchive.
-namespace volume_archive_errors {
+// A namespace with constants used by VolumeArchive.
+namespace volume_archive_constants {
 
 const char kArchiveReadNewError[] = "Could not allocate archive.";
+const char kFileNotFound[] = "File not found for read data request.";
 const char kArchiveSupportErrorPrefix[] = "Error at support rar/zip format: ";
 const char kArchiveOpenErrorPrefix[] = "Error at open archive: ";
 const char kArchiveNextHeaderErrorPrefix[] =
     "Error at reading next header for metadata: ";
+const char kArchiveReadDataErrorPrefix[] = "Error at reading data: ";
 const char kArchiveReadFreeErrorPrefix[] = "Error at archive free: ";
+
+// Size of the buffer used to skip unnecessary data.
+static const int64_t kDummyBufferSize = 512 * 1024;
 
 }  // namespace volume_archive_errors
 
@@ -35,12 +40,15 @@ class VolumeArchive {
   virtual ~VolumeArchive();
 
   // Initializes VolumeArchive. Should be called only once.
-  // In case of any errors call VolumeArchive::Cleanup.
+  // In case of any errors call VolumeArchive::Cleanup and the error message can
+  // be obtained with VolumeArchive::error_message().
   bool Init();
 
-  // Gets the next header. If pathname is set to NULL, then there are no more
-  // available headers.
-  bool GetNextHeader(const char** pathname,
+  // Gets the next header. If pathn_ame is set to NULL, then there are no more
+  // available headers. Returns true if reading next header was successful.
+  // In case of failure the error message can be obtained with
+  // VolumeArchive::error_message().
+  bool GetNextHeader(const char** path_name,
                      int64_t* size,
                      bool* is_directory,
                      time_t* modification_time);
@@ -49,9 +57,17 @@ class VolumeArchive {
   // VolumeArchive::GetNextHeader. The data should be stored starting from
   // *buffer. In case offset is less then last VolumeArchive::ReadData
   // offset, then the read will be done from the start of the archive.
-  bool ReadData(int64_t ffset, int32_t length, char* buffer);
+  // The API assumes offset is valid. JavaScript shouldn't make requests with
+  // offset greater than data size.
+  // Returns true if reading was successful for all the required number of
+  // bytes. Length must be greater than 0.
+  // In case of failure the error message can be obtained with
+  // VolumeArchive::error_message().
+  bool ReadData(int64_t offset, int32_t length, char* buffer);
 
-  // Cleans all resources. Should be called only once.
+  // Cleans all resources. Should be called only once. Returns true if
+  // successful. In case of failure the error message can be obtained with
+  // VolumeArchive::error_message().
   bool Cleanup();
 
   std::string request_id() const {
@@ -64,15 +80,31 @@ class VolumeArchive {
   std::string request_id_;   // The request id for which the VolumeArchive was
                              // created.
   VolumeReader* reader_;     // The reader that actually reads the archive data.
-  struct archive* archive_;  // The libarchive correspondent archive struct.
+  archive* archive_;  // The libarchive correspondent archive object.
   std::string error_message_;  // An error message set in case of any errors.
 
   // The last reached entry with VolumeArchive::GetNextHeader.
-  struct archive_entry* current_archive_entry_;
+  archive_entry* current_archive_entry_;
+
   // The data offset, which will be offset + length after last read
   // operation, where offset and length are method parameters for
-  // VolumeArchive::ReadData.
-  int64_t data_offset_;
+  // VolumeArchive::ReadData. Data offset is used to improve performance for
+  // consecutive calls to VolumeArchive::ReadData. Intead of starting the read
+  // from beginning for every VolumeArchive::ReadData, the next call will start
+  // from last_read_data_offset_ in case the offset parameter of
+  // VolumeArchive::ReadData has the same value as last_read_data_offset_.
+  // This avoids decompressing again the bytes at the begninning of the file,
+  // which is the average case scenario. But in case the offset parameter is
+  // different than last_read_data_offset_, then dummy_buffer_ will be used to
+  // ignore unused bytes.
+  int64_t last_read_data_offset_;
+
+  // Dummy buffer for unused data read using VolumeArchive::ReadData. Sometimes
+  // VolumeArchive::ReadData can require reading from offsets different from
+  // last_read_data_offset_. In this case some bytes must be skipped.
+  // Because seeking is not possible inside compressed files, the bytes will
+  // be discarded using this buffer.
+  char dummy_buffer_[volume_archive_constants::kDummyBufferSize];
 };
 
 #endif  // VOLUME_ARCHIVE_H_
