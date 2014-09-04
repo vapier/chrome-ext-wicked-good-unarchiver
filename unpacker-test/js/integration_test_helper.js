@@ -55,7 +55,7 @@ var tests_helper = {
    * @private
    */
   getArchiveBlob_: function(archiveName, volumeInformation) {
-    return new Promise(function(resolve, reject) {
+    return new Promise(function(fulfill, reject) {
       var xhr = new XMLHttpRequest();
       xhr.open('GET', tests_helper.ARCHIVE_BASE_URL_ + archiveName);
       xhr.responseType = 'blob';
@@ -65,7 +65,7 @@ var tests_helper = {
           if (xhr.status === 200) {
             volumeInformation.entry.file =
                 sinon.stub().callsArgWith(0, xhr.response /* The blob. */);
-            resolve();
+            fulfill();
           } else {
             reject(xhr.statusText + ': ' + archiveName);
           }

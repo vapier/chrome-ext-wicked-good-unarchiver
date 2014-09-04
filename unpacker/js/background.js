@@ -32,7 +32,4 @@ chrome.fileSystemProvider.onReadFileRequested.addListener(
 // and 'application/x-nacl' as mime type.
 // For PNaCl use 'pnacl/[Release|Debug]/module.nmf' as configuration file path
 // and 'application/x-pnacl' as mime type.
-document.addEventListener('DOMContentLoaded', function() {
-  app.loadNaclModule('newlib/Debug/module.nmf', 'application/x-nacl');
-});
-
+app.loadNaclModule('newlib/Debug/module.nmf', 'application/x-nacl');

@@ -16,13 +16,20 @@ var app = {
   STORAGE_KEY: 'state',
 
   /**
-   *
    * Multiple volumes can be opened at the same time. The key is the
-   * fileSystemId, which is the same as the file's displayPath.
-   * The value is a Volume object.
+   * fileSystemId and the value is a Volume object.
    * @type {Object.<string, Volume>}
    */
   volumes: {},
+
+  /**
+   * A map with promises of loading a volume's metadata from NaCl where the key
+   * is the file system id. Any call from fileSystemProvider API should work
+   * only on valid metadata. These promises ensure that the fileSystemProvider
+   * API calls wait for the metatada load.
+   * @type {Object.<string, Promise>}
+   */
+  volumeLoadedPromises: {},
 
   /**
    * The NaCl module containing the logic for decompressing archives.
@@ -31,12 +38,11 @@ var app = {
   naclModule_: null,
 
   /**
-   * Function called on NaCl module's load. Registered by common.js.
-   * @private
+   * A Promise used to postpone all calls to fileSystemProvider API after
+   * the NaCl module loads.
+   * @type {Promise}
    */
-  moduleDidLoad_: function() {
-    app.naclModule_ = document.getElementById('nacl_module');
-  },
+  moduleLoadedPromise: null,
 
   /**
    * Function called on receiving a message from NaCl module. Registered by
@@ -90,29 +96,20 @@ var app = {
   },
 
   /**
-   * Restores metadata for the passed file system id.
+   * Restores archive's entry and opened files for the passed file system id.
    * @param {string} fileSystemId The file system id.
-   * @param {number} requestId The request id.
-   * @param {function()} onSuccess Callback to execute on success.
-   * @param {function(ProviderError)} onError Callback to execute on error.
+   * @param {function(Entry, Object.<number, string>)} onSuccessRestore Callback
+   *     to execute on success. The first parameter is the volume's archive
+   *     entry, while the second is the opened files before suspend event.
+   * @param {function(ProviderError)} onErrorRestore Callback to execute on
+   *     error.
    * @private
    */
-  restoreState_: function(fileSystemId, requestId, onSuccess, onError) {
-    // Check if metadata for the given file system is alread in memory.
-    var volume = app.volumes[fileSystemId];
-    if (volume) {
-      // TODO(cmihail): Move logic for isReady() inside volume.js.
-      // This is prone to race conditions after restarts. Checking isReady()
-      // here will fail to load the metadata.
-      // Below sometimes work (local files), but fails for Google Drive.
-      // Problem appears only after restarts, not onSuspend().
-      onSuccess();
-      return;
-    }
-
+  restoreVolumeState_: function(fileSystemId, onSuccessRestore,
+                                onErrorRestore) {
     chrome.storage.local.get([app.STORAGE_KEY], function(result) {
-      if (!app.naclModuleIsLoaded() || !result[app.STORAGE_KEY]) {
-        onError('FAILED');
+      if (!result[app.STORAGE_KEY]) {
+        onErrorRestore('FAILED');
         return;
       }
 
@@ -120,69 +117,103 @@ var app = {
       chrome.fileSystem.restoreEntry(volumeState.entryId, function(entry) {
         if (chrome.runtime.lastError) {
           console.error('Restore entry error: ' + chrome.runtime.lastError);
-          onError('FAILED');
+          onErrorRestore('FAILED');
           return;
         }
 
-        entry.file(function(file) {
-          app.loadVolume_(fileSystemId, entry, file, onSuccess, onError,
-              requestId, volumeState.openedFiles);
-        });
+        onSuccessRestore(entry, volumeState.openedFiles);
       });
     });
   },
 
   /**
-   * Creates a volume and loads its metadata.
-   * @param {string} fileSystemId The file system id of the volume to create.
-   * @param {Entry} entry The entry corresponding to the volume's archive.
-   * @param {File} file The file corresponding to entry.
-   * @param {function()} onSuccess Callback to execute on successful loading.
-   * @param {function(ProviderError)} onError Callback to execute on error.
-   * @param {number=} opt_requestId An optional request id. First load doesn't
-   *     require a request id, but any subsequent loads after suspends or
-   *     restarts should use the request id of the operation that called
-   *     restoreState_.
-   * @param {Object.<number, string>=} opt_openedFiles Previously opened files
-   *     before suspend or restart.
+   * Creates a volume and loads its metadata from NaCl.
+   * @param {string} fileSystemId The file system id.
+   * @param {Entry} entry The volume's archive entry.
+   * @param {function()} fulfillVolumeLoad The promise fulfill calback.
+   * @param {function(ProviderError)} rejectVolumeLoad The promise reject
+   *     callback.
+   * @param {Object.<number, string>} opt_openedFiles Previously opened files
+   *     before suspend.
    * @private
    */
-  loadVolume_: function(fileSystemId, entry, file, onSuccess, onError,
-                        opt_requestId, opt_openedFiles) {
-    // Operation already in progress. We must do the check here due to
-    // asynchronous calls.
-    if (app.volumes[fileSystemId]) {
-      onError('FAILED');
-      return;
-    }
+  loadVolume_: function(fileSystemId, entry, fulfillVolumeLoad,
+                        rejectVolumeLoad, opt_openedFiles) {
+    entry.file(function(file) {
+      // File is a Blob object, so it's ok to construct the Decompressor
+      // directly with it.
+      app.volumes[fileSystemId] =
+          new Volume(new Decompressor(app.naclModule_, fileSystemId, file),
+              entry, opt_openedFiles);
 
-    // File is a Blob object, so it's ok to construct the Decompressor directly
-    // with it.
-    app.volumes[fileSystemId] =
-        new Volume(new Decompressor(app.naclModule_, fileSystemId, file),
-                   entry, opt_openedFiles);
-    app.volumes[fileSystemId].readMetadata(function() {
-      opt_openedFiles = opt_openedFiles ? opt_openedFiles : {};
-      var totalOpenedFilesNum = Object.keys(opt_openedFiles).length;
-      if (totalOpenedFilesNum == 0) {  // No opened files.
-        onSuccess();
+      // Read metadata from NaCl.
+      var onReadMetadataSuccess = function() {
+        opt_openedFiles = opt_openedFiles ? opt_openedFiles : {};
+        if (Object.keys(opt_openedFiles).length == 0) {
+          fulfillVolumeLoad();
+          return;
+        }
+
+        // Restore opened files on NaCl side.
+        // TODO(cmihail): Implement this feature after integration tests are
+        // finished.
+        rejectVolumeLoad('INVALID_OPERATION');
+      };
+
+      app.volumes[fileSystemId].readMetadata(
+          onReadMetadataSuccess, rejectVolumeLoad);
+    });
+  },
+
+  /**
+   * Creates a promise to load a volume.
+   * @param {string} fileSystemId The file system id of the volume to create.
+   * @param {Entry=} entry The entry corresponding to the volume's archive. In
+   *     case this parameter is not supplied than entry must be restored from
+   *     volume state. This happens in case of restarts and suspends.
+   * @return {Promise} The load volume promise.
+   * @private
+   */
+  createVolumeLoadedPromise_: function(fileSystemId, opt_entry) {
+
+    return new Promise(function(fulfillVolumeLoad, rejectVolumeLoad) {
+      if (opt_entry) {  // Load volume on launch.
+        app.loadVolume_(
+            fileSystemId, opt_entry, fulfillVolumeLoad, rejectVolumeLoad);
         return;
       }
 
-      // Restore opened files on NaCl side.
-      var successfulOpenedFilesNum = 0;
-      for (var requestId in opt_openedFiles) {
-        app.onOpenFileRequested(opt_openedFiles[requestId], function() {
-          successfulOpenedFilesNum++;
-          if (successfulOpenedFilesNum == totalOpenedFilesNum)
-            onSuccess();
-        }, function() {
-          console.error('Failed to restore an opened file for fileSystemId: ' +
-                        fileSystemId + '.');
-          onError('FAILED');
-        });
+      // Load volume after restart / suspend page event.
+      app.restoreVolumeState_(fileSystemId, function(entry, openedFiles) {
+        app.loadVolume_(fileSystemId, entry, fulfillVolumeLoad,
+                        rejectVolumeLoad, openedFiles);
+      }, rejectVolumeLoad);
+    });
+  },
+
+  /**
+   * Restores a volume mounted previously to a suspend / restart.
+   * @param {string} fileSystemId The file system id.
+   * @return {Promise} A promise that restores state. The promise is rejected
+   *     with ProviderError.
+   * @private
+   */
+  restoreSingleVolume_: function(fileSystemId) {
+    return app.moduleLoadedPromise.then(function() {
+      if (!app.volumeLoadedPromises[fileSystemId]) {
+        app.volumeLoadedPromises[fileSystemId] =
+            app.createVolumeLoadedPromise_(fileSystemId /* No entry, so force
+                                                           restore. */);
       }
-    }, onError, opt_requestId);
+
+      return app.volumeLoadedPromises[fileSystemId];
+    }).catch(function(error) {
+      console.error(error.stack || error);
+      // Promise normally would reject with ProviderError, but in case of
+      // error.stack we have a programmer error. In this case is ok to return
+      // anything as this scenario shouldn't happen.
+      return Promise.reject(error);
+    });
   },
 
   /**
@@ -202,21 +233,29 @@ var app = {
    *     module load.
    */
   loadNaclModule: function(pathToConfigureFile, mimeType, opt_onModuleLoad) {
-    var elementDiv = document.createElement('div');
-    elementDiv.addEventListener('load', app.moduleDidLoad_, true);
-    elementDiv.addEventListener('message', app.handleMessage_, true);
-    if (opt_onModuleLoad)
-      elementDiv.addEventListener('load', opt_onModuleLoad, true);
+    app.moduleLoadedPromise = new Promise(function(fulfill) {
+      var elementDiv = document.createElement('div');
 
-    var elementEmbed = document.createElement('embed');
-    elementEmbed.id = 'nacl_module';
-    elementEmbed.style.width = 0;
-    elementEmbed.style.height = 0;
-    elementEmbed.src = pathToConfigureFile;
-    elementEmbed.type = mimeType;
-    elementDiv.appendChild(elementEmbed);
+      // Promise fulfills only after NaCl module has been loaded.
+      elementDiv.addEventListener('load', function() {
+        app.naclModule_ = document.getElementById('nacl_module');
+        fulfill();
+      }, true);
 
-    document.body.appendChild(elementDiv);
+      elementDiv.addEventListener('message', app.handleMessage_, true);
+      if (opt_onModuleLoad)
+        elementDiv.addEventListener('load', opt_onModuleLoad, true);
+
+      var elementEmbed = document.createElement('embed');
+      elementEmbed.id = 'nacl_module';
+      elementEmbed.style.width = 0;
+      elementEmbed.style.height = 0;
+      elementEmbed.src = pathToConfigureFile;
+      elementEmbed.type = mimeType;
+      elementDiv.appendChild(elementEmbed);
+
+      document.body.appendChild(elementDiv);
+    });
   },
 
   /**
@@ -233,16 +272,15 @@ var app = {
       return;
     }
 
-    chrome.fileSystemProvider.unmount({fileSystemId: fileSystemId},
-        function() {
-          app.naclModule_.postMessage(
-              request.createCloseVolumeRequest(fileSystemId));
-          delete app.volumes[fileSystemId];
-          app.saveState_();  // Remove volume from local storage state.
-          onSuccess();
-        }, function() {
-          onError('FAILED');
-        });
+    chrome.fileSystemProvider.unmount({fileSystemId: fileSystemId}, function() {
+      app.naclModule_.postMessage(
+          request.createCloseVolumeRequest(fileSystemId));
+      delete app.volumes[fileSystemId];
+      app.saveState_();  // Remove volume from local storage state.
+      onSuccess();
+    }, function() {
+      onError('FAILED');
+    });
   },
 
   /**
@@ -254,10 +292,10 @@ var app = {
    * @param {function(ProviderError)} onError Callback to execute on error.
    */
   onGetMetadataRequested: function(options, onSuccess, onError) {
-    app.restoreState_(options.fileSystemId, options.requestId, function() {
+    app.restoreSingleVolume_(options.fileSystemId).then(function() {
       app.volumes[options.fileSystemId].onGetMetadataRequested(
           options, onSuccess, onError);
-    }, onError);
+    }).catch(onError);
   },
 
   /**
@@ -271,10 +309,10 @@ var app = {
    * @param {function(ProviderError)} onError Callback to execute on error.
    */
   onReadDirectoryRequested: function(options, onSuccess, onError) {
-    app.restoreState_(options.fileSystemId, options.requestId, function() {
+    app.restoreSingleVolume_(options.fileSystemId).then(function() {
       app.volumes[options.fileSystemId].onReadDirectoryRequested(
           options, onSuccess, onError);
-    }, onError);
+    }).catch(onError);
   },
 
   /**
@@ -285,10 +323,10 @@ var app = {
    * @param {function(ProviderError)} onError Callback to execute on error.
    */
   onOpenFileRequested: function(options, onSuccess, onError) {
-    app.restoreState_(options.fileSystemId, options.requestId, function() {
+    app.restoreSingleVolume_(options.fileSystemId).then(function() {
       app.volumes[options.fileSystemId].onOpenFileRequested(
           options, onSuccess, onError);
-    }, onError);
+    }).catch(onError);
   },
 
   /**
@@ -299,10 +337,10 @@ var app = {
    * @param {function(ProviderError)} onError Callback to execute on error.
    */
   onCloseFileRequested: function(options, onSuccess, onError) {
-    app.restoreState_(options.fileSystemId, options.requestId, function() {
+    app.restoreSingleVolume_(options.fileSystemId).then(function() {
       app.volumes[options.fileSystemId].onCloseFileRequested(
           options, onSuccess, onError);
-    }, onError);
+    }).catch(onError);
   },
 
   /**
@@ -316,16 +354,16 @@ var app = {
    * @param {function(ProviderError)} onError Callback to execute on error.
    */
   onReadFileRequested: function(options, onSuccess, onError) {
-    app.restoreState_(options.fileSystemId, options.requestId, function() {
+    app.restoreSingleVolume_(options.fileSystemId).then(function() {
       app.volumes[options.fileSystemId].onReadFileRequested(
           options, onSuccess, onError);
-    });
+    }).catch(onError);
   },
 
   /**
    * Creates a volume for every opened file with the extension or mime type
    * declared in the manifest file.
-   * @param {Object} launchData The data pased on launch.
+   * @param {Object} launchData The data passed on launch.
    * @param {function(string)=} opt_onSuccess Callback to execute in case a
    *     volume was loaded successfully. Has one parameter, which is the file
    *     system id of the loaded volume. Can be called multiple times, depending
@@ -336,37 +374,43 @@ var app = {
    *     times, depending on how many volumes must be loaded.
    */
   onLaunched: function(launchData, opt_onSuccess, opt_onError) {
-    if (!app.naclModuleIsLoaded()) {
-      console.warn('Module not loaded yet.');
-      return;
-    }
+    app.moduleLoadedPromise.then(function() {
+      launchData.items.forEach(function(item) {
+        chrome.fileSystem.getDisplayPath(item.entry, function(fileSystemId) {
+          if (app.volumeLoadedPromises[fileSystemId]) {
+            console.warn('Volume is loading or already loaded.');
+            return;
+          }
 
-    launchData.items.forEach(function(item) {
-      chrome.fileSystem.getDisplayPath(item.entry, function(displayPath) {
-        item.entry.file(function(file) {
-          app.loadVolume_(displayPath, item.entry, file, function() {
+          var promise = app.createVolumeLoadedPromise_(
+              fileSystemId, item.entry).then(function() {
             // Mount the volume and save its information in local storage
             // in order to be able to recover the metadata in case of
             // restarts, system crashes, etc.
             chrome.fileSystemProvider.mount(
-                {fileSystemId: displayPath, displayName: item.entry.name},
+                {fileSystemId: fileSystemId, displayName: item.entry.name},
                 function() {
                   app.saveState_();
                   if (opt_onSuccess)
-                    opt_onSuccess(displayPath);
+                    opt_onSuccess(fileSystemId);
                 },
                 function() {
                   console.error('Failed to mount.');
                   if (opt_onError)
-                    opt_onError(displayPath);
+                    opt_onError(fileSystemId);
                 });
-          }, function(error) {
-            console.error('Unable to read metadata: ' + error + '.');
+          }).catch(function(error) {
+            console.error(error.stack || error);
             if (opt_onError)
-              opt_onError(displayPath);
+              opt_onError(fileSystemId);
+            return Promise.reject(error);
           });
+
+          app.volumeLoadedPromises[fileSystemId] = promise;
         });
       });
+    }).catch(function(error) {
+      console.error(error.stack || error);
     });
   },
 

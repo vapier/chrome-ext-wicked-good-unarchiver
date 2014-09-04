@@ -147,7 +147,8 @@ Decompressor.prototype.processMessage = function(data, operation, requestId) {
   // Create a request reference for asynchronous calls as sometimes we delete
   // some requestsInProgress from this.requestsInProgress.
   var requestInProgress = this.requestsInProgress[requestId];
-  console.assert(requestInProgress, 'No request for: ' + requestId + '.');
+  console.assert(requestInProgress, 'No request with id <' + requestId +
+                                        '> for: ' + this.fileSystemId_ + '.');
 
   switch (operation) {
     case request.Operation.READ_METADATA_DONE:

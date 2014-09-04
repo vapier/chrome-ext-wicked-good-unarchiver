@@ -68,6 +68,13 @@ function Volume(decompressor, entry, opt_openedFiles) {
    * @type {Object.<number, string>}
    */
   this.openedFiles = opt_openedFiles ? opt_openedFiles : {};
+
+  /**
+   * The default read metadata request id. -1 is ok as the request ids used by
+   * flleSystemProvider are greater than 0.
+   * @type {number}
+   */
+  this.DEFAULT_READ_METADATA_REQUEST_ID = -1;
 }
 
 /**
@@ -86,17 +93,14 @@ Volume.prototype.inUse = function() {
 };
 
 /**
- * Reads the metadata of the volume. A single call is sufficient.
+ * Reads the metadata of the volume. Should NOT be done in parallel with other
+ * readMetadata for the same volume, but it's ok to do it in parallel with
+ * readMetadata for other volumes.
  * @param {function()} onSuccess Callback to execute on success.
  * @param {function(ProviderError)} onError Callback to execute on error.
- * @param {number=} opt_requestId Request id is optional for the case of
- *     mounting the volume. Should NOT be used for other case scenarios as
- *     this function doesn't ensure a unique requestId with every call.
  */
-Volume.prototype.readMetadata = function(onSuccess, onError, opt_requestId) {
-  // -1 is ok as usually the request_ids used by flleSystemProvider are greater
-  // than 0.
-  var requestId = opt_requestId ? opt_requestId : -1;
+Volume.prototype.readMetadata = function(onSuccess, onError) {
+  var requestId = this.DEFAULT_READ_METADATA_REQUEST_ID;
   this.decompressor.readMetadata(requestId, function(metadata) {
     // Make a deep copy of metadata.
     this.metadata = JSON.parse(JSON.stringify(metadata));
@@ -160,9 +164,13 @@ Volume.prototype.onReadDirectoryRequested = function(options, onSuccess,
  * @param {function(ProviderError)} onError Callback to execute on error.
  */
 Volume.prototype.onOpenFileRequested = function(options, onSuccess, onError) {
-  if (options.mode != 'READ' || options.create ||
-      !this.getEntryMetadata_(options.filePath)) {
+  if (options.mode != 'READ' || options.create) {
     onError('INVALID_OPERATION');
+    return;
+  }
+
+  if (!this.getEntryMetadata_(options.filePath)) {
+    onError('NOT_FOUND');
     return;
   }
 
