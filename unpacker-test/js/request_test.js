@@ -30,6 +30,12 @@ describe('On calling', function() {
   var CHUNK_BUFFER = new ArrayBuffer(5);
 
   /**
+   * @type {number}
+   * @const
+   */
+  var CHUNK_OFFSET = 150;
+
+  /**
    * @type {string}
    * @const
    */
@@ -93,7 +99,7 @@ describe('On calling', function() {
     var readChunkDoneReponse;
     beforeEach(function() {
       readChunkDoneReponse = request.createReadChunkDoneResponse(
-          FILE_SYSTEM_ID, REQUEST_ID, CHUNK_BUFFER);
+          FILE_SYSTEM_ID, REQUEST_ID, CHUNK_BUFFER, CHUNK_OFFSET);
     });
 
     it('with READ_CHUNK_DONE as operation', function() {
@@ -114,6 +120,11 @@ describe('On calling', function() {
     it('with correct chunk buffer', function() {
       expect(readChunkDoneReponse[request.Key.CHUNK_BUFFER])
           .to.equal(CHUNK_BUFFER);
+    });
+
+    it('with correct chunk offset', function() {
+      expect(readChunkDoneReponse[request.Key.OFFSET])
+          .to.equal(CHUNK_OFFSET.toString());
     });
   });
 

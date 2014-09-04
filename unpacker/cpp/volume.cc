@@ -115,7 +115,7 @@ class VolumeJavaScriptRequestor : public JavaScriptRequestor {
 
   virtual void RequestFileChunk(const std::string& request_id,
                                 int64_t offset,
-                                int32_t bytes_to_read) {
+                                size_t bytes_to_read) {
     volume_->instance()->PostMessage(request::CreateReadChunkRequest(
         volume_->file_system_id(), request_id, offset, bytes_to_read));
   }
@@ -179,17 +179,29 @@ void Volume::ReadFile(const std::string& request_id,
 }
 
 void Volume::ReadChunkDone(const std::string& request_id,
-                           const pp::VarArrayBuffer& array_buffer) {
+                           const pp::VarArrayBuffer& array_buffer,
+                           int64_t read_offset) {
+  // It is possible that the corresponing VolumeArchive was removed from map
+  // before receiving the chunk. This can happen for ReadAhead responses
+  // received after a CloseFile event. This is a common scenario for archives
+  // in archives where VolumeReaderJavaScriptStream makes ReadAhead calls that
+  // might not be used.
   VolumeArchive* volume_archive = GetVolumeArchive(request_id);
+  if (!volume_archive)
+    return;
+
   // ReadChunkDone should be called only for VolumeReaderJavaScriptStream.
   VolumeReaderJavaScriptStream* volume_reader =
       static_cast<VolumeReaderJavaScriptStream*>(volume_archive->reader());
 
-  volume_reader->SetBufferAndSignal(array_buffer);
+  volume_reader->SetBufferAndSignal(array_buffer, read_offset);
 }
 
 void Volume::ReadChunkError(const std::string& request_id) {
   VolumeArchive* volume_archive = GetVolumeArchive(request_id);
+  if (!volume_archive)
+    return;
+
   // ReadChunkError should be called only for VolumeReaderJavaScriptStream.
   VolumeReaderJavaScriptStream* volume_reader =
       static_cast<VolumeReaderJavaScriptStream*>(volume_archive->reader());
@@ -290,6 +302,10 @@ void Volume::CloseFileCallback(int32_t /*result*/,
   // Obtain the VolumeArchive for the opened file using open_request_id.
   // The volume should have been created using Volume::OpenFile.
   VolumeArchive* volume_archive = GetVolumeArchive(open_request_id);
+  PP_DCHECK(volume_archive);  // Close file should be called only for
+                              // opened files that have a corresponding
+                              // VolumeArchive.
+
   if (!CleanupVolumeArchive(volume_archive, false)) {
     // Error send using request_id, not open_request_id.
     PostFileSystemError(volume_archive->error_message(),
@@ -316,6 +332,9 @@ void Volume::ReadFileCallback(int32_t /*result*/,
   // should be send to JavaScript using request_id, NOT open_request_id.
   VolumeArchive* volume_archive =
       GetVolumeArchive(open_request_id /* The opened file request id. */);
+  PP_DCHECK(volume_archive);  // Read file should be called only for
+                              // opened files that have a corresponding
+                              // VolumeArchive.
 
   // Decompress data and send it to JavaScript. In case length is too big, we
   // will send multiple chunks with limit kReadBufferSizeMax per chunk in
@@ -331,6 +350,7 @@ void Volume::ReadFileCallback(int32_t /*result*/,
       buffer_size = length;
     }
 
+    // Read decompressed data.
     pp::VarArrayBuffer array_buffer(buffer_size);
     char* array_buffer_data = static_cast<char*>(array_buffer.Map());
 
@@ -344,8 +364,10 @@ void Volume::ReadFileCallback(int32_t /*result*/,
                           instance_);
       // Should not cleanup VolumeArchive as Volume::CloseFile will be called in
       // case of failure.
+      array_buffer.Unmap();
       return;
     }
+    array_buffer.Unmap();
 
     // Send response back to ReadFile request.
     instance_->PostMessage(request::CreateReadFileDoneResponse(
@@ -408,6 +430,7 @@ VolumeArchive* Volume::GetVolumeArchive(const std::string& request_id) {
   std::map<std::string, VolumeArchive*>::iterator it =
       worker_reads_in_progress_.find(request_id);
 
-  PP_DCHECK(it != worker_reads_in_progress_.end());
+  if (it == worker_reads_in_progress_.end())
+    return NULL;
   return it->second;
 }

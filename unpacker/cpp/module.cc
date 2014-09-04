@@ -123,9 +123,13 @@ class NaclArchiveInstance : public pp::Instance {
     PP_DCHECK(var_dict.Get(request::key::kChunkBuffer).is_array_buffer());
     pp::VarArrayBuffer array_buffer(var_dict.Get(request::key::kChunkBuffer));
 
+    PP_DCHECK(var_dict.Get(request::key::kOffset).is_string());
+    int64_t read_offset =
+        request::GetInt64FromString(var_dict, request::key::kOffset);
+
     std::map<std::string, Volume*>::iterator it = volumes_.find(file_system_id);
     if (it != volumes_.end()) {
-      it->second->ReadChunkDone(request_id, array_buffer);
+      it->second->ReadChunkDone(request_id, array_buffer, read_offset);
     } else {
       PostMessage(request::CreateFileSystemError(
           "No Volume for this file system", file_system_id, request_id));

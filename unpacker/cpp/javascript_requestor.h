@@ -16,7 +16,7 @@ class JavaScriptRequestor {
   // Request a file chunk from JavaScript. The request is asynchronous.
   virtual void RequestFileChunk(const std::string& request_id,
                                 int64_t offset,
-                                int32_t bytes_to_read) = 0;
+                                size_t bytes_to_read) = 0;
 };
 
 #endif  // JAVASCRIPT_REQUESTOR_H_

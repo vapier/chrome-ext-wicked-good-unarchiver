@@ -13,6 +13,8 @@
 
 namespace {
 
+// TODO(cmihail): Instead of requesting a fix size, request the size of headers
+// or file to decompress. See crbug.com/411792.
 const size_t kChunkSize = 512 * 1024;  // 512 KB.
 
 inline std::string ArchiveError(const std::string& message,
@@ -124,7 +126,7 @@ bool VolumeArchive::ReadData(int64_t offset, int32_t length, char* buffer) {
   // The logic will be more complicated because archive_read_data_block offset
   // will not be aligned with the offset of the read request from JavaScript.
 
-  PP_DCHECK(length > 0);  // Length must be at least 1.
+  PP_DCHECK(length > 0);              // Length must be at least 1.
   PP_DCHECK(current_archive_entry_);  // Check that GetNextHeader was called at
                                       // least once. In case it wasn't, this is
                                       // a programmer error.

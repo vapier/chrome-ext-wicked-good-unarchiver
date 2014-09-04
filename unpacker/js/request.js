@@ -94,12 +94,17 @@ var request = {
    * @param {string} fileSystemId The file system id.
    * @param {number} requestId The response key.
    * @param {ArrayBuffer} buffer A buffer containing the data that was read.
+   * @param {number} readOffset The offset from where buffer starts. This is
+   *     required for distinguishing multiple read chunk requests done in
+   *     parallel for different offsets.
    * @return {Object} A read chunk done response.
    */
-  createReadChunkDoneResponse: function(fileSystemId, requestId, buffer) {
+  createReadChunkDoneResponse: function(fileSystemId, requestId, buffer,
+                                        readOffset) {
     var response = request.createBasic_(request.Operation.READ_CHUNK_DONE,
                                         fileSystemId, requestId);
     response[request.Key.CHUNK_BUFFER] = buffer;
+    response[request.Key.OFFSET] = readOffset.toString();
     return response;
   },
 

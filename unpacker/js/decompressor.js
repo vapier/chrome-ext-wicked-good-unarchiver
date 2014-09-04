@@ -230,7 +230,7 @@ Decompressor.prototype.readChunk_ = function(data, requestId) {
 
   fileReader.onload = function(event) {
     decompressor.naclModule_.postMessage(request.createReadChunkDoneResponse(
-        decompressor.fileSystemId_, requestId, event.target.result));
+        decompressor.fileSystemId_, requestId, event.target.result, offset));
   };
 
   fileReader.onerror = function(event) {

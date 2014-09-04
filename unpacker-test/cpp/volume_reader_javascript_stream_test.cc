@@ -4,11 +4,14 @@
 
 #include "volume_reader_javascript_stream.h"
 
-#include <pthread.h>
 #include <limits>
 #include <string>
 
 #include "gtest/gtest.h"
+#include "ppapi/cpp/instance_handle.h"
+#include "ppapi/utility/threading/simple_thread.h"
+#include "ppapi/utility/completion_callback_factory.h"
+#include "ppapi_simple/ps_main.h"
 
 namespace {
 
@@ -21,55 +24,78 @@ const char kRequestId[] = "1";
 // VolumeReaderJavaScriptStream::Read.
 class FakeJavaScriptRequestor : public JavaScriptRequestor {
  public:
-  FakeJavaScriptRequestor() : volume_reader_(NULL), array_buffer_(50) {}
+  explicit FakeJavaScriptRequestor(pp::InstanceHandle instance_handle)
+      : volume_reader_(NULL),
+        array_buffer_(50),
+        worker_(instance_handle),
+        callback_factory_(this),
+        force_failure_(false) {
+    void* data = array_buffer_.Map();
+    memset(data, 1, array_buffer_.ByteLength());
+    array_buffer_.Unmap();
+  }
 
-  virtual ~FakeJavaScriptRequestor() {}
+  virtual ~FakeJavaScriptRequestor() { worker_.Join(); }
+
+  bool Init() { return worker_.Start(); }
 
   void RequestFileChunk(const std::string& request_id,
                         int64_t offset,
-                        int32_t bytes_to_read) {
-    offset_ = offset;
-    bytes_to_read_ = bytes_to_read;
-    pthread_create(&thread_,
-                   NULL,
-                   FakeJavaScriptRequestor::RequestFileChunkCallback,
-                   this);
-    // No need to call pthread_join(thread_, NULL) because VolumeReader will
-    // block itself anyway until the callback ends.
+                        size_t bytes_to_read) {
+    worker_.message_loop().PostWork(callback_factory_.NewCallback(
+        &FakeJavaScriptRequestor::RequestFileChunkCallback,
+        offset,
+        bytes_to_read));
   }
 
   void SetVolumeReader(VolumeReaderJavaScriptStream* volume_reader) {
     volume_reader_ = volume_reader;
   }
 
+  void set_force_failure(bool force_failure) { force_failure_ = force_failure; }
+
   pp::VarArrayBuffer array_buffer() const { return array_buffer_; }
 
  private:
-  static void* RequestFileChunkCallback(void* requestor) {
-    FakeJavaScriptRequestor* fake_requestor =
-        static_cast<FakeJavaScriptRequestor*>(requestor);
-
-    int buffer_size = fake_requestor->array_buffer_.ByteLength();
-    // These conditions do not apply in real scenarios, but we need a reason to
-    // force failure.
-    if (fake_requestor->offset_ < 0 ||
-        buffer_size > fake_requestor->bytes_to_read_) {
-      fake_requestor->volume_reader_->ReadErrorSignal();
-      return 0;
+  void RequestFileChunkCallback(int32_t /*result*/,
+                                int64_t offset,
+                                size_t bytes_to_read) {
+    if (offset < 0 || force_failure_) {
+      volume_reader_->ReadErrorSignal();
+      return;
     }
 
-    fake_requestor->volume_reader_->SetBufferAndSignal(
-        fake_requestor->array_buffer_);
-    return 0;
+    size_t array_buffer_size = array_buffer_.ByteLength();
+    if (offset >= array_buffer_size) {
+      // Nothing left to read so return empty buffer.
+      volume_reader_->SetBufferAndSignal(pp::VarArrayBuffer(0), offset);
+    } else {
+      // We checked above for negative offsets and offsets > array buffer size
+      // so this should be safe.
+      size_t left_size = array_buffer_size - static_cast<size_t>(offset);
+      pp::VarArrayBuffer buffer_to_set(left_size);
+
+      char* data = static_cast<char*>(buffer_to_set.Map());
+      char* array_buffer_data = static_cast<char*>(array_buffer_.Map());
+      memcpy(data, array_buffer_data + offset, left_size);
+      buffer_to_set.Unmap();
+      array_buffer_.Unmap();
+
+      volume_reader_->SetBufferAndSignal(buffer_to_set, offset);
+    }
   }
 
-  pthread_t thread_;
   VolumeReaderJavaScriptStream* volume_reader_;
+  // Content can be junk. Not important as long as buffer has size > 0. See
+  // constructor.
+  pp::VarArrayBuffer array_buffer_;
 
-  pp::VarArrayBuffer array_buffer_;  // Content can be junk. Not important if
-                                     // buffer has size > 0. See constructor.
-  int64_t offset_;
-  int32_t bytes_to_read_;
+  // Worker to execute requests on a different thread. See
+  // VolumeReaderJavaScriptStream method comments.
+  pp::SimpleThread worker_;
+  pp::CompletionCallbackFactory<FakeJavaScriptRequestor> callback_factory_;
+
+  bool force_failure_;
 };
 
 // Class used by TEST_F macro to initialize the environment for testing
@@ -78,13 +104,18 @@ class VolumeReaderJavaScriptStreamTest : public testing::Test {
  protected:
   VolumeReaderJavaScriptStreamTest()
       : kArchiveSize(std::numeric_limits<int64_t>::max() - 100),
-        fake_javascript_requestor(NULL), volume_reader(NULL) {}
+        fake_javascript_requestor(NULL),
+        volume_reader(NULL),
+        instance_handle(PSGetInstanceId()) {}
 
   virtual void SetUp() {
-    fake_javascript_requestor = new FakeJavaScriptRequestor();
+    fake_javascript_requestor = new FakeJavaScriptRequestor(instance_handle);
+    ASSERT_TRUE(fake_javascript_requestor->Init());
+
     volume_reader = new VolumeReaderJavaScriptStream(
         std::string(kRequestId), kArchiveSize, fake_javascript_requestor);
     fake_javascript_requestor->SetVolumeReader(volume_reader);
+    ASSERT_EQ(0, volume_reader->offset());
   }
 
   virtual void TearDown() {
@@ -98,29 +129,40 @@ class VolumeReaderJavaScriptStreamTest : public testing::Test {
   const int64_t kArchiveSize;
   FakeJavaScriptRequestor* fake_javascript_requestor;
   VolumeReaderJavaScriptStream* volume_reader;
+  pp::InstanceHandle instance_handle;
 };
 
 TEST_F(VolumeReaderJavaScriptStreamTest, Open) {
   EXPECT_EQ(ARCHIVE_OK, volume_reader->Open());
 }
 
-TEST_F(VolumeReaderJavaScriptStreamTest, Skip) {
-  EXPECT_EQ(0, volume_reader->offset());
-
+TEST_F(VolumeReaderJavaScriptStreamTest, SmallSkip) {
   // Skip with value smaller than int32_t.
   EXPECT_EQ(1, volume_reader->Skip(1));
   EXPECT_EQ(1, volume_reader->offset());
+}
 
-  // Skip with value greater than int32_t.
-  int64_t bigBytesToSkipNum = std::numeric_limits<int32_t>::max() + 50;
+TEST_F(VolumeReaderJavaScriptStreamTest, BigSkip) {
+  // Skip with value greater than int32_t but less than archive size.
+  int64_t bigBytesToSkipNum = kArchiveSize - 50;  // See kArchiveSize value.
   EXPECT_EQ(bigBytesToSkipNum, volume_reader->Skip(bigBytesToSkipNum));
-  EXPECT_EQ(bigBytesToSkipNum + 1 /* +1 from first call. */,
-            volume_reader->offset());
+  EXPECT_EQ(bigBytesToSkipNum, volume_reader->offset());
+}
+
+// If read_ahead_length has an invalid length then Skip will return 0.
+TEST_F(VolumeReaderJavaScriptStreamTest, ZeroSkip) {
+  // Skip with value greater than archive size but less han int64_t max value.
+  int64_t veryBigBytesToSkipNum = kArchiveSize + 50;  // See kArchiveSize value.
+  EXPECT_EQ(0, volume_reader->Skip(veryBigBytesToSkipNum));
+  EXPECT_EQ(0, volume_reader->offset());
+
+  // Can't skip backwards.
+  int64_t invalidSkipNum = -1;  // See kArchiveSize value.
+  EXPECT_EQ(0, volume_reader->Skip(invalidSkipNum));
+  EXPECT_EQ(0, volume_reader->offset());
 }
 
 TEST_F(VolumeReaderJavaScriptStreamTest, Seek) {
-  EXPECT_EQ(0, volume_reader->offset());
-
   // Seek from start.
   EXPECT_EQ(10, volume_reader->Seek(10, SEEK_SET));
   EXPECT_EQ(10, volume_reader->offset());
@@ -134,7 +176,7 @@ TEST_F(VolumeReaderJavaScriptStreamTest, Seek) {
   EXPECT_EQ(5, volume_reader->offset());
 
   // Seek from current with value greater than int32_t.
-  int64_t positiveSkipValue = std::numeric_limits<int32_t>::max() + 50;
+  int64_t positiveSkipValue = kArchiveSize - 50;  // See kArchiveSize value.
   EXPECT_EQ(positiveSkipValue + 5 /* +5 from last Seek call. */,
             volume_reader->Seek(positiveSkipValue, SEEK_CUR));
   EXPECT_EQ(positiveSkipValue + 5, volume_reader->offset());
@@ -169,45 +211,114 @@ TEST_F(VolumeReaderJavaScriptStreamTest, Seek) {
   // Seek from end with 0.
   EXPECT_EQ(kArchiveSize, volume_reader->Seek(0, SEEK_END));
   EXPECT_EQ(kArchiveSize, volume_reader->offset());
+}
 
-  // Seeking with invalid values resulting in offsets smaller than 0 or offsets
-  // greater than kArchiveSize represents a programmer error and it's not up to
-  // Seek to test it.
+TEST_F(VolumeReaderJavaScriptStreamTest, InvalidSeekNegativeOffsetResult) {
+  // Seek that results in negative offsets is invalid.
+  EXPECT_EQ(ARCHIVE_FATAL, volume_reader->Seek(-1, SEEK_SET));
+}
+
+TEST_F(VolumeReaderJavaScriptStreamTest,
+       InvalidSeekOffsetLargerThanArchiveSize) {
+  // Seek that results in offsets larger than archive size is invalid.
+  EXPECT_EQ(ARCHIVE_FATAL, volume_reader->Seek(1, SEEK_END));
 }
 
 TEST_F(VolumeReaderJavaScriptStreamTest, Read) {
-  EXPECT_EQ(0, volume_reader->offset());
-
-  pp::VarArrayBuffer array_buffer = fake_javascript_requestor->array_buffer();
-  int32_t array_buffer_size = array_buffer.ByteLength();
-
-  // Valid read with bytes_to_read = array_buffer_size.
+  // Valid read with bytes to read = arrayi buffer size.
+  ssize_t array_buffer_size =
+      fake_javascript_requestor->array_buffer().ByteLength();
   const void* buffer = NULL;
-  size_t bytes_to_read = array_buffer_size;
-  int read_bytes = volume_reader->Read(bytes_to_read, &buffer);
-  EXPECT_EQ(array_buffer_size, read_bytes);
+  ssize_t read_bytes = volume_reader->Read(array_buffer_size, &buffer);
+  ASSERT_GE(array_buffer_size, read_bytes);  // Read can return less bytes
+                                             // than required.
+  ASSERT_GE(read_bytes, 0);
 
-  const void* expected_buffer = array_buffer.Map();
+  const void* expected_buffer = fake_javascript_requestor->array_buffer().Map();
   EXPECT_TRUE(memcmp(buffer, expected_buffer, read_bytes) == 0);
+  fake_javascript_requestor->array_buffer().Unmap();
+}
 
-  // Valid read with bytes_to_read > array_buffer_size.
-  bytes_to_read = array_buffer_size * 2;
-  read_bytes = volume_reader->Read(bytes_to_read, &buffer);
-  EXPECT_EQ(array_buffer_size, read_bytes);  // Though the request was for more
-                                             // than array_buffer_size, Read
-                                             // returns only array_buffer_size
-                                             // as the buffer is set to
-                                             // array_buffer.
+TEST_F(VolumeReaderJavaScriptStreamTest, BigLengthRead) {
+  // Valid read with bytes to read > array buffer size.
+  ssize_t array_buffer_size =
+      fake_javascript_requestor->array_buffer().ByteLength();
+  const void* buffer = NULL;
+  ssize_t read_bytes =
+      volume_reader->Read(std::numeric_limits<size_t>::max(), &buffer);
+
+  // Though the request was for more than array_buffer_size, Read returns
+  // maximum array_buffer_size as the buffer is set to array_buffer.
+  ASSERT_GE(array_buffer_size, read_bytes);
+  ASSERT_GE(read_bytes, 0);
+
+  const void* expected_buffer = fake_javascript_requestor->array_buffer().Map();
   EXPECT_TRUE(memcmp(buffer, expected_buffer, read_bytes) == 0);
+  fake_javascript_requestor->array_buffer().Unmap();
+}
 
+TEST_F(VolumeReaderJavaScriptStreamTest, SmallReads) {
+  // Test multiple reads with bytes to read < array buffer size.
+
+  // First read.
+  ssize_t array_buffer_size =
+      fake_javascript_requestor->array_buffer().ByteLength();
+  const void* buffer_1 = NULL;
+  size_t bytes_to_read_1 = array_buffer_size / 4;
+  ssize_t read_bytes_1 = volume_reader->Read(bytes_to_read_1, &buffer_1);
+  ASSERT_GE(bytes_to_read_1, read_bytes_1);
+  ASSERT_GE(read_bytes_1, 0);
+
+  const void* expected_buffer_1 =
+      fake_javascript_requestor->array_buffer().Map();
+  EXPECT_TRUE(memcmp(buffer_1, expected_buffer_1, read_bytes_1) == 0);
+  fake_javascript_requestor->array_buffer().Unmap();
+
+  // Second read.
+  size_t bytes_to_read_2 = bytes_to_read_1 * 3;
+  const void* buffer_2 = NULL;
+  ssize_t read_bytes_2 = volume_reader->Read(bytes_to_read_2, &buffer_2);
+  ASSERT_GE(bytes_to_read_2, read_bytes_2);
+  ASSERT_GE(read_bytes_2, 0);
+  ASSERT_GE(array_buffer_size, read_bytes_1 + read_bytes_2);
+
+  const void* expected_buffer_2 =
+      static_cast<char*>(fake_javascript_requestor->array_buffer().Map()) +
+      read_bytes_1;
+  EXPECT_TRUE(memcmp(buffer_2, expected_buffer_2, read_bytes_2) == 0);
+  fake_javascript_requestor->array_buffer().Unmap();
+
+  // Third read.
+  size_t bytes_to_read_3 = bytes_to_read_2;
+  const void* buffer_3 = NULL;
+  ssize_t read_bytes_3 = volume_reader->Read(bytes_to_read_3, &buffer_3);
+  ASSERT_GE(bytes_to_read_3, read_bytes_3);
+  ASSERT_GE(read_bytes_3, 0);
+  ASSERT_GE(array_buffer_size, read_bytes_1 + read_bytes_2 + read_bytes_3);
+
+  const void* expected_buffer_3 =
+      static_cast<char*>(fake_javascript_requestor->array_buffer().Map()) +
+      read_bytes_1 + read_bytes_2;
+  EXPECT_TRUE(memcmp(buffer_3, expected_buffer_3, read_bytes_3) == 0);
+  fake_javascript_requestor->array_buffer().Unmap();
+}
+
+TEST_F(VolumeReaderJavaScriptStreamTest, EndOfArchiveRead) {
   // Read at the end of archive.
   volume_reader->Seek(0, SEEK_END);
-  EXPECT_EQ(0, volume_reader->Read(bytes_to_read, &buffer));
+  const void* buffer = NULL;
+  EXPECT_EQ(0, volume_reader->Read(1, &buffer));
+}
 
-  // Invalid read. bytes_to_read smaller than array_buffer_size will force
-  // failure. See FakeJavaScriptRequestor::RequestFileChunkCallback.
+TEST_F(VolumeReaderJavaScriptStreamTest, InvalidRead) {
+  // Force read ahead with Seek after setting force failure to true. This is
+  // necessary because the constructor read ahead will be successful if it
+  // finishes before we do set_force_failure.
+  fake_javascript_requestor->set_force_failure(true);
   volume_reader->Seek(0, SEEK_SET);
-  bytes_to_read = array_buffer_size / 2;
+  ssize_t bytes_to_read =
+      fake_javascript_requestor->array_buffer().ByteLength();
+  const void* buffer = NULL;
   EXPECT_EQ(ARCHIVE_FATAL, volume_reader->Read(bytes_to_read, &buffer));
 }
 

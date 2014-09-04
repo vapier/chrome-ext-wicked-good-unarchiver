@@ -141,7 +141,7 @@ describe('Decompressor', function() {
         it('should call naclModule.postMessage with READ_CHUNK_DONE response',
             function(done) {
           var expectedResponse = request.createReadChunkDoneResponse(
-              FILE_SYSTEM_ID, METADATA_REQUEST_ID, blobContents);
+              FILE_SYSTEM_ID, METADATA_REQUEST_ID, blobContents, 0);
           data[request.Key.OFFSET] = '0';  // Received as string from NaCl.
           data[request.Key.LENGTH] = BLOB.size / 2;
 
@@ -158,7 +158,7 @@ describe('Decompressor', function() {
         it('should call naclModule.postMessage with READ_CHUNK_DONE response',
             function(done) {
           var expectedResponse = request.createReadChunkDoneResponse(
-              FILE_SYSTEM_ID, METADATA_REQUEST_ID, blobContents);
+              FILE_SYSTEM_ID, METADATA_REQUEST_ID, blobContents, 0);
           data[request.Key.OFFSET] = '0';  // Received as string from NaCl.
           data[request.Key.LENGTH] = BLOB.size * 2;
 

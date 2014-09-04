@@ -67,7 +67,7 @@ pp::VarDictionary CreateReadMetadataDoneResponse(
 pp::VarDictionary CreateReadChunkRequest(const std::string& file_system_id,
                                          const std::string& request_id,
                                          int64_t offset,
-                                         int32_t length);
+                                         size_t length);
 
 // Creates a response to OPEN_FILE request.
 pp::VarDictionary CreateOpenFileDoneResponse(const std::string& file_system_id,

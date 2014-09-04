@@ -30,9 +30,11 @@ class Volume {
   // Reads archive metadata using libarchive.
   void ReadMetadata(const std::string& request_id, int64_t archive_size);
 
-  // Processes a successful archive chunk read from JavaScript.
+  // Processes a successful archive chunk read from JavaScript. Read offset
+  // represents the offset from where the data contained in array_buffer starts.
   void ReadChunkDone(const std::string& request_id,
-                     const pp::VarArrayBuffer& array_buffer);
+                     const pp::VarArrayBuffer& array_buffer,
+                     int64_t read_offset);
 
   // Processes an invalid archive chunk read from JavaScript.
   void ReadChunkError(const std::string& request_id);
@@ -91,8 +93,8 @@ class Volume {
                             bool post_cleanup_error);
 
   // Gets the VolumeArchive from worker_reads_in_progress_ map based on
-  // request_id. Assumes that the VolumeArchive is already present in the map.
-  // If it's not present, then this is a programmer error.
+  // request_id. In case there is no key with request_id in the map then returns
+  // NULL.
   VolumeArchive* GetVolumeArchive(const std::string& request_id);
 
   // A pp::Instance used to post messages back to JS code and construct the
