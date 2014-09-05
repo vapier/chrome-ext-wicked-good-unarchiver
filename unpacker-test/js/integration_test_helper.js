@@ -14,7 +14,7 @@ var tests_helper = {
    * @private
    * @const
    */
-  ARCHIVE_BASE_URL_: 'http://localhost:9876/base-test/archives/',
+  TEST_FILES_BASE_URL_: 'http://localhost:9876/base-test/test-files/',
 
   /**
    * The path to the NaCl nmf file.
@@ -48,39 +48,58 @@ var tests_helper = {
   localStorageState: {},
 
   /**
-   * Downloads an archive in order to use it inside the tests. The download
-   * operation is required in order to obtain a Blob object for the archive,
-   * object that is needed by the Decompressor to read the archive's data.
-   * @param {string} archiveName The archive name in 'archives/' directory.
-   * @param {Object} volumeInformation The volume information for archiveName.
-   * @return {Promise} A promise that can be used with Promise.all.
-   * @private
+   * Downloads a file in order to use it inside the tests. The download
+   * operation is required in order to obtain a Blob object for the file,
+   * object that is needed by the Decompressor to read the archive's file data
+   * or other file's content that must be compared.
+   * @param {string} filePath The file path in 'test-files/' directory.
+   * @return {Promise} A promise that fulfills with the file's blob or rejects
+   *     with the download failure error.
    */
-  getArchiveBlob_: function(archiveName, volumeInformation) {
+  getFileBlob: function(filePath) {
     return new Promise(function(fulfill, reject) {
       var xhr = new XMLHttpRequest();
-      xhr.open('GET', tests_helper.ARCHIVE_BASE_URL_ + archiveName);
+      xhr.open('GET', tests_helper.TEST_FILES_BASE_URL_ + filePath);
       xhr.responseType = 'blob';
 
-      xhr.onload = function(e) {
-        if (xhr.readyState === 4) {
-          if (xhr.status === 200) {
-            volumeInformation.entry.file =
-                sinon.stub().callsArgWith(0, xhr.response /* The blob. */);
-            fulfill();
-          } else {
-            reject(xhr.statusText + ': ' + archiveName);
-          }
-        }
-      };
+      xhr.onload = fulfill.bind(null, xhr);
 
-      xhr.onerror = function(e) {
-        reject(xhr.statusText + ': ' + archiveName);
-      };
+      xhr.onerror = reject.bind(null, xhr);
 
       xhr.send(null);
+    }).then(function(xhr) {
+      if (xhr.readyState === 4) {
+        if (xhr.status === 200) {
+          return xhr.response;  // The blob.
+        } else {
+          return Promise.reject(xhr.statusText + ': ' + filePath);
+        }
+      }
+    }, function(xhr) {
+      return Promise.reject(xhr.statusText + ': ' + filePath);
     });
   },
+
+  /**
+   * Downloads a file's blob and converts it to an Int8Array that can be used
+   * for comparisons.
+   * @param {string} filePath The file path in 'test-files/' directory.
+   * @return {Promise} A Promise which fulfills with the data as an Int8Array or
+   *     rejects with any received error.
+   */
+  getAndReadFileBlobPromise: function(filePath) {
+    return tests_helper.getFileBlob(filePath).then(function(blob) {
+      return new Promise(function(fulfill, reject) {
+        var fileReader = new FileReader();
+        fileReader.onload = function(event) {
+          fulfill(new Int8Array(event.target.result));
+        };
+        fileReader.onerror = reject;
+        fileReader.readAsArrayBuffer(blob);
+      });
+    });
+  },
+
 
   /**
    * Initializes Chrome APIs.
@@ -139,7 +158,7 @@ var tests_helper = {
     tests_helper.volumesInformation.forEach(function(volume) {
       chrome.fileSystemProvider.mount
           .withArgs({fileSystemId: volume.fileSystemId,
-            displayName: volume.entry.name})
+                     displayName: volume.entry.name})
           .callsArg(1);
       chrome.fileSystemProvider.unmount
           .withArgs({fileSystemId: volume.fileSystemId})
@@ -159,41 +178,117 @@ var tests_helper = {
   /**
    * Initializes the tests helper. Should call Promise.then to finish
    * initialization as it is done asynchronously.
-   * @param {Array.<string>} archivesToTest A list with the names of the
-   *     archives to test. The archives should be present in 'archives/'
-   *     directory.
+   * @param {Array.<Object>} archivesToTest A list with data about
+   *     archives to test. The archives should be present in 'test-files/'
+   *     directory. It has 4 properties: 'name', a string representing the
+   *     archive's name which has the same value as the file system id,
+   *     'afterOnLaunchTests', the tests to run after on launch event,
+   *     'afterSuspendTests', the tests to run after suspend page event and
+   *     'afterRestartTests', which are the tests to run after restart.
    * @return {Promise} A promise that will finish initialization asynchronously.
    */
   init: function(archivesToTest) {
     // Create promises to obtain archives blob.
-    var getArchivesBlobPromises = [];
-    archivesToTest.forEach(function(archiveName) {
+    return Promise.all(archivesToTest.map(function(archiveData) {
       // Inititialization is done outside of the promise in order for Mocha to
       // correctly identify the number of tests_helper.volumesInformation when
       // it initialiazes tests. In case this is done in the promise, Mocha
       // will think there is no volumeInformation because at the time the
       // JavaScript test file is parssed tests_helper.volumesInformation will
       // still be empty.
-      var fileSystemId = archiveName + '_id';
+      var fileSystemId = archiveData.name;
+
       var volumeInformation = {
+        expectedMetadata: archiveData.expectedMetadata,
         fileSystemId: fileSystemId,
         entry: {
           file: null,  // Lazy initialization in Promise.
-          name: archiveName + '_name'
+          name: archiveData.name + '_name'
         },
-        entryId: archiveName + '_entry'  // Default type is Entry, but we can't
-                                         // create an Entry object directly with
-                                         // new. String should work because
-                                         // chrome APIs are stubbed.
+        /**
+         * Default type is Entry, but we can't create an Entry object directly
+         * with new. String should work because chrome APIs are stubbed.
+         */
+        entryId: archiveData.name + '_entry',
+        /**
+         * A functions with archive's tests to run after on launch event.
+         * @type {function()}
+         */
+        afterOnLaunchTests: archiveData.afterOnLaunchTests,
+        /**
+         * A functions with archive's tests to run after suspend page event.
+         * These tests are similiar to above tests just that they should restore
+         * volume's state and opened files.
+         * @type {function()}
+         */
+        afterSuspendTests: archiveData.afterSuspendTests,
+        /**
+         * A functions with archive's tests to run after restart.
+         * These tests are similiar to above tests just that they should restore
+         * only the volume's state.
+         * @type {function()}
+         */
+        afterRestartTests: archiveData.afterRestartTests
       };
 
       tests_helper.volumesInformation.push(volumeInformation);
 
-      // Get the archives blob.
-      getArchivesBlobPromises.push(
-          tests_helper.getArchiveBlob_(archiveName, volumeInformation));
-    });
+      return tests_helper.getFileBlob(archiveData.name).then(function(blob) {
+        volumeInformation.entry.file = sinon.stub().callsArgWith(0, blob);
+      });
+    }));
+  },
 
-    return Promise.all(getArchivesBlobPromises);
+  /**
+   * Create a read file request promise.
+   * @param {string} fileSystemId The file system id.
+   * @param {number} readRequestid The read request id.
+   * @param {number} openRequestId The open request id.
+   * @param {number} offset The offset from where read should be done.
+   * @param {number} length The number of bytes to read.
+   * @return {Promise} A read file request promise. It fulfills with an
+   *     Int8Array buffer containing the requested data or rejects with
+   *     ProviderError.
+   */
+  createReadFilePromise: function(fileSystemId, readRequestId, openRequestId,
+                                  offset, length) {
+    var options = {
+      fileSystemId: fileSystemId,
+      requestId: readRequestId,
+      openRequestId: openRequestId,
+      offset: offset,
+      length: length
+    };
+
+    var result = new Int8Array(length);
+    var resultOffset = 0;
+    return new Promise(function(fulfill, reject) {
+      app.onReadFileRequested(options, function(arrayBuffer, hasMore) {
+        result.set(new Int8Array(arrayBuffer), resultOffset);
+        resultOffset += arrayBuffer.byteLength;
+
+        if (hasMore)  // onSuccess will be called again.
+          return;
+
+        // Received less data than requested so truncate result buffer.
+        if (resultOffset < length)
+          result = result.subarray(0, resultOffset);
+
+        fulfill(result);
+      }, reject /* In case of errors just reject with ProviderError. */);
+    });
+  },
+
+  /**
+   * Forces failure in tests. Should be called only from 'beforeEach',
+   * 'afterEach' and 'it'. Useful to force failures in promises.
+   * @param {Object|strig} An error with stack trace or a string error that
+   *     describes the failure reason.
+   */
+  forceFailure: function(error) {
+    console.error(error.stack || error);
+    setTimeout(function() {
+      expect(false).to.be.true;
+    });
   }
 };

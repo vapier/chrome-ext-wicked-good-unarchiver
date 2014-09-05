@@ -240,23 +240,29 @@ Volume.prototype.onReadFileRequested = function(options, onSuccess, onError) {
  * @private
  */
 Volume.prototype.getEntryMetadata_ = function(entryPath) {
-  var entryPathSplit = entryPath.split('/');
+  var pathArray = entryPath.split('/');
 
-  // Remove empty strings resulted after split.
-  var pathArray = [];
-  entryPathSplit.forEach(function(entry) {
-    if (entry != '')
-      pathArray.push(entry);
-  });
+  // Remove empty strings resulted after split. As paths start with '/' we will
+  // have an empty string at the beginning of pathArray and possible an
+  // empty string at the end for directories (e.g. /path/to/dir/). The code
+  // assumes entryPath cannot have consecutive '/'.
+  pathArray.splice(0, 1);
+
+  if (pathArray.length > 0) {  // In case of 0 this is root directory.
+    var lastIndex = pathArray.length - 1;
+    if (pathArray[lastIndex] == '')
+      pathArray.splice(lastIndex);
+  }
 
   // Get the actual metadata by iterating through every directory metadata
   // on the path to the entry.
   var entryMetadata = this.metadata;
-  pathArray.forEach(function(entry) {
-    if (!entryMetadata.isDirectory && i != limit - 1 /* Parent directory. */)
+  for (var i = 0, limit = pathArray.length; i < limit; i++) {
+    if (!entryMetadata ||
+        !entryMetadata.isDirectory && i != limit - 1 /* Parent directory. */)
       return null;
-    entryMetadata = entryMetadata.entries[entry];
-  });
+    entryMetadata = entryMetadata.entries[pathArray[i]];
+  };
 
   return entryMetadata;
 };

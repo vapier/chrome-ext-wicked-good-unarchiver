@@ -25,7 +25,7 @@ const char kArchiveReadDataErrorPrefix[] = "Error at reading data: ";
 const char kArchiveReadFreeErrorPrefix[] = "Error at archive free: ";
 
 // Size of the buffer used to skip unnecessary data.
-static const int64_t kDummyBufferSize = 512 * 1024;
+const int64_t kDummyBufferSize = 512 * 1024;
 
 }  // namespace volume_archive_errors
 

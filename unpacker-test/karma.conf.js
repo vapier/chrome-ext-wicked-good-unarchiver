@@ -39,12 +39,17 @@ module.exports = function(config) {
       {pattern: 'js/*.js', watched: true, included: true, served: true},
 
       // Test files.
-      {pattern: '../unpacker-test/archives/*.rar', watched: false,
+      {pattern: '../unpacker-test/test-files/**/*', watched: false,
                 included: false, served: true},
-      {pattern: '../unpacker-test/archives/*.zip', watched: false,
-                included: false, served: true},
-      '../unpacker-test/js/integration_test_helper.js',  // Should be added before
-                                                      // the other tests.
+
+      // These 2 files must be included before integration_test.js. They define
+      // helper functions for the integration tests so by the time
+      // integration_test.js file is parsed those functions must be already
+      // available.
+      '../unpacker-test/js/integration_test_helper.js',
+      '../unpacker-test/js/integration_specific_archives_tests.js',
+
+      // All other test files, including integration_test.js.
       '../unpacker-test/js/*.js'
     ],
 

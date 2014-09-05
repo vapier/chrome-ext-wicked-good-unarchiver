@@ -15,11 +15,14 @@ describe('Volume', function() {
     isDirectory: true,
     modificationTime: 3000 /* In seconds. */,
     entries: {
-      'file': {name: 'file', size: 50, isDirectory: false,
+      'file': {name: 'file1', size: 50, isDirectory: false,
                modificationTime: 20000 /* In seconds. */},
       'dir': {name: 'dir', size: 0, isDirectory: true,
               modificationTime: 12000 /* In seconds. */,
-              entries: {}}
+              entries: {
+                'insideFile': {name: 'insideFile', size: 45, isDirectory: false,
+                               modificationTime: 200 /* In seconds. */}
+              }}
     }
   };
 
@@ -179,7 +182,7 @@ describe('Volume', function() {
       // Invalid entry path.
       describe('with invalid entryPath', function() {
         beforeEach(function() {
-          var options = {entryPath: 'invalid'};
+          var options = {entryPath: '/invalid/path'};
           volume.onGetMetadataRequested(options, onSuccessSpy, onErrorSpy);
         });
 
@@ -192,10 +195,10 @@ describe('Volume', function() {
         });
       });
 
-      // Valid entrrypath.
-      describe('with valid entryPath', function() {
+      // Valid entry path for root.
+      describe('with valid entryPath as root', function() {
         beforeEach(function() {
-          var options = {entryPath: '/file'};
+          var options = {entryPath: '/'};
           volume.onGetMetadataRequested(options, onSuccessSpy, onErrorSpy);
         });
 
@@ -204,8 +207,41 @@ describe('Volume', function() {
         });
 
         it('should call onSuccess with the entry metadata', function() {
-          expect(onSuccessSpy.calledWith(volume.metadata.entries['file']))
-              .to.be.true;
+          expect(onSuccessSpy.calledWith(volume.metadata)).to.be.true;
+        });
+      });
+
+      // Valid entry path for a directory inside root.
+      describe('with valid directory entryPath', function() {
+        beforeEach(function() {
+          var options = {entryPath: '/dir/'};
+          volume.onGetMetadataRequested(options, onSuccessSpy, onErrorSpy);
+        });
+
+        it('should not call onError', function() {
+          expect(onErrorSpy.called).to.be.false;
+        });
+
+        it('should call onSuccess with the entry metadata', function() {
+          expect(onSuccessSpy.calledWith(
+              volume.metadata.entries['dir'])).to.be.true;
+        });
+      });
+
+      // Valid entry path for a file inside a directory.
+      describe('with valid file entryPath', function() {
+        beforeEach(function() {
+          var options = {entryPath: '/dir/insideFile'};
+          volume.onGetMetadataRequested(options, onSuccessSpy, onErrorSpy);
+        });
+
+        it('should not call onError', function() {
+          expect(onErrorSpy.called).to.be.false;
+        });
+
+        it('should call onSuccess with the entry metadata', function() {
+          expect(onSuccessSpy.calledWith(
+              volume.metadata.entries['dir'].entries['insideFile'])).to.be.true;
         });
       });
     });  // Test onGetMetadataRequested.
@@ -222,7 +258,7 @@ describe('Volume', function() {
       // Invalid directory path.
       describe('with invalid directoryPath', function() {
         beforeEach(function() {
-          var options = {directoryPath: 'invalid'};
+          var options = {directoryPath: '/invalid'};
           volume.onReadDirectoryRequested(options, onSuccessSpy,
               onErrorSpy);
         });

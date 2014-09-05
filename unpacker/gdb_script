@@ -8,4 +8,7 @@
 # "GDB_SCRIPT=<custom_script> make debug_gdb".
 
 target remote localhost:4014
-# Add you commands here.
+catch throw
+b exit
+b pp::(anonymous namespace)::get_interface<PPB_Messaging_1_0>
+c

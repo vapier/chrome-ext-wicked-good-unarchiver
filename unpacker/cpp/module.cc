@@ -153,10 +153,9 @@ class NaclArchiveInstance : public pp::Instance {
       case request::CLOSE_VOLUME: {
         std::map<std::string, Volume*>::iterator it =
             volumes_.find(file_system_id);
-        if (it != volumes_.end()) {
-          delete it->second;
-          volumes_.erase(file_system_id);
-        }
+        PP_DCHECK(it != volumes_.end());
+        delete it->second;
+        volumes_.erase(file_system_id);
         break;
       }
 

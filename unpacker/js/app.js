@@ -32,17 +32,18 @@ var app = {
   volumeLoadedPromises: {},
 
   /**
-   * The NaCl module containing the logic for decompressing archives.
-   * @type {Object}
-   */
-  naclModule_: null,
-
-  /**
    * A Promise used to postpone all calls to fileSystemProvider API after
    * the NaCl module loads.
    * @type {Promise}
    */
   moduleLoadedPromise: null,
+
+  /**
+   * The NaCl module containing the logic for decompressing archives.
+   * @type {Object}
+   * @private
+   */
+  naclModule_: null,
 
   /**
    * Function called on receiving a message from NaCl module. Registered by
@@ -173,10 +174,11 @@ var app = {
     entry.file(function(file) {
       // File is a Blob object, so it's ok to construct the Decompressor
       // directly with it.
-      app.volumes[fileSystemId] =
+      var volume =
           new Volume(new Decompressor(app.naclModule_, fileSystemId, file),
-              entry, opt_openedFiles);
+                     entry, opt_openedFiles);
 
+      app.volumes[fileSystemId] = volume;
       // Read metadata from NaCl.
       var onReadMetadataSuccess = function() {
         opt_openedFiles = opt_openedFiles ? opt_openedFiles : {};
@@ -191,8 +193,7 @@ var app = {
         rejectVolumeLoad('INVALID_OPERATION');
       };
 
-      app.volumes[fileSystemId].readMetadata(
-          onReadMetadataSuccess, rejectVolumeLoad);
+      volume.readMetadata(onReadMetadataSuccess, rejectVolumeLoad);
     });
   },
 
@@ -265,10 +266,8 @@ var app = {
    *     file, which should be a .nmf file.
    * @param {string} mimeType The type of the NaCl executable (e.g. .nexe or
    *     .pexe).
-   * @param {function()=} opt_onModuleLoad Optional callback to execute on NaCl
-   *     module load.
    */
-  loadNaclModule: function(pathToConfigureFile, mimeType, opt_onModuleLoad) {
+  loadNaclModule: function(pathToConfigureFile, mimeType) {
     app.moduleLoadedPromise = new Promise(function(fulfill) {
       var elementDiv = document.createElement('div');
 
@@ -279,8 +278,6 @@ var app = {
       }, true);
 
       elementDiv.addEventListener('message', app.handleMessage_, true);
-      if (opt_onModuleLoad)
-        elementDiv.addEventListener('load', opt_onModuleLoad, true);
 
       var elementEmbed = document.createElement('embed');
       elementEmbed.id = 'nacl_module';
