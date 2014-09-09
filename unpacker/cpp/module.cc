@@ -43,12 +43,7 @@ class NaclArchiveInstance : public pp::Instance {
     // Process operation.
     switch (operation) {
       case request::READ_METADATA: {
-        PP_DCHECK(var_dict.Get(request::key::kArchiveSize).is_string());
-        Volume* volume = CreateOrGetVolume(file_system_id, request_id);
-        if (volume)
-          volume->ReadMetadata(request_id,
-                               request::GetInt64FromString(
-                                   var_dict, request::key::kArchiveSize));
+        ReadMetadata(var_dict, file_system_id, request_id);
         break;
       }
 
@@ -87,34 +82,40 @@ class NaclArchiveInstance : public pp::Instance {
       }
 
       default:
-        PostMessage(request::CreateFileSystemError(
-            "Invalid operation key", file_system_id, request_id));
+        PP_NOTREACHED();
     }
   }
 
  private:
-  // Gets the corresponding volume for file_system_id or create a new volume
-  // if none. In case of any volume creation problems, an error message is sent
-  // back to JavaScript and NULL is returned.
-  Volume* CreateOrGetVolume(const std::string& file_system_id,
-                            const std::string& request_id) {
-    std::map<std::string, Volume*>::iterator it = volumes_.find(file_system_id);
-    if (it != volumes_.end()) {
-      return it->second;
-    }
+  // Reads the metadata for the corresponding volume for file_system_id. This
+  // should be called only once and before any other operation like OpenFile,
+  // ReadFile, etc.
+  // Reading metadata or opening a file could work even if the Volume exists
+  // or not, but as the JavaScript code doesn't use this feature there is no
+  // reason to allow it. If the logic on JavaScript changes then this can be
+  // updated. But in current design if we read metadata for an existing Volume,
+  // then there is a programmer error on JavaScript side.
+  void ReadMetadata(const pp::VarDictionary& var_dict,
+                    const std::string& file_system_id,
+                    const std::string& request_id) {
+    // Should not call ReadMetadata for a Volume already present in NaCl.
+    PP_DCHECK(volumes_.find(file_system_id) == volumes_.end());
 
     Volume* volume = new Volume(this, file_system_id);
     if (!volume->Init()) {
       PostMessage(request::CreateFileSystemError(
-          "Could not create a volume for: " + file_system_id,
+          "Could not create a volume for: " + file_system_id + ".",
           file_system_id,
           request_id));
       delete volume;
-      return NULL;
+      return;
     }
-
     volumes_[file_system_id] = volume;
-    return volume;
+
+    PP_DCHECK(var_dict.Get(request::key::kArchiveSize).is_string());
+    volume->ReadMetadata(
+        request_id,
+        request::GetInt64FromString(var_dict, request::key::kArchiveSize));
   }
 
   void ReadChunkDone(const pp::VarDictionary& var_dict,
@@ -128,23 +129,21 @@ class NaclArchiveInstance : public pp::Instance {
         request::GetInt64FromString(var_dict, request::key::kOffset);
 
     std::map<std::string, Volume*>::iterator it = volumes_.find(file_system_id);
-    if (it != volumes_.end()) {
-      it->second->ReadChunkDone(request_id, array_buffer, read_offset);
-    } else {
-      PostMessage(request::CreateFileSystemError(
-          "No Volume for this file system", file_system_id, request_id));
-    }
+    // Volume was unmounted so ignore the read chunk operation.
+    // Possible scenario for read ahead.
+    if (it == volumes_.end())
+      return;
+    it->second->ReadChunkDone(request_id, array_buffer, read_offset);
   }
 
   void ReadChunkError(const std::string& file_system_id,
                       const std::string& request_id) {
     std::map<std::string, Volume*>::iterator it = volumes_.find(file_system_id);
-    if (it != volumes_.end()) {
-      it->second->ReadChunkError(request_id);
-    } else {
-      PostMessage(request::CreateFileSystemError(
-          "No Volume for this file system", file_system_id, request_id));
-    }
+    // Volume was unmounted so ignore the read chunk operation.
+    // Possible scenario for read ahead.
+    if (it == volumes_.end())
+      return;
+    it->second->ReadChunkError(request_id);
   }
 
   void OpenFile(const pp::VarDictionary& var_dict,
@@ -157,9 +156,10 @@ class NaclArchiveInstance : public pp::Instance {
     int64_t archive_size =
         request::GetInt64FromString(var_dict, request::key::kArchiveSize);
 
-    Volume* volume = CreateOrGetVolume(file_system_id, request_id);
-    if (volume)
-      volume->OpenFile(request_id, file_path, archive_size);
+    std::map<std::string, Volume*>::iterator it = volumes_.find(file_system_id);
+    PP_DCHECK(it != volumes_.end());  // Should call OpenFile after
+                                      // ReadMetadata.
+    it->second->OpenFile(request_id, file_path, archive_size);
   }
 
   void CloseFile(const pp::VarDictionary& var_dict,

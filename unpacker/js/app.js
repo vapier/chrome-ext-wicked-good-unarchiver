@@ -116,7 +116,8 @@ var app = {
       var volumeState = result[app.STORAGE_KEY][fileSystemId];
       chrome.fileSystem.restoreEntry(volumeState.entryId, function(entry) {
         if (chrome.runtime.lastError) {
-          console.error('Restore entry error: ' + chrome.runtime.lastError);
+          console.error('Restore entry error: ' +
+                        chrome.runtime.lastError.message);
           onErrorRestore('FAILED');
           return;
         }
@@ -259,6 +260,17 @@ var app = {
   },
 
   /**
+   * Cleans up the resources for a volume.
+   * @param {string} fileSystemId The file system id of the volume to clean.
+   */
+  cleanupVolume: function(fileSystemId) {
+    app.naclModule_.postMessage(
+        request.createCloseVolumeRequest(fileSystemId));
+    delete app.volumes[fileSystemId];
+    delete app.volumeLoadedPromises[fileSystemId];
+  },
+
+  /**
    * Unmounts a volume and updates the local storage state.
    * @param {fileSystemProvider.UnmountRequestedOptions} options Options for
    *     unmount event.
@@ -273,9 +285,7 @@ var app = {
     }
 
     chrome.fileSystemProvider.unmount({fileSystemId: fileSystemId}, function() {
-      app.naclModule_.postMessage(
-          request.createCloseVolumeRequest(fileSystemId));
-      delete app.volumes[fileSystemId];
+      app.cleanupVolume(fileSystemId);
       app.saveState_();  // Remove volume from local storage state.
       onSuccess();
     }, function() {

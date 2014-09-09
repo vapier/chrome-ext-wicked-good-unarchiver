@@ -216,8 +216,11 @@ var unmountCheck = function(volumeInformation) {
  * anything.
  */
 var unloadExtension = function() {
-  app.volumes = {};
-  app.volumeLoadedPromises = {};
+  for (var fileSystemId in app.volumes) {
+    app.cleanupVolume(fileSystemId);
+  }
+  expect(Object.keys(app.volumes).length).to.equal(0);
+  expect(Object.keys(app.volumeLoadedPromises).length).to.equal(0);
 };
 
 // Init helper.
