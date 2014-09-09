@@ -4,6 +4,13 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# In case tests fail without a JavaScript error take also a look at these files.
+# NaCl module crash message is shown only in the JavaScript console within the
+# browser, and PP_DCHECK and other NaCl errors will appear only here.
+# Messages are appended to the logs and it's up to the tester to remove them.
+export NACL_EXE_STDOUT=`pwd`/nacl.stdout
+export NACL_EXE_STDERR=`pwd`/nacl.stderr
+
 cd ../unpacker/
 make debug_for_tests
 cd ../unpacker-test/

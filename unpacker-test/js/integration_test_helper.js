@@ -132,6 +132,13 @@ var tests_helper = {
     });
     chrome.fileSystemProvider.mount.throws('Invalid argument for mount.');
     chrome.fileSystemProvider.unmount.throws('Invalid argument for unmount.');
+
+    // Chrome runtime API.
+    chrome.runtime = {
+      // Contains 'lastError' property which is checked in case
+      // chrome.fileSystem.restoreEntry fails. By default 'lastError' should be
+      // undefined as no error is returned.
+    };
   },
 
   /**

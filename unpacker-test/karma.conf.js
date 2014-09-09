@@ -104,7 +104,17 @@ module.exports = function(config) {
     customLaunchers: {
       'Chrome-dev': {
         base: 'Chrome',
-        flags: ['--disable-setuid-sandbox', '--enable-nacl']
+        flags: [
+            '--disable-setuid-sandbox',
+            '--enable-nacl',
+            '--user-data-dir=user-data-dir',
+            // Required for redirecting NaCl module stdout and stderr outputs
+            // using NACL_EXE_STDOUT and NACL_EXE_STDERR environment variables.
+            // See run_js_tests.js.
+            '--no-sandbox',
+            '--enable-logging',
+            '--v=1'
+        ]
       }
     },
 
