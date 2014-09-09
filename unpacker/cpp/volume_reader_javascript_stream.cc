@@ -59,23 +59,42 @@ VolumeReaderJavaScriptStream::~VolumeReaderJavaScriptStream() {
 void VolumeReaderJavaScriptStream::SetBufferAndSignal(
     const pp::VarArrayBuffer& array_buffer,
     int64_t read_offset) {
-  if (read_offset != offset_)  // Ignore read ahead in case offset was changed
-                               // using Skip or Seek.
+
+  // Ignore read ahead in case offset was changed using Skip or Seek and in case
+  // we already have available data. This can happen in case of 2+ ReadAhead
+  // calls done in parallel as a result of calling Read, Skip and Seek one after
+  // another really fast. The usage of the buffer is not guarded so in case we
+  // overwrite *read_ahead_array_buffer_ptr_ we will end up with memory
+  // corruption.
+  // In case read_offset and offset_ are different, then the read ahead data is
+  // not valid anymore, but in case they are equal and available_data_ is set to
+  // true then the second read ahead data is the same as the first read ahead
+  // data so we can just ignore it.
+  // This is safe to be done outside of the guarding zone only as long as
+  // SetBufferAndSignal will be called from the same thread. For now
+  // SetBufferAndSignal is called only from the main thread so no need to lock.
+  if (read_offset != offset_ || available_data_ || read_error_)
     return;
 
   // Signal VolumeReaderJavaScriptStream::Read to continue execution. Copies
   // buffer locally so libarchive has the buffer in memory when working with it.
+  // Though we acquire a lock here this call is blocking only for a few
+  // moments as VolumeReaderJavaScriptStream::Read will release the lock with
+  // pthread_cond_wait. So we cannot arrive at a deadlock that will block the
+  // main thread.
   pthread_mutex_lock(&available_data_lock_);
 
   *read_ahead_array_buffer_ptr_ = array_buffer;  // Copy operation.
-  available_data_ = true;                        // Data is available.
+  available_data_ = true;
 
   pthread_cond_signal(&available_data_cond_);
   pthread_mutex_unlock(&available_data_lock_);
 }
 
 void VolumeReaderJavaScriptStream::ReadErrorSignal() {
-  // Signal VolumeReaderJavaScriptStream::Read to continue execution.
+  // Signal VolumeReaderJavaScriptStream::Read to continue execution. Not
+  // blocking for the same reasons as
+  // VolumeReaderJavaScriptStream::SetBufferAndSignal.
   pthread_mutex_lock(&available_data_lock_);
   read_error_ = true;  // Read error from JavaScript.
   pthread_cond_signal(&available_data_cond_);
@@ -101,7 +120,7 @@ ssize_t VolumeReaderJavaScriptStream::Read(size_t bytes_to_read,
   if (!available_data_) {
     // Wait for data from JavaScript.
     pthread_mutex_lock(&available_data_lock_);
-    while (!available_data_) {  // Check again available data as first call was
+    while (!available_data_) {  // Check again available data as first call
                                 // was done outside guarded zone.
       if (read_error_) {
         pthread_mutex_unlock(&available_data_lock_);
@@ -112,7 +131,16 @@ ssize_t VolumeReaderJavaScriptStream::Read(size_t bytes_to_read,
     pthread_mutex_unlock(&available_data_lock_);
   }
 
-  // Make data available for libarchive custom read.
+  if (read_error_)  // Read ahead failed.
+    return ARCHIVE_FATAL;
+
+  // Make data available for libarchive custom read. No need to lock this part.
+  // The reason is that VolumeReaderJavaScriptStream::ReadAhead is the only
+  // function that can set available_data_ back to false and let
+  // VolumeReaderJavaScriptStream::SetBufferAndSignal overwrite the buffer. But
+  // reading ahead is done only at the end of this function after the buffers
+  // are switched or in Seek and Skip which are called from the same thread as
+  // this function.
   *destination_buffer = read_ahead_array_buffer_ptr_->Map();
   ssize_t bytes_read =
       std::min(read_ahead_array_buffer_ptr_->ByteLength(), bytes_to_read);

@@ -9,6 +9,7 @@
 #include "ppapi/cpp/instance.h"
 #include "ppapi/cpp/var_array_buffer.h"
 #include "ppapi/cpp/var_dictionary.h"
+#include "ppapi/utility/threading/lock.h"
 #include "ppapi/utility/threading/simple_thread.h"
 #include "ppapi/utility/completion_callback_factory.h"
 
@@ -89,12 +90,16 @@ class Volume {
   // Cleanups any data related to a volume archive. Return value should be
   // checked only if post_cleanup_error is true. post_cleanup_error should be
   // false in case an error message was already sent to JavaScript.
+  // Must be called in the worker_.
   bool CleanupVolumeArchive(VolumeArchive* volume_archive,
                             bool post_cleanup_error);
 
   // Gets the VolumeArchive from worker_reads_in_progress_ map based on
   // request_id. In case there is no key with request_id in the map then returns
-  // NULL.
+  // NULL. Can be called from both worker_ and the main thread. Operations with
+  // volume_archive that don't execute in worker_ must be guarded by acquiring
+  // worker_reads_in_progress_lock_ before calling GetVolumeArchive and
+  // releasing it only after not using the VolumeArchive anymore.
   VolumeArchive* GetVolumeArchive(const std::string& request_id);
 
   // A pp::Instance used to post messages back to JS code and construct the
@@ -117,15 +122,12 @@ class Volume {
   pp::CompletionCallbackFactory<Volume> callback_factory_;
 
   // A map containing all reads in progress. First argument is a unique key per
-  // reader and the second is the reader itself. The map doesn't need to be
-  // guarded even if we use 2 threads. The reason is that the single operations
-  // that happen on the main thread are Volume::ReadChunkDone and
-  // Volume::ReadChunkDone, while the other operations post work to worker_.
-  // The only moment when Volume::ReadChunkDone and Volume::ReadChunkError are
-  // called is when they are used to unblock worker_ that waits for response
-  // from JavaScript. So worker_ and main thread cannot have races in current
-  // implementation.
+  // reader and the second is the reader itself. The map must be guarded as
+  // Volume::ReadChunkDone / Volume::ReadChunkError can be called after removing
+  // their correspondent VolumeArchive from the map due to receiving the
+  // response to read ahead from JavaScript after a CloseFile event.
   std::map<std::string, VolumeArchive*> worker_reads_in_progress_;
+  pp::Lock worker_reads_in_progress_lock_;  // A lock for guarding above map.
 
   // A requestor for making calls to JavaScript.
   JavaScriptRequestor* requestor_;

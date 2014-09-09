@@ -186,21 +186,28 @@ void Volume::ReadChunkDone(const std::string& request_id,
   // received after a CloseFile event. This is a common scenario for archives
   // in archives where VolumeReaderJavaScriptStream makes ReadAhead calls that
   // might not be used.
+  worker_reads_in_progress_lock_.Acquire();
   VolumeArchive* volume_archive = GetVolumeArchive(request_id);
-  if (!volume_archive)
+  if (!volume_archive) {
+    worker_reads_in_progress_lock_.Release();
     return;
+  }
 
   // ReadChunkDone should be called only for VolumeReaderJavaScriptStream.
   VolumeReaderJavaScriptStream* volume_reader =
       static_cast<VolumeReaderJavaScriptStream*>(volume_archive->reader());
 
   volume_reader->SetBufferAndSignal(array_buffer, read_offset);
+  worker_reads_in_progress_lock_.Release();
 }
 
 void Volume::ReadChunkError(const std::string& request_id) {
+  worker_reads_in_progress_lock_.Acquire();
   VolumeArchive* volume_archive = GetVolumeArchive(request_id);
-  if (!volume_archive)
+  if (!volume_archive) {
+    worker_reads_in_progress_lock_.Release();
     return;
+  }
 
   // ReadChunkError should be called only for VolumeReaderJavaScriptStream.
   VolumeReaderJavaScriptStream* volume_reader =
@@ -212,6 +219,7 @@ void Volume::ReadChunkError(const std::string& request_id) {
   // works, both the JavaScript read error and libarchive errors will be
   // processed similarly, so it's better to leave the error handle to the
   // other thread.
+  worker_reads_in_progress_lock_.Release();
 }
 
 void Volume::ReadMetadataCallback(int32_t /*result*/,
@@ -301,6 +309,8 @@ void Volume::CloseFileCallback(int32_t /*result*/,
                                const std::string& open_request_id) {
   // Obtain the VolumeArchive for the opened file using open_request_id.
   // The volume should have been created using Volume::OpenFile.
+  // No need for guarding the call as this is done on the same thread as the one
+  // allowed to call CleanupVolumeArchive.
   VolumeArchive* volume_archive = GetVolumeArchive(open_request_id);
   PP_DCHECK(volume_archive);  // Close file should be called only for
                               // opened files that have a corresponding
@@ -330,6 +340,8 @@ void Volume::ReadFileCallback(int32_t /*result*/,
 
   // Get the correspondent VolumeArchive to the opened file. Any errors
   // should be send to JavaScript using request_id, NOT open_request_id.
+  // No need for guarding the call as this is done on the same thread as the one
+  // allowed to call CleanupVolumeArchive.
   VolumeArchive* volume_archive =
       GetVolumeArchive(open_request_id /* The opened file request id. */);
   PP_DCHECK(volume_archive);  // Read file should be called only for
@@ -395,8 +407,10 @@ VolumeArchive* Volume::CreateVolumeArchive(const std::string& request_id,
   // Pass VolumeReader ownership to VolumeArchive.
   VolumeArchive* volume_archive = new VolumeArchive(request_id, reader);
   // VolumeArchive::Init() will call READ_CHUNK for getting archive headers.
+  worker_reads_in_progress_lock_.Acquire();
   worker_reads_in_progress_.insert(
       std::pair<std::string, VolumeArchive*>(request_id, volume_archive));
+  worker_reads_in_progress_lock_.Release();
 
   if (!volume_archive->Init()) {
     PostFileSystemError(volume_archive->error_message(),
@@ -412,7 +426,14 @@ VolumeArchive* Volume::CreateVolumeArchive(const std::string& request_id,
 bool Volume::CleanupVolumeArchive(VolumeArchive* volume_archive,
                                   bool post_cleanup_error) {
   bool returnValue = true;
+
+  worker_reads_in_progress_lock_.Acquire();
+  // Erase sould be called only for a VolumeArchive that has a corresponding
+  // valid request id.
+  PP_DCHECK(worker_reads_in_progress_.find(volume_archive->request_id()) !=
+            worker_reads_in_progress_.end());
   worker_reads_in_progress_.erase(volume_archive->request_id());
+  worker_reads_in_progress_lock_.Release();
 
   if (!volume_archive->Cleanup() && post_cleanup_error) {
     PostFileSystemError(volume_archive->error_message(),
@@ -423,9 +444,14 @@ bool Volume::CleanupVolumeArchive(VolumeArchive* volume_archive,
   }
 
   delete volume_archive;
+
   return returnValue;
 }
 
+// If not executing in worker_ thread, before calling GetVolumeArchive, acquire
+// worker_reads_in_progress_lock_. Release the lock only after finishing using
+// VolumeArchive and any of its members as CleanupVolumeArchive can delete it
+// in the worker_ in parallel and lead to bugs.
 VolumeArchive* Volume::GetVolumeArchive(const std::string& request_id) {
   std::map<std::string, VolumeArchive*>::iterator it =
       worker_reads_in_progress_.find(request_id);
