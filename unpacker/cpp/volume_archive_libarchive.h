@@ -27,6 +27,13 @@ const char kArchiveReadFreeErrorPrefix[] = "Error at archive free: ";
 // Size of the buffer used to skip unnecessary data.
 const int64_t kDummyBufferSize = 512 * 1024;
 
+// The archive header chunk size for VolumeReader::Read requests.
+const int64_t kHeaderChunkSize = 16 * 1024;  // 16 KB.
+// The maximum data chunk size for VolumeReader::Read requests.
+const int64_t kMaximumDataChunkSize = 512 * 1024;  // 512 KB.
+// The minimum data chunk size for VolumeReader::Read requests.
+const int64_t kMinimumDataChunkSize = 16 * 1024;  // 16 KB.
+
 }  // namespace volume_archive_constants
 
 // Defines an implementation of VolumeArchive that wraps all libarchive
@@ -54,7 +61,12 @@ class VolumeArchiveLibarchive : public VolumeArchive {
   // See volume_archive_interface.h.
   virtual bool Cleanup();
 
+  size_t reader_data_size() const { return reader_data_size_; }
+
  private:
+  // The size of the requested data from VolumeReader.
+  size_t reader_data_size_;
+
   // The libarchive correspondent archive object.
   archive* archive_;
 

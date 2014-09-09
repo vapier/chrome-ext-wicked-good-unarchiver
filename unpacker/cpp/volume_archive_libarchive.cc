@@ -12,10 +12,6 @@
 
 namespace {
 
-// TODO(cmihail): Instead of requesting a fix size, request the size of headers
-// or file to decompress. See crbug.com/411792.
-const size_t kChunkSize = 512 * 1024;  // 512 KB.
-
 std::string ArchiveError(const std::string& message, archive* archive_object) {
   return message + archive_error_string(archive_object);
 }
@@ -35,9 +31,12 @@ void SetLibarchiveErrorToVolumeReaderError(archive* archive_object) {
 ssize_t CustomArchiveRead(archive* archive_object,
                           void* client_data,
                           const void** buffer) {
-  VolumeReader* reader = static_cast<VolumeReader*>(client_data);
+  VolumeArchiveLibarchive* volume_archive =
+      static_cast<VolumeArchiveLibarchive*>(client_data);
 
-  ssize_t result = reader->Read(kChunkSize, buffer);
+  ssize_t result =
+      volume_archive->reader()->Read(volume_archive->reader_data_size(),
+                                     buffer);
   if (result == ARCHIVE_FATAL)
     SetLibarchiveErrorToVolumeReaderError(archive_object);
   return result;
@@ -46,28 +45,31 @@ ssize_t CustomArchiveRead(archive* archive_object,
 int64_t CustomArchiveSkip(archive* archive_object,
                           void* client_data,
                           int64_t request) {
-  VolumeReader* reader = static_cast<VolumeReader*>(client_data);
+  VolumeArchiveLibarchive* volume_archive =
+      static_cast<VolumeArchiveLibarchive*>(client_data);
   // VolumeReader::Skip returns 0 in case of failure and CustomArchiveRead is
   // used instead, so there is no need to check for VolumeReader error.
-  return reader->Skip(request);
+  return volume_archive->reader()->Skip(request);
 }
 
 int64_t CustomArchiveSeek(archive* archive_object,
                           void* client_data,
                           int64_t offset,
                           int whence) {
-  VolumeReader* reader = static_cast<VolumeReader*>(client_data);
+  VolumeArchiveLibarchive* volume_archive =
+      static_cast<VolumeArchiveLibarchive*>(client_data);
 
-  int64_t result = reader->Seek(offset, whence);
+  int64_t result = volume_archive->reader()->Seek(offset, whence);
   if (result == ARCHIVE_FATAL)
     SetLibarchiveErrorToVolumeReaderError(archive_object);
   return result;
 }
 
 int CustomArchiveClose(archive* archive_object, void* client_data) {
-  VolumeReader* reader = static_cast<VolumeReader*>(client_data);
+  VolumeArchiveLibarchive* volume_archive =
+      static_cast<VolumeArchiveLibarchive*>(client_data);
 
-  int result = reader->Close();
+  int result = volume_archive->reader()->Close();
   if (result == ARCHIVE_FATAL)
     SetLibarchiveErrorToVolumeReaderError(archive_object);
   return result;
@@ -78,6 +80,9 @@ int CustomArchiveClose(archive* archive_object, void* client_data) {
 VolumeArchiveLibarchive::VolumeArchiveLibarchive(const std::string& request_id,
                                                  VolumeReader* reader)
     : VolumeArchive(request_id, reader),
+      // Reader size is volume_archive_constants::kHeaderChunkSize
+      // because at first archive headers are read.
+      reader_data_size_(volume_archive_constants::kHeaderChunkSize),
       archive_(NULL),
       current_archive_entry_(NULL),
       last_read_data_offset_(0) {
@@ -105,12 +110,13 @@ bool VolumeArchiveLibarchive::Init() {
   }
 
   // Set callbacks for processing the archive's data and open the archive.
+  // The callback data is the VolumeArchive itself.
   int ok = ARCHIVE_OK;
   if (archive_read_set_read_callback(archive_, CustomArchiveRead) != ok ||
       archive_read_set_skip_callback(archive_, CustomArchiveSkip) != ok ||
       archive_read_set_seek_callback(archive_, CustomArchiveSeek) != ok ||
       archive_read_set_close_callback(archive_, CustomArchiveClose) != ok ||
-      archive_read_set_callback_data(archive_, reader()) != ok ||
+      archive_read_set_callback_data(archive_, this) != ok ||
       archive_read_open1(archive_) != ok) {
     set_error_message(ArchiveError(
         volume_archive_constants::kArchiveOpenErrorPrefix, archive_));
@@ -124,7 +130,11 @@ bool VolumeArchiveLibarchive::GetNextHeader(const char** pathname,
                                             int64_t* size,
                                             bool* is_directory,
                                             time_t* modification_time) {
-  // Reset to 0 for new VolumeArchiveLibarchive::ReadData operation.
+  // Reset VolumeReader data size so CustomArchiveRead doesn't require big
+  // chunks for headers.
+  reader_data_size_ = volume_archive_constants::kHeaderChunkSize;
+
+  // Reset to 0 for new VolumeArchive::ReadData operation.
   last_read_data_offset_ = 0;
 
   // Archive data is skipped automatically by next call to
@@ -202,6 +212,16 @@ bool VolumeArchiveLibarchive::ReadData(int64_t offset,
   // until the requested position must be unpacked.
   ssize_t size = -1;
   while (offset > last_read_data_offset_) {
+    // ReadData will call CustomArchiveRead when calling archive_read_data. Read
+    // should not request more bytes than possibly needed, so we request either
+    // offset - last_read_data_offset_, kMaximumDataChunkSize in case the former
+    // is too big or kMinimumDataChunkSize in case its too small and we might
+    // end up with too many IPCs.
+    reader_data_size_ = std::max(
+        std::min(offset - last_read_data_offset_,
+                 volume_archive_constants::kMaximumDataChunkSize),
+        volume_archive_constants::kMinimumDataChunkSize);
+
     // No need for an offset in dummy_buffer as it will be ignored anyway.
     size =
         archive_read_data(archive_,
@@ -216,7 +236,16 @@ bool VolumeArchiveLibarchive::ReadData(int64_t offset,
     last_read_data_offset_ += size;
   }
 
-  // Perform actual copy.
+  // ReadData will call CustomArchiveRead when calling archive_read_data. The
+  // read should be done with a value similar to length, which is the requested
+  // number of bytes, or kMaximumDataChunkSize / kMinimumDataChunkSize
+  // in case length is too big or too small.
+  reader_data_size_ =
+      std::max(std::min(static_cast<int64_t>(length),
+                        volume_archive_constants::kMaximumDataChunkSize),
+               volume_archive_constants::kMinimumDataChunkSize);
+
+  // Perform  the actual copy.
   int32_t buffer_offset = 0;  // Not file offset, so it's ok to be int32_t.
                               // A read cannot be greater than length, which is
                               // int32_t. Having more than 4GB in memory for a

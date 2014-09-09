@@ -12,8 +12,8 @@
 
 #include "archive.h"
 
-// Variables used by libarchive in tests.
-namespace lib_archive_variables {
+// Define variables used to control the flow of the libarchive API.
+namespace fake_lib_archive_config {
 
 // A fake error returned by libarchive in case of failures.
 const char kArchiveError[] = "An archive error.";
@@ -22,21 +22,22 @@ const char kArchiveError[] = "An archive error.";
 const char kPathName[] = "path/to/file";  // Archives contain paths
                                           // without root "/".
 
-// The fake archive data.
-const char kArchiveData[] =
-    "Fake data contained by the archive. Content is "
-    "not important and it is used strictly for testing.";
-
-// The maximum amount of data that can be read with a single archive_read_data
-// call. In case this threshold is passed archive_read_data will return
-// ARCHIVE_FATAL. This variable is used to simulate archive_read_data failures.
-const size_t kArchiveReadDataErrorThreshold = 1024;  // 1 KB.
-
 // The fake size for libarchive entries. Bigger than int32_t.
 const int64_t kSize = std::numeric_limits<int64_t>::max() - 50;
 
 // The fake modification time for libarchive entries.
 const time_t kModificationTime = 500;
+
+// The data returned by archive_read_data. The pointer can be changed to other
+// addresses. In case of NULL archive_read_data returns failure.
+// archive_data should have archive_data_size available bytes in memory,
+// else unexpected behavior can occur.
+// By default it is set to NULL.
+extern const char* archive_data;
+
+// The size of archive_data.
+// By default it is set to 0, which forces failure for archive_read_data.
+extern size_t archive_data_size;
 
 // Bool variables used to force failure responses for libarchive API.
 // By default all should be set to false.
@@ -62,6 +63,6 @@ extern mode_t archive_entry_filetype_return_value;
 // Resets all variables to default values.
 void ResetVariables();
 
-}  // namespace lib_archive_variables
+}  // namespace fake_lib_archive_config
 
 #endif  // FAKE_LIB_ARCHIVE_H_

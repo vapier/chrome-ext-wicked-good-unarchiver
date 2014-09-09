@@ -19,7 +19,7 @@
 // but do not define it.
 struct archive {
   // Used by archive_read_data to know how many bytes were read from
-  // lib_archive_variables::kArchiveData during last call.
+  // fake_lib_archive_config::kArchiveData during last call.
   size_t data_offset;
 };
 
@@ -35,9 +35,12 @@ archive_entry test_archive_entry;
 
 }  // namespace
 
-// Initialize the variables from lib_archive_variables namespace defined in
+// Initialize the variables from fake_lib_archive_config namespace defined in
 // fake_lib_archive.h.
-namespace lib_archive_variables {
+namespace fake_lib_archive_config {
+
+const char* archive_data = NULL;
+size_t archive_data_size = 0;
 
 // By default libarchive API functions will return success.
 bool fail_archive_read_new = false;
@@ -56,6 +59,9 @@ int archive_read_next_header_return_value = ARCHIVE_OK;
 mode_t archive_entry_filetype_return_value = S_IFREG;  // Regular file.
 
 void ResetVariables() {
+  archive_data = NULL;
+  archive_data_size = 0;
+
   fail_archive_read_new = false;
   fail_archive_rar_support = false;
   fail_archive_zip_support = false;
@@ -71,15 +77,15 @@ void ResetVariables() {
   archive_entry_filetype_return_value = S_IFREG;
 }
 
-}  // namespace lib_archive_variables
+}  // namespace fake_lib_archive_config
 
 archive* archive_read_new() {
   test_archive.data_offset = 0;  // Reset data_offset.
-  return lib_archive_variables::fail_archive_read_new ? NULL : &test_archive;
+  return fake_lib_archive_config::fail_archive_read_new ? NULL : &test_archive;
 }
 
 const char* archive_error_string(archive* archive_object) {
-  return lib_archive_variables::kArchiveError;
+  return fake_lib_archive_config::kArchiveError;
 }
 
 void archive_set_error(struct archive *, int error_code, const char *fmt, ...) {
@@ -87,84 +93,86 @@ void archive_set_error(struct archive *, int error_code, const char *fmt, ...) {
 }
 
 int archive_read_support_format_rar(archive* archive_object) {
-  return lib_archive_variables::fail_archive_rar_support ? ARCHIVE_FATAL
-                                                         : ARCHIVE_OK;
+  return fake_lib_archive_config::fail_archive_rar_support ? ARCHIVE_FATAL
+                                                           : ARCHIVE_OK;
 }
 
 int archive_read_support_format_zip(archive* archive_object) {
-  return lib_archive_variables::fail_archive_zip_support ? ARCHIVE_FATAL
-                                                         : ARCHIVE_OK;
+  return fake_lib_archive_config::fail_archive_zip_support ? ARCHIVE_FATAL
+                                                           : ARCHIVE_OK;
 }
 
 int archive_read_set_read_callback(archive* archive_object,
                                    archive_read_callback* client_reader) {
-  return lib_archive_variables::fail_archive_set_read_callback ? ARCHIVE_FATAL
-                                                               : ARCHIVE_OK;
+  return fake_lib_archive_config::fail_archive_set_read_callback ? ARCHIVE_FATAL
+                                                                 : ARCHIVE_OK;
 }
 
 int archive_read_set_skip_callback(archive* archive_object,
                                    archive_skip_callback* client_skipper) {
-  return lib_archive_variables::fail_archive_set_skip_callback ? ARCHIVE_FATAL
-                                                               : ARCHIVE_OK;
+  return fake_lib_archive_config::fail_archive_set_skip_callback ? ARCHIVE_FATAL
+                                                                 : ARCHIVE_OK;
 }
 
 int archive_read_set_seek_callback(archive* archive_object,
                                    archive_seek_callback* client_seeker) {
-  return lib_archive_variables::fail_archive_set_seek_callback ? ARCHIVE_FATAL
-                                                               : ARCHIVE_OK;
+  return fake_lib_archive_config::fail_archive_set_seek_callback ? ARCHIVE_FATAL
+                                                                 : ARCHIVE_OK;
 }
 
 int archive_read_set_close_callback(archive* archive_object,
                                     archive_close_callback* client_closer) {
-  return lib_archive_variables::fail_archive_set_close_callback ? ARCHIVE_FATAL
-                                                                : ARCHIVE_OK;
+  return fake_lib_archive_config::fail_archive_set_close_callback
+             ? ARCHIVE_FATAL
+             : ARCHIVE_OK;
 }
 
 int archive_read_set_callback_data(archive* archive_object, void* client_data) {
-  return lib_archive_variables::fail_archive_set_callback_data ? ARCHIVE_FATAL
-                                                               : ARCHIVE_OK;
+  return fake_lib_archive_config::fail_archive_set_callback_data ? ARCHIVE_FATAL
+                                                                 : ARCHIVE_OK;
 }
 
 int archive_read_open1(archive* archive_object) {
-  return lib_archive_variables::fail_archive_read_open ? ARCHIVE_FATAL
-                                                       : ARCHIVE_OK;
+  return fake_lib_archive_config::fail_archive_read_open ? ARCHIVE_FATAL
+                                                         : ARCHIVE_OK;
 }
 
-int archive_read_next_header(archive* archive_object,
-                             archive_entry** entry) {
+int archive_read_next_header(archive* archive_object, archive_entry** entry) {
   *entry = &test_archive_entry;
-  return lib_archive_variables::archive_read_next_header_return_value;
+  return fake_lib_archive_config::archive_read_next_header_return_value;
 }
 
 const char* archive_entry_pathname(archive_entry* entry) {
-  return lib_archive_variables::kPathName;
+  return fake_lib_archive_config::kPathName;
 }
 
 int64_t archive_entry_size(archive_entry* entry) {
-  return lib_archive_variables::kSize;
+  return fake_lib_archive_config::kSize;
 }
 
 time_t archive_entry_mtime(archive_entry* entry) {
-  return lib_archive_variables::kModificationTime;
+  return fake_lib_archive_config::kModificationTime;
 }
 
 mode_t archive_entry_filetype(archive_entry* entry) {
-  return lib_archive_variables::archive_entry_filetype_return_value;
+  return fake_lib_archive_config::archive_entry_filetype_return_value;
 }
 
 int archive_read_free(archive* archive_object) {
-  return lib_archive_variables::fail_archive_read_free ? ARCHIVE_FATAL
-                                                       : ARCHIVE_OK;
+  return fake_lib_archive_config::fail_archive_read_free ? ARCHIVE_FATAL
+                                                         : ARCHIVE_OK;
 }
 
-// To force failure pass length >= kArchiveReadDataErrorThreshold.
 ssize_t archive_read_data(archive* archive_object,
                           void* buffer,
                           size_t length) {
-  if (length >= lib_archive_variables::kArchiveReadDataErrorThreshold)
+  // TODO(cmihail): Instead of returning the archive data directly here use the
+  // callback function set with archive_read_set_read_callback.
+  // See crbug.com/415871.
+  size_t archive_data_size = fake_lib_archive_config::archive_data_size;
+  if (fake_lib_archive_config::archive_data == NULL || archive_data_size == 0)
     return ARCHIVE_FATAL;
 
-  size_t archive_data_size = sizeof(lib_archive_variables::kArchiveData);
   PP_DCHECK(archive_data_size >= archive_object->data_offset);
 
   size_t read_bytes =
@@ -173,7 +181,7 @@ ssize_t archive_read_data(archive* archive_object,
 
   // Copy data content.
   const char* source =
-      lib_archive_variables::kArchiveData + archive_object->data_offset;
+      fake_lib_archive_config::archive_data + archive_object->data_offset;
   PP_DCHECK(archive_data_size >= archive_object->data_offset + read_bytes);
   memcpy(buffer, source, read_bytes);
 
