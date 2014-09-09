@@ -1,23 +1,17 @@
 {
-  "name": "Open Archive",
+  "name": "ZIP unpacker",
   "version": "0.1",
   "manifest_version": 2,
-  "description": "Prototype extension for opening rar / zip archives.",
+  "description": "An extension to decompress ZIP archives.",
   "permissions": [
     "fileSystemProvider",
     {"fileSystem": ["retainEntries"]},
     "storage"
   ],
   "file_handlers": {
-    "rar": {
-      "types": ["application/rar"],
-      "extensions": ["rar"],
-      "title": "Open rar archive"
-    },
     "zip": {
-      "types": ["application/zi"],
-      "extensions": ["zip"],
-      "title": "Open zip archive"
+      "types": ["application/zip"],
+      "extensions": ["zip"]
     }
   },
   "app": {
