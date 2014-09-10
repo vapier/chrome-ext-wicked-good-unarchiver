@@ -43,3 +43,31 @@ $(eval $(call NMF_RULE,$(TARGET),))
 # with findstring).
 .PHONY: debug_for_tests
 debug_for_tests: all
+
+# Default script for gdb. Feel free to overwrite it from outside.
+GDB_SCRIPT ?= gdb_script
+GDB_ARGS += -D --eval-command="source $(GDB_SCRIPT)"
+
+# Debug rule for gdb. The extension is automatically loaded at every run.
+# Ignore the 404 error for index.html that appears in the browser when
+# running this rule. The load is done automatically from the tools we use from
+# $(NACL_SDK_ROOT)/tools/common.mk.
+#
+# In case you want to persistent the changes to Chrome between multiple runs of
+# this rule close Chrome using "x" and not CTRL+C, else user-data-dir-gdb
+# doesn't get updated.
+#
+# IMPORTANT: Overwrite CHROME_PATH variable with the path to the browser
+# executable that supports the File System Provider API. Otherwise this will
+# fallback to the default Chrome browser installed on the machine and fail.
+# e.g.: export CHROME_PATH=~/chrome-dev/code/src/out/Release/chrome
+.PHONY: debug_gdb
+debug_gdb: check_for_chrome all
+	$(RUN_PY) $(GDB_ARGS) \
+	    -C $(CURDIR) \
+	     $(addprefix -E ,$(CHROME_ENV)) -- $(CHROME_PATH_ESCAPE) \
+	    --enable-nacl --enable-pnacl --enable-nacl-debug \
+	    --disable-setuid-sandbox --no-sandbox \
+	    --user-data-dir=user-data-dir-gdb --enable-loggining --v1 \
+	    --load-extension=. \
+	    --register-pepper-plugins="$(PPAPI_DEBUG),$(PPAPI_RELEASE)"

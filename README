@@ -5,7 +5,7 @@ See https://code.google.com/p/naclports/wiki/HowTo_Checkout?tm=4
 > ./make_all.sh libarchive
 
 Build the NaCl module.
-> cd unpacker  # Location of the cloned files.
+> cd unpacker
 > make  # For NaCl.
 > make debug_for_tests  # For NaCl debug.
 > make VALID_TOOLCHAINS=pnacl  # For PNaCl.
@@ -42,6 +42,11 @@ Chai for assertions (http://chaijs.com/) and Sinon for spies and stubs
 > npm install karma-sinon --save-dev
 
 # Run tests:
-> cd unpacker-test  # Location of the cloned files.
+> cd unpacker-test
 > ./run_js_tests.sh  # JavaScript tests.
 > ./run_nacl_tests.sh  # NaCl tests.
+
+# Run gdb:
+> export CHROME_PATH=<path_to_chrome_with_file_system_provider_api_support>
+> cd unpacker
+> [GDB_SCRIPT=<gdb_script>] make gdb_debug  # GDB_SCRIPT part is optional.

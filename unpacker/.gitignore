@@ -1,3 +1,5 @@
 newlib
 pnacl
+gdb_script
 user-data-dir
+user-data-dir-gdb
