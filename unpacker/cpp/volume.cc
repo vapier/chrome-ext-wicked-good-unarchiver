@@ -272,10 +272,10 @@ void Volume::OpenFileCallback(int32_t /*result*/,
   if (!volume_archive)
     return;
 
-  const char* path_name;
-  int64_t size;
-  bool is_directory;
-  time_t modification_time;
+  const char* path_name = NULL;
+  int64_t size = 0;
+  bool is_directory = false;
+  time_t modification_time = 0;
   for (;;) {
     if (!volume_archive->GetNextHeader(
             &path_name, &size, &is_directory, &modification_time)) {
@@ -288,10 +288,11 @@ void Volume::OpenFileCallback(int32_t /*result*/,
     }
 
     if (!path_name) {
-      PP_DCHECK(false);  // Should never get here. JavaScript should require
-                         // the extraction of a valid file or never make the
-                         // call if file_path is invalid.
-      break;
+      PostFileSystemError("File not found in archive: " + file_path + ".",
+                          file_system_id_,
+                          request_id,
+                          instance_);
+      return;
     }
 
     if (file_path.compare(std::string(kPathDelimiter) + path_name) == 0)

@@ -39,11 +39,13 @@ var tests_helper = {
   volumesInformation: [],
 
   /**
-   * The volumes state to save and restore after suspend event, restarts,
-   * crashes, etc.
+   * The local storage that contains the volumes state to restore after suspend
+   * event, restarts, crashes, etc. The key is used to differentiate between
+   * different values stored in the local storage. For our extension only
+   * app.STORAGE_KEY is used.
    * @type {Object.<string, Object>}
    */
-  volumesState: null,
+  localStorageState: {},
 
   /**
    * Downloads an archive in order to use it inside the tests. The download
@@ -87,14 +89,27 @@ var tests_helper = {
     // Local storage API.
     chrome.storage = {
       local: {
-        set: sinon.spy(),
+        set: function() {
+          // 'set' must be a function before we can stub it with a custom
+          // function. This is a sinon requirement.
+        },
         get: sinon.stub()
       }
     };
+    // Make a deep copy as tests_helper.localStorageState is the data on the
+    // local storage and not in memory. This way the extension will work on a
+    // different memory which is the case in real scenarios.
+    var localStorageState =
+        JSON.parse(JSON.stringify(tests_helper.localStorageState));
     chrome.storage.local.get.withArgs([app.STORAGE_KEY])
-        .callsArgWith(1, tests_helper.volumesState);
+        .callsArgWith(1, localStorageState);
     chrome.storage.local.get.throws(
         'Invalid argument for get.' /* If app.STORAGE_KEY is invalid. */);
+
+    sinon.stub(chrome.storage.local, 'set', function(state) {
+      // Save the state in the local storage in a different memory.
+      tests_helper.localStorageState = JSON.parse(JSON.stringify(state));
+    });
 
     // File system API.
     chrome.fileSystem = {
@@ -150,10 +165,6 @@ var tests_helper = {
    * @return {Promise} A promise that will finish initialization asynchronously.
    */
   init: function(archivesToTest) {
-    // Init volumesState.
-    tests_helper.volumesState = {};
-    tests_helper.volumesState[app.STORAGE_KEY] = {};
-
     // Create promises to obtain archives blob.
     var getArchivesBlobPromises = [];
     archivesToTest.forEach(function(archiveName) {
@@ -177,10 +188,6 @@ var tests_helper = {
       };
 
       tests_helper.volumesInformation.push(volumeInformation);
-      tests_helper.volumesState[app.STORAGE_KEY][fileSystemId] = {
-        entryId: volumeInformation.entryId,
-        openedFiles: {}
-      };
 
       // Get the archives blob.
       getArchivesBlobPromises.push(
