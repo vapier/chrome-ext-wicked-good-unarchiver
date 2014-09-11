@@ -78,9 +78,9 @@ pp::VarDictionary request::CreateReadFileDoneResponse(
 }
 
 pp::VarDictionary request::CreateFileSystemError(
-    const std::string& error,
     const std::string& file_system_id,
-    const std::string& request_id) {
+    const std::string& request_id,
+    const std::string& error) {
   pp::VarDictionary request =
       CreateBasicRequest(FILE_SYSTEM_ERROR, file_system_id, request_id);
   request.Set(request::key::kError, error);

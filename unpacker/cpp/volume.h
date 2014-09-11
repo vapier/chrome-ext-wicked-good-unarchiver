@@ -5,8 +5,10 @@
 #ifndef VOLUME_H_
 #define VOLUME_H_
 
+#include <pthread.h>
+
 #include "archive.h"
-#include "ppapi/cpp/instance.h"
+#include "ppapi/cpp/instance_handle.h"
 #include "ppapi/cpp/var_array_buffer.h"
 #include "ppapi/cpp/var_dictionary.h"
 #include "ppapi/utility/threading/lock.h"
@@ -14,14 +16,16 @@
 #include "ppapi/utility/completion_callback_factory.h"
 
 #include "javascript_requestor.h"
+#include "javascript_message_sender.h"
 #include "request.h"
 #include "volume_archive.h"
 
+// TODO(cmihail): Write unit tests for this class.
 class Volume {
  public:
-  // TODO(cmihail): Eliminate circular dependency to pp::Instance and add unit
-  // tests for Volume.
-  Volume(pp::Instance* instance, const std::string& file_system_id);
+  Volume(const pp::InstanceHandle& instance_handle /* Used for workers. */,
+         const std::string& file_system_id,
+         JavaScriptMessageSender* message_sender);
 
   virtual ~Volume();
 
@@ -58,8 +62,9 @@ class Volume {
   void ReadFile(const std::string& request_id,
                 const pp::VarDictionary& dictionary);
 
-  pp::Instance* instance() const { return instance_; }
-  std::string file_system_id() const { return file_system_id_; }
+  JavaScriptMessageSender* message_sender() { return message_sender_; }
+  JavaScriptRequestor* requestor() { return requestor_; }
+  std::string file_system_id() { return file_system_id_; }
 
  private:
   // A callback helper for ReadMetadata.
@@ -102,12 +107,11 @@ class Volume {
   // releasing it only after not using the VolumeArchive anymore.
   VolumeArchive* GetVolumeArchive(const std::string& request_id);
 
-  // A pp::Instance used to post messages back to JS code and construct the
-  // worker thread.
-  pp::Instance* instance_;
-
   // The file system id for this volume.
   std::string file_system_id_;
+
+  // An object that sends messages to JavaScript.
+  JavaScriptMessageSender* message_sender_;
 
   // A worker for jobs that require blocking operations or a lot of processing
   // time. Those shouldn't be done on the main thread. The jobs submitted to
@@ -118,7 +122,19 @@ class Volume {
   // synchronization between workers might be needed.
   pp::SimpleThread worker_;
 
-  // Callback factory sued to submit jobs to worker_.
+  // Callback factory used to submit jobs to worker_.
+  // See "Detailed Description" Note at:
+  // https://developer.chrome.com/native-client/
+  //     pepper_dev/cpp/classpp_1_1_completion_callback_factory
+  //
+  // As a minus this would require ugly synchronization between the main thread
+  // and the function that is executed on worker_ construction. Current
+  // implementation is simimlar to examples in $NACL_SDK_ROOT and according to
+  // https://chromiumcodereview.appspot.com/lint_patch/issue10790078_24001_25013
+  // it should be safe (see TODO(dmichael)). That's because both worker_ and
+  // callback_factory_ will be alive during the life of Volume and deleting a
+  // Volume is permitted only if there are no requests in progress on
+  // JavaScript side (this means no Callbacks in progress).
   pp::CompletionCallbackFactory<Volume> callback_factory_;
 
   // A map containing all reads in progress. First argument is a unique key per

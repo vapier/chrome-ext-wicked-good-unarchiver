@@ -138,7 +138,7 @@ TEST(request, CreateReadFileDoneResponse) {
 
 TEST(request, CreateFileSystemError) {
   pp::VarDictionary error =
-      request::CreateFileSystemError(kError, kFileSystemId, kRequestId);
+      request::CreateFileSystemError(kFileSystemId, kRequestId, kError);
 
   EXPECT_TRUE(error.Get(request::key::kOperation).is_int());
   EXPECT_EQ(request::FILE_SYSTEM_ERROR,

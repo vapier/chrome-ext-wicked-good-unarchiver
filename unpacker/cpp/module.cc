@@ -5,18 +5,97 @@
 #include <sstream>
 
 #include "ppapi/cpp/instance.h"
+#include "ppapi/cpp/instance_handle.h"
 #include "ppapi/cpp/logging.h"
 #include "ppapi/cpp/module.h"
 #include "ppapi/cpp/var_dictionary.h"
+#include "ppapi/utility/threading/lock.h"
+#include "ppapi/utility/threading/simple_thread.h"
 
 #include "request.h"
 #include "volume.h"
+
+namespace {
+
+// An internal implementation of JavaScriptMessageSender. This class is the only
+// place where pp::Instance::PostMessage is allowed to be called in this NaCl
+// module in order to ensure thread safety, else we can end up with races as
+// mentioned at crbug.com/412692.
+class ModuleJavaScriptMessageSender : public JavaScriptMessageSender {
+ public:
+  explicit ModuleJavaScriptMessageSender(pp::Instance* instance)
+      : instance_(instance) {}
+
+  void SendFileSystemError(const std::string& file_system_id,
+                           const std::string& request_id,
+                           const std::string& message) {
+    SafePostMessage(
+        request::CreateFileSystemError(file_system_id, request_id, message));
+  }
+
+  void SendFileChunkRequest(const std::string& file_system_id,
+                            const std::string& request_id,
+                            int64_t offset,
+                            size_t bytes_to_read) {
+    SafePostMessage(request::CreateReadChunkRequest(
+        file_system_id, request_id, offset, bytes_to_read));
+  }
+
+  void SendReadMetadataDone(const std::string& file_system_id,
+                            const std::string& request_id,
+                            const pp::VarDictionary& metadata) {
+    SafePostMessage(request::CreateReadMetadataDoneResponse(
+        file_system_id, request_id, metadata));
+  }
+
+  void SendOpenFileDone(const std::string& file_system_id,
+                        const std::string& request_id) {
+    SafePostMessage(
+        request::CreateOpenFileDoneResponse(file_system_id, request_id));
+  }
+
+  void SendCloseFileDone(const std::string& file_system_id,
+                         const std::string& request_id,
+                         const std::string& open_request_id) {
+    SafePostMessage(request::CreateCloseFileDoneResponse(
+        file_system_id, request_id, open_request_id));
+  }
+
+  void SendReadFileDone(const std::string& file_system_id,
+                        const std::string& request_id,
+                        const pp::VarArrayBuffer& array_buffer,
+                        bool has_more_data) {
+    SafePostMessage(request::CreateReadFileDoneResponse(
+        file_system_id, request_id, array_buffer, has_more_data));
+  }
+
+ private:
+  // Posts a message to JavaScript in a lock, since PostMessage() is actually
+  // not thread safe (See: crbug.com/412692). This should be the only method
+  // that sends message to JavaScript in the whole NaCl extension code and
+  // ModuleJavaScriptMessageSender instance should be unique per every
+  // NaclArchiveInstance.
+  void SafePostMessage(const pp::VarDictionary& message) {
+    post_message_lock_.Acquire();
+    instance_->PostMessage(message);
+    post_message_lock_.Release();
+  }
+
+  pp::Lock post_message_lock_;
+  pp::Instance* instance_;
+};
+
+}  // namespace
 
 // An instance for every "embed" in the web page. For this extension only one
 // "embed" is necessary.
 class NaclArchiveInstance : public pp::Instance {
  public:
-  explicit NaclArchiveInstance(PP_Instance instance) : pp::Instance(instance) {}
+  explicit NaclArchiveInstance(PP_Instance instance)
+      : pp::Instance(instance),
+        instance_handle_(instance),
+        message_sender_(this) {}
+
   virtual ~NaclArchiveInstance() {
     for (std::map<std::string, Volume*>::iterator iterator = volumes_.begin();
          iterator != volumes_.end();
@@ -101,12 +180,13 @@ class NaclArchiveInstance : public pp::Instance {
     // Should not call ReadMetadata for a Volume already present in NaCl.
     PP_DCHECK(volumes_.find(file_system_id) == volumes_.end());
 
-    Volume* volume = new Volume(this, file_system_id);
+    Volume* volume =
+        new Volume(instance_handle_, file_system_id, &message_sender_);
     if (!volume->Init()) {
-      PostMessage(request::CreateFileSystemError(
-          "Could not create a volume for: " + file_system_id + ".",
+      message_sender_.SendFileSystemError(
           file_system_id,
-          request_id));
+          request_id,
+          "Could not create a volume for: " + file_system_id + ".");
       delete volume;
       return;
     }
@@ -197,6 +277,14 @@ class NaclArchiveInstance : public pp::Instance {
   // A map that holds for every opened archive its instance. The key is the file
   // system id of the archive.
   std::map<std::string, Volume*> volumes_;
+
+  // An pp::InstanceHandle used to create pp::SimpleThread in Volume.
+  pp::InstanceHandle instance_handle_;
+
+  // An object used to send messages to JavaScript.
+  // All Volumes should be created using this object in order for
+  // ModuleJavaScriptMessageSender::SafePostMessage to correctly work.
+  ModuleJavaScriptMessageSender message_sender_;
 };
 
 // The Module class. The browser calls the CreateInstance() method to create

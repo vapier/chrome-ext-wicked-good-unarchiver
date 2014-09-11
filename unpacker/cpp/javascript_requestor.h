@@ -11,7 +11,7 @@
 // handled by other classes. This class stricly makes requests.
 class JavaScriptRequestor {
  public:
-  virtual ~JavaScriptRequestor() {};
+  virtual ~JavaScriptRequestor() {}
 
   // Request a file chunk from JavaScript. The request is asynchronous.
   virtual void RequestFileChunk(const std::string& request_id,

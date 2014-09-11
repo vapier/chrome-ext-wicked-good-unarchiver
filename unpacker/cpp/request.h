@@ -87,9 +87,9 @@ pp::VarDictionary CreateReadFileDoneResponse(
     bool has_more_data);
 
 // Creates a file system error.
-pp::VarDictionary CreateFileSystemError(const std::string& error,
-                                        const std::string& file_system_id,
-                                        const std::string& request_id);
+pp::VarDictionary CreateFileSystemError(const std::string& file_system_id,
+                                        const std::string& request_id,
+                                        const std::string& error);
 
 // Obtains a int64_t from a string value inside dictionary based on a
 // request::Key.
