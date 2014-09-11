@@ -75,11 +75,8 @@ var restoreCheck = function(volumeInformation) {
       });
     });
 
-    it('should call chrome.storage.local.get only once', function() {
-      // In case this is called multiple times then restore calls weren't
-      // chained. This holds only for restore calls made to the same file
-      // system.
-      expect(chrome.storage.local.get.calledOnce).to.be.true;
+    it('should restore state', function() {
+      expect(chrome.storage.local.get.called).to.be.true;
     });
   });
 
@@ -113,8 +110,8 @@ var restoreCheck = function(volumeInformation) {
       expect(directoryEntries.length).to.equal(3);
     });
 
-    it('should call chrome.storage.local.get only once', function() {
-      expect(chrome.storage.local.get.calledOnce).to.be.true;
+    it('should restore state', function() {
+      expect(chrome.storage.local.get.called).to.be.true;
     });
   });
 
@@ -157,53 +154,6 @@ var volumeLoadCheck = function(volumeInformation) {
 
     it('that has 3 entries', function() {
       expect(Object.keys(metadata.entries).length).to.equal(3);
-    });
-  });
-};
-
-/**
- * Checks if unmount was successful.
- * @param {Object} volumeInformation The information for the volume to check.
- */
-var unmountCheck = function(volumeInformation) {
-  var fileSystemId = volumeInformation.fileSystemId;
-  describe('that unmounts volume <' + fileSystemId + '>', function() {
-    var onSuccessSpy;
-
-    beforeEach(function() {
-      expect(app.volumes[fileSystemId]).to.not.be.undefined;
-
-      onSuccessSpy = sinon.spy();
-      var options = {
-        fileSystemId: fileSystemId
-      };
-      app.onUnmountRequested(options, onSuccessSpy, function() {
-        // Force failure, first 2 parameters don't matter.
-        assert.fail(undefined, undefined, 'Could not umount volume.');
-      });
-    });
-
-    it('should remove volume from app.volumes', function() {
-      expect(app.volumes[fileSystemId]).to.be.undefined;
-    });
-
-    it('should call onSuccessSpy', function() {
-      expect(onSuccessSpy.calledOnce).to.be.true;
-    });
-
-    it('should call retainEntry again for state save', function() {
-      var length = tests_helper.volumesInformation.length;
-      // First calls were onLaunched. The calls are '+ length - 1' because
-      // retainEntry is called for every volume except the one that was
-      // umounted.
-      expect(chrome.fileSystem.retainEntry.callCount)
-          .to.equal(length * length + length - 1);
-    });
-
-    it('should store the volumes state again for state save', function() {
-      // First calls were onLaunched.
-      expect(chrome.storage.local.set.callCount)
-          .to.equal(tests_helper.volumesInformation.length + 1);
     });
   });
 };
@@ -286,11 +236,8 @@ describe('Unpacker extension', function() {
   // Test state save.
   describe('should save state in case of restarts or crashes', function() {
     it('by calling retainEntry with the volume\'s entry', function() {
-      // retainEntry is called square times because saveState is
-      // reexecuted for every volume load.
       expect(chrome.fileSystem.retainEntry.callCount)
-          .to.equal(tests_helper.volumesInformation.length *
-              tests_helper.volumesInformation.length);
+          .to.equal(tests_helper.volumesInformation.length);
       tests_helper.volumesInformation.forEach(function(volume) {
         expect(chrome.fileSystem.retainEntry.calledWith(volume.entry)).
             to.be.true;
@@ -298,37 +245,43 @@ describe('Unpacker extension', function() {
     });
 
     it('by storing the volumes state', function() {
-      expect(chrome.storage.local.set.callCount)
-          .to.equal(tests_helper.volumesInformation.length);
-      expect(chrome.storage.local.set.calledWith(tests_helper.volumesState))
-          .to.be.true;
+      tests_helper.volumesInformation.forEach(function(volumeInformation) {
+        var fileSystemId = volumeInformation.fileSystemId;
+        expect(tests_helper.localStorageState[app.STORAGE_KEY][fileSystemId])
+            .to.not.be.undefined;
+      });
+      expect(chrome.storage.local.set.called).to.be.true;
     });
   });
 
   // Test restore after suspend page event.
   describe('that receives a suspend page event', function() {
     beforeEach(function() {
+      // Reinitialize spies in order to register only the calls after suspend
+      // and not before it.
+      tests_helper.initChromeApis();
+
       app.onSuspend();  // This gets called before suspend.
       unloadExtension();
     });
 
-    it('should call retainEntry again', function() {
-      var length = tests_helper.volumesInformation.length;
-      // First calls were onLaunched. The calls are '+ length' because
-      // retainEntry is called for every volume.
+    it('should call retainEntry again for all mounted volumes', function() {
       expect(chrome.fileSystem.retainEntry.callCount)
-          .to.equal(length * length + length);
+          .to.equal(tests_helper.volumesInformation.length);
     });
 
-    it('should store the volumes state again', function() {
-      // First calls were onLaunched.
-      expect(chrome.storage.local.set.callCount)
-          .to.equal(tests_helper.volumesInformation.length + 1);
+    it('should store the volumes state for all mounted volumes', function() {
+      tests_helper.volumesInformation.forEach(function(volumeInformation) {
+        var fileSystemId = volumeInformation.fileSystemId;
+        expect(tests_helper.localStorageState[app.STORAGE_KEY][fileSystemId])
+            .to.not.be.undefined;
+      });
+      expect(chrome.storage.local.set.called).to.be.true;
     });
 
     // Check if restore was successful.
-    tests_helper.volumesInformation.forEach(function(volume) {
-      restoreCheck(volume);
+    tests_helper.volumesInformation.forEach(function(volumeInformation) {
+      restoreCheck(volumeInformation);
     });
   });
 
@@ -349,7 +302,47 @@ describe('Unpacker extension', function() {
   });
 
   // Check unmount.
-  tests_helper.volumesInformation.forEach(function(volume) {
-    unmountCheck(volume);
+  tests_helper.volumesInformation.forEach(function(volumeInformation) {
+    var fileSystemId = volumeInformation.fileSystemId;
+    describe('that unmounts volume <' + fileSystemId + '>', function() {
+      var onSuccessSpy;
+
+      beforeEach(function() {
+        // Reinitialize spies in order to register only the calls after suspend
+        // and not before it.
+        tests_helper.initChromeApis();
+
+        expect(app.volumes[fileSystemId]).to.not.be.undefined;
+        expect(tests_helper.localStorageState[app.STORAGE_KEY][fileSystemId])
+            .to.not.be.undefined;
+
+        onSuccessSpy = sinon.spy();
+        var options = {
+          fileSystemId: fileSystemId
+        };
+        app.onUnmountRequested(options, onSuccessSpy, function() {
+          // Force failure, first 2 parameters don't matter.
+          assert.fail(undefined, undefined, 'Could not umount volume.');
+        });
+      });
+
+      it('should remove volume from app.volumes', function() {
+        expect(app.volumes[fileSystemId]).to.be.undefined;
+      });
+
+      it('should call onSuccessSpy', function() {
+        expect(onSuccessSpy.calledOnce).to.be.true;
+      });
+
+      it('should not call retainEntry', function() {
+        expect(chrome.fileSystem.retainEntry.called).to.be.false;
+      });
+
+      it('should remove volume from local storage', function() {
+        expect(tests_helper.localStorageState[app.STORAGE_KEY][fileSystemId])
+            .to.be.undefined;
+        expect(chrome.storage.local.set.called).to.be.true;
+      });
+    });
   });
 });

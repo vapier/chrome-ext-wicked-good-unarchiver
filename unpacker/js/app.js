@@ -77,22 +77,46 @@ var app = {
 
   /**
    * Saves state in case of restarts, event page suspend, crashes, etc.
+   * @param {Array.<string>} fileSystemIdsArray An array with the file system
+   *     ids for which the state is saved.
    * @private
    */
-  saveState_: function() {
-    var state = {};
-    for (var fileSystemId in app.volumes) {
-      var entryId =
-          chrome.fileSystem.retainEntry(app.volumes[fileSystemId].entry);
-      state[fileSystemId] = {
-        entryId: entryId,
-        openedFiles: app.volumes[fileSystemId].openedFiles
-      };
-    }
+  saveState_: function(fileSystemIdsArray) {
+    chrome.storage.local.get([app.STORAGE_KEY], function(result) {
+      if (!result[app.STORAGE_KEY])  // First save state call.
+        result[app.STORAGE_KEY] = {};
 
-    var toStore = {};
-    toStore[app.STORAGE_KEY] = state;
-    chrome.storage.local.set(toStore);
+      // Overwrite state only for the volumes that have their file system id
+      // present in the input array. Leave the rest of the volumes state
+      // untouched.
+      fileSystemIdsArray.forEach(function(fileSystemId) {
+        var entryId =
+            chrome.fileSystem.retainEntry(app.volumes[fileSystemId].entry);
+        result[app.STORAGE_KEY][fileSystemId] = {
+          entryId: entryId,
+          openedFiles: app.volumes[fileSystemId].openedFiles
+        };
+      });
+
+      chrome.storage.local.set(result);
+    });
+  },
+
+  /**
+   * Removes state from local storage for a single volume.
+   * @param {string} fileSystemId The file system id of the volume for which
+   *     state is removed.
+   */
+  removeState_: function(fileSystemId) {
+    chrome.storage.local.get([app.STORAGE_KEY], function(result) {
+      console.assert(
+          result[app.STORAGE_KEY] && result[app.STORAGE_KEY][fileSystemId],
+          'Should call removeState_ only for file systems that have ' +
+          'previously called saveState_.');
+
+      delete result[app.STORAGE_KEY][fileSystemId];
+      chrome.storage.local.set(result);
+    });
   },
 
   /**
@@ -114,9 +138,15 @@ var app = {
       }
 
       var volumeState = result[app.STORAGE_KEY][fileSystemId];
+      if (!volumeState) {
+        console.error('No state for: ' + fileSystemId + '.');
+        onErrorRestore('FAILED');
+        return;
+      }
+
       chrome.fileSystem.restoreEntry(volumeState.entryId, function(entry) {
         if (chrome.runtime.lastError) {
-          console.error('Restore entry error: ' +
+          console.error('Restore entry error for <' + fileSystemId + '>: ' +
                         chrome.runtime.lastError.message);
           onErrorRestore('FAILED');
           return;
@@ -176,7 +206,6 @@ var app = {
    * @private
    */
   createVolumeLoadedPromise_: function(fileSystemId, opt_entry) {
-
     return new Promise(function(fulfillVolumeLoad, rejectVolumeLoad) {
       if (opt_entry) {  // Load volume on launch.
         app.loadVolume_(
@@ -188,7 +217,13 @@ var app = {
       app.restoreVolumeState_(fileSystemId, function(entry, openedFiles) {
         app.loadVolume_(fileSystemId, entry, fulfillVolumeLoad,
                         rejectVolumeLoad, openedFiles);
-      }, rejectVolumeLoad);
+      }, function(error) {
+        // Force unmount in case restore failed. All resources related to the
+        // volume will be cleanup from both memory and local storage.
+        app.onUnmountRequested({fileSystemId: fileSystemId}, function() {
+          rejectVolumeLoad(error);
+        }, rejectVolumeLoad, true /* Force unmount. */);
+      });
     });
   },
 
@@ -260,35 +295,40 @@ var app = {
   },
 
   /**
-   * Cleans up the resources for a volume.
+   * Cleans up the resources for a volume, except for the local storage. If
+   * necessary that can be done using app.removeState_.
    * @param {string} fileSystemId The file system id of the volume to clean.
    */
   cleanupVolume: function(fileSystemId) {
     app.naclModule_.postMessage(
         request.createCloseVolumeRequest(fileSystemId));
     delete app.volumes[fileSystemId];
-    delete app.volumeLoadedPromises[fileSystemId];
+    delete app.volumeLoadedPromises[fileSystemId];  // Allow mount after clean.
   },
 
   /**
-   * Unmounts a volume and updates the local storage state.
+   * Unmounts a volume and removes any resources related to the volume from both
+   * the extension and the local storage state.
    * @param {fileSystemProvider.UnmountRequestedOptions} options Options for
    *     unmount event.
    * @param {function()} onSuccess Callback to execute on success.
    * @param {function(ProviderError)} onError Callback to execute on error.
+   * @param {boolean=} opt_forceUnmount True if unmount should be forced even if
+   *     volume might be in use.
    */
-  onUnmountRequested: function(options, onSuccess, onError) {
+  onUnmountRequested: function(options, onSuccess, onError, opt_forceUnmount) {
     var fileSystemId = options.fileSystemId;
-    if (app.volumes[fileSystemId].inUse()) {
+    if (!opt_forceUnmount && app.volumes[fileSystemId].inUse()) {
       onError('IN_USE');
       return;
     }
 
     chrome.fileSystemProvider.unmount({fileSystemId: fileSystemId}, function() {
       app.cleanupVolume(fileSystemId);
-      app.saveState_();  // Remove volume from local storage state.
+      app.removeState_(fileSystemId);  // Remove volume from local storage.
       onSuccess();
-    }, function() {
+    }, function(unmountError) {
+      console.error('Unmount error: ' + unmountError + '.');
       onError('FAILED');
     });
   },
@@ -400,19 +440,25 @@ var app = {
             chrome.fileSystemProvider.mount(
                 {fileSystemId: fileSystemId, displayName: item.entry.name},
                 function() {
-                  app.saveState_();
+                  // Save state so in case of restarts we are able to correctly
+                  // get the archive's metadata.
+                  app.saveState_([fileSystemId]);
                   if (opt_onSuccess)
                     opt_onSuccess(fileSystemId);
                 },
                 function() {
-                  console.error('Failed to mount.');
+                  console.error('Failed to mount: ' + fileSystemId + '.');
                   if (opt_onError)
                     opt_onError(fileSystemId);
+                  // Cleanup volume resources in order to allow future attempts
+                  // to mount the volume.
+                  app.cleanupVolume(fileSystemId);
                 });
           }).catch(function(error) {
             console.error(error.stack || error);
             if (opt_onError)
               opt_onError(fileSystemId);
+            app.cleanupVolume(fileSystemId);
             return Promise.reject(error);
           });
 
@@ -435,8 +481,8 @@ var app = {
 
       // Remove files opened before the profile shutdown from the local
       // storage.
-      for (var volumeId in result[app.STORAGE_KEY]) {
-        result[app.STORAGE_KEY][volumeId].openedFiles = {};
+      for (var fileSystemId in result[app.STORAGE_KEY]) {
+        result[app.STORAGE_KEY][fileSystemId].openedFiles = {};
       }
 
       chrome.storage.local.set(result);
@@ -448,6 +494,6 @@ var app = {
    * once new events arrive.
    */
   onSuspend: function() {
-    app.saveState_();
+    app.saveState_(Object.keys(app.volumes));
   }
 };
