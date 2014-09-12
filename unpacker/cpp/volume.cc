@@ -277,10 +277,10 @@ void Volume::OpenFileCallback(int32_t /*result*/,
     }
 
     if (!path_name) {
-      PostFileSystemError("File not found in archive: " + file_path + ".",
-                          file_system_id_,
-                          request_id,
-                          instance_);
+      message_sender_->SendFileSystemError(
+          file_system_id_,
+          request_id,
+          "File not found in archive: " + file_path + ".");
       return;
     }
 
