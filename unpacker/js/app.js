@@ -172,15 +172,8 @@ var app = {
   loadVolume_: function(fileSystemId, entry, fulfillVolumeLoad,
                         rejectVolumeLoad, opt_openedFiles) {
     entry.file(function(file) {
-      // File is a Blob object, so it's ok to construct the Decompressor
-      // directly with it.
-      var volume =
-          new Volume(new Decompressor(app.naclModule_, fileSystemId, file),
-                     entry, opt_openedFiles);
-
-      app.volumes[fileSystemId] = volume;
       // Read metadata from NaCl.
-      var onReadMetadataSuccess = function() {
+      var onLoadVolumeSuccess = function() {
         opt_openedFiles = opt_openedFiles ? opt_openedFiles : {};
         if (Object.keys(opt_openedFiles).length == 0) {
           fulfillVolumeLoad();
@@ -193,27 +186,25 @@ var app = {
         rejectVolumeLoad('INVALID_OPERATION');
       };
 
-      volume.readMetadata(onReadMetadataSuccess, rejectVolumeLoad);
+      // File is a Blob object, so it's ok to construct the Decompressor
+      // directly with it.
+      var decompressor = new Decompressor(app.naclModule_, fileSystemId, file);
+      var volume = new Volume(decompressor, entry, opt_openedFiles);
+      volume.initialize(onLoadVolumeSuccess, rejectVolumeLoad);
+      app.volumes[fileSystemId] = volume;
     });
   },
 
   /**
-   * Creates a promise to load a volume.
-   * @param {string} fileSystemId The file system id of the volume to create.
-   * @param {Entry=} entry The entry corresponding to the volume's archive. In
-   *     case this parameter is not supplied than entry must be restored from
-   *     volume state. This happens in case of restarts and suspends.
-   * @return {Promise} The load volume promise.
+   * Restores a volume mounted previously to a suspend / restart. In case of
+   * failure of the load promise for fileSystemId, the corresponding volume is
+   * forcely unmounted.
+   * @param {string} fileSystemId The file system id.
+   * @return {Promise} A promise that restores state and loads volume.
    * @private
    */
-  createVolumeLoadedPromise_: function(fileSystemId, opt_entry) {
+  restoreSingleVolume_: function(fileSystemId) {
     return new Promise(function(fulfillVolumeLoad, rejectVolumeLoad) {
-      if (opt_entry) {  // Load volume on launch.
-        app.loadVolume_(
-            fileSystemId, opt_entry, fulfillVolumeLoad, rejectVolumeLoad);
-        return;
-      }
-
       // Load volume after restart / suspend page event.
       app.restoreVolumeState_(fileSystemId, function(entry, openedFiles) {
         app.loadVolume_(fileSystemId, entry, fulfillVolumeLoad,
@@ -221,26 +212,31 @@ var app = {
       }, function(error) {
         // Force unmount in case restore failed. All resources related to the
         // volume will be cleanup from both memory and local storage.
-        app.onUnmountRequested({fileSystemId: fileSystemId}, function() {
+        app.unmountVolume_(fileSystemId, true).then(function() {
           rejectVolumeLoad(error);
-        }, rejectVolumeLoad, true /* Force unmount. */);
+        }).catch(rejectVolumeLoad);
       });
     });
   },
 
   /**
-   * Restores a volume mounted previously to a suspend / restart.
+   * Ensures a volume is loaded by returning its corresponding loaded promise
+   * from app.volumeLoadedPromises. In case there is no such promise, then this
+   * is a call after suspend / restart and a new volume loaded promise that
+   * restores state is returned.
    * @param {string} fileSystemId The file system id.
-   * @return {Promise} A promise that restores state. The promise is rejected
-   *     with ProviderError.
+   * @return {Promise} The loading volume promise.
    * @private
    */
-  restoreSingleVolume_: function(fileSystemId) {
+  ensureVolumeLoaded_: function(fileSystemId) {
     return app.moduleLoadedPromise.then(function() {
+      // In case there is no volume promise for fileSystemId then we received a
+      // call after restart / suspend as load promises are created on launched.
+      // In this case we will restore volume state from local storage and
+      // create a new load promise.
       if (!app.volumeLoadedPromises[fileSystemId]) {
         app.volumeLoadedPromises[fileSystemId] =
-            app.createVolumeLoadedPromise_(fileSystemId /* No entry, so force
-                                                           restore. */);
+            app.restoreSingleVolume_(fileSystemId);
       }
 
       return app.volumeLoadedPromises[fileSystemId];
@@ -306,28 +302,62 @@ var app = {
   /**
    * Unmounts a volume and removes any resources related to the volume from both
    * the extension and the local storage state.
-   * @param {fileSystemProvider.UnmountRequestedOptions} options Options for
+   * @param {string} fileSystemId The file system id of the volume to unmount.
+   * @param {boolean=} opt_forceUnmount True if unmount should be forced even if
+   *     volume might be in use.
+   * @return {Promise} A promise that fulfills if volume is unmounted or rejects
+   *     with ProviderError in case of any errors.
+   * @private
+   */
+  unmountVolume_: function(fileSystemId, opt_forceUnmount) {
+    return new Promise(function (fulfill, reject) {
+      var volume = app.volumes[fileSystemId];
+      console.assert(!opt_forceUnmount && volume,
+          'Unmount that is not forced must not be called for volumes that ' +
+              'are not restored.');
+
+      if (!opt_forceUnmount && volume.inUse()) {
+        reject('IN_USE');
+        return;
+      }
+
+      // TODO(cmihail): In case we unmount the outer archive and then try
+      // to read a file from the inner archive we will end up with a
+      // NaCl module crash. Investigate.
+      var options = {
+        fileSystemId: fileSystemId
+      };
+      chrome.fileSystemProvider.unmount(options, function() {
+        // In case of forced unmount volume can be undefined due to not being
+        // restored. An unmount that is not forced will be called only after
+        // restoring state. In the case of forced unmount when volume is not
+        // restored, we will not do a normal cleanup, but just remove the load
+        // volume promise to allow further mounts.
+        if (opt_forceUnmount)
+          delete app.volumeLoadedPromises[fileSystemId];
+        else
+          app.cleanupVolume(fileSystemId);
+
+        app.removeState_(fileSystemId);  // Remove volume from local storage.
+        fulfill();
+      }, function(unmountError) {
+        console.error('Unmount error: ' + unmountError + '.');
+        reject('FAILED');
+      });
+    });
+  },
+
+  /**
+   * Handles an unmount request received from File System Provider API.
+   * @param {FileSystemProvider.unmountRequestedOptions} options Options for
    *     unmount event.
    * @param {function()} onSuccess Callback to execute on success.
    * @param {function(ProviderError)} onError Callback to execute on error.
-   * @param {boolean=} opt_forceUnmount True if unmount should be forced even if
-   *     volume might be in use.
    */
-  onUnmountRequested: function(options, onSuccess, onError, opt_forceUnmount) {
-    var fileSystemId = options.fileSystemId;
-    if (!opt_forceUnmount && app.volumes[fileSystemId].inUse()) {
-      onError('IN_USE');
-      return;
-    }
-
-    chrome.fileSystemProvider.unmount({fileSystemId: fileSystemId}, function() {
-      app.cleanupVolume(fileSystemId);
-      app.removeState_(fileSystemId);  // Remove volume from local storage.
-      onSuccess();
-    }, function(unmountError) {
-      console.error('Unmount error: ' + unmountError + '.');
-      onError('FAILED');
-    });
+  onUnmountRequested: function(options, onSuccess, onError) {
+    app.ensureVolumeLoaded_(options.fileSystemId).then(function() {
+      return app.unmountVolume_(options.fileSystemId);
+    }).then(onSuccess).catch(onError);
   },
 
   /**
@@ -339,7 +369,7 @@ var app = {
    * @param {function(ProviderError)} onError Callback to execute on error.
    */
   onGetMetadataRequested: function(options, onSuccess, onError) {
-    app.restoreSingleVolume_(options.fileSystemId).then(function() {
+    app.ensureVolumeLoaded_(options.fileSystemId).then(function() {
       app.volumes[options.fileSystemId].onGetMetadataRequested(
           options, onSuccess, onError);
     }).catch(onError);
@@ -356,7 +386,7 @@ var app = {
    * @param {function(ProviderError)} onError Callback to execute on error.
    */
   onReadDirectoryRequested: function(options, onSuccess, onError) {
-    app.restoreSingleVolume_(options.fileSystemId).then(function() {
+    app.ensureVolumeLoaded_(options.fileSystemId).then(function() {
       app.volumes[options.fileSystemId].onReadDirectoryRequested(
           options, onSuccess, onError);
     }).catch(onError);
@@ -370,7 +400,7 @@ var app = {
    * @param {function(ProviderError)} onError Callback to execute on error.
    */
   onOpenFileRequested: function(options, onSuccess, onError) {
-    app.restoreSingleVolume_(options.fileSystemId).then(function() {
+    app.ensureVolumeLoaded_(options.fileSystemId).then(function() {
       app.volumes[options.fileSystemId].onOpenFileRequested(
           options, onSuccess, onError);
     }).catch(onError);
@@ -384,7 +414,7 @@ var app = {
    * @param {function(ProviderError)} onError Callback to execute on error.
    */
   onCloseFileRequested: function(options, onSuccess, onError) {
-    app.restoreSingleVolume_(options.fileSystemId).then(function() {
+    app.ensureVolumeLoaded_(options.fileSystemId).then(function() {
       app.volumes[options.fileSystemId].onCloseFileRequested(
           options, onSuccess, onError);
     }).catch(onError);
@@ -401,7 +431,7 @@ var app = {
    * @param {function(ProviderError)} onError Callback to execute on error.
    */
   onReadFileRequested: function(options, onSuccess, onError) {
-    app.restoreSingleVolume_(options.fileSystemId).then(function() {
+    app.ensureVolumeLoaded_(options.fileSystemId).then(function() {
       app.volumes[options.fileSystemId].onReadFileRequested(
           options, onSuccess, onError);
     }).catch(onError);
@@ -421,6 +451,15 @@ var app = {
    *     times, depending on how many volumes must be loaded.
    */
   onLaunched: function(launchData, opt_onSuccess, opt_onError) {
+    var onError = function(error) {
+      console.error(error);
+      if (opt_onError)
+        opt_onError(fileSystemId);
+      // Cleanup volume resources in order to allow future attempts
+      // to mount the volume.
+      app.cleanupVolume(fileSystemId);
+    };
+
     app.moduleLoadedPromise.then(function() {
       launchData.items.forEach(function(item) {
         chrome.fileSystem.getDisplayPath(item.entry, function(fileSystemId) {
@@ -429,8 +468,11 @@ var app = {
             return;
           }
 
-          var promise = app.createVolumeLoadedPromise_(
-              fileSystemId, item.entry).then(function() {
+          var loadPromise = new Promise(function(fulfill, reject) {
+            app.loadVolume_(fileSystemId, item.entry, fulfill, reject);
+          });
+
+          loadPromise.then(function() {
             // Mount the volume and save its information in local storage
             // in order to be able to recover the metadata in case of
             // restarts, system crashes, etc.
@@ -442,24 +484,13 @@ var app = {
                   app.saveState_([fileSystemId]);
                   if (opt_onSuccess)
                     opt_onSuccess(fileSystemId);
-                },
-                function() {
-                  console.error('Failed to mount: ' + fileSystemId + '.');
-                  if (opt_onError)
-                    opt_onError(fileSystemId);
-                  // Cleanup volume resources in order to allow future attempts
-                  // to mount the volume.
-                  app.cleanupVolume(fileSystemId);
-                });
+                }, onError);
           }).catch(function(error) {
-            console.error(error.stack || error);
-            if (opt_onError)
-              opt_onError(fileSystemId);
-            app.cleanupVolume(fileSystemId);
+            onError(error.stack || error);
             return Promise.reject(error);
           });
 
-          app.volumeLoadedPromises[fileSystemId] = promise;
+          app.volumeLoadedPromises[fileSystemId] = loadPromise;
         });
       });
     }).catch(function(error) {

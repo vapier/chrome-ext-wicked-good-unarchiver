@@ -93,13 +93,12 @@ Volume.prototype.inUse = function() {
 };
 
 /**
- * Reads the metadata of the volume. Should NOT be done in parallel with other
- * readMetadata for the same volume, but it's ok to do it in parallel with
- * readMetadata for other volumes.
+ * Initializes the volume by reading its metadata.
  * @param {function()} onSuccess Callback to execute on success.
  * @param {function(ProviderError)} onError Callback to execute on error.
+ * @private
  */
-Volume.prototype.readMetadata = function(onSuccess, onError) {
+Volume.prototype.initialize = function(onSuccess, onError) {
   var requestId = this.DEFAULT_READ_METADATA_REQUEST_ID;
   this.decompressor.readMetadata(requestId, function(metadata) {
     // Make a deep copy of metadata.
@@ -120,6 +119,7 @@ Volume.prototype.readMetadata = function(onSuccess, onError) {
  */
 Volume.prototype.onGetMetadataRequested = function(options, onSuccess,
                                                    onError) {
+  console.assert(this.isReady(), 'Metadata must be loaded.');
   var entryMetadata = this.getEntryMetadata_(options.entryPath);
   if (!entryMetadata)
     onError('NOT_FOUND');
@@ -137,6 +137,7 @@ Volume.prototype.onGetMetadataRequested = function(options, onSuccess,
  */
 Volume.prototype.onReadDirectoryRequested = function(options, onSuccess,
                                                      onError) {
+  console.assert(this.isReady(), 'Metadata must be loaded.');
   var directoryMetadata = this.getEntryMetadata_(options.directoryPath);
   if (!directoryMetadata) {
     onError('NOT_FOUND');
@@ -164,6 +165,7 @@ Volume.prototype.onReadDirectoryRequested = function(options, onSuccess,
  * @param {function(ProviderError)} onError Callback to execute on error.
  */
 Volume.prototype.onOpenFileRequested = function(options, onSuccess, onError) {
+  console.assert(this.isReady(), 'Metadata must be loaded.');
   if (options.mode != 'READ' || options.create) {
     onError('INVALID_OPERATION');
     return;
@@ -188,6 +190,7 @@ Volume.prototype.onOpenFileRequested = function(options, onSuccess, onError) {
  * @param {function(ProviderError)} onError Callback to execute on error.
  */
 Volume.prototype.onCloseFileRequested = function(options, onSuccess, onError) {
+  console.assert(this.isReady(), 'Metadata must be loaded.');
   var openRequestId = options.openRequestId;
   var openOptions = this.openedFiles[openRequestId];
   if (!openOptions) {
@@ -210,6 +213,7 @@ Volume.prototype.onCloseFileRequested = function(options, onSuccess, onError) {
  * @param {function(ProviderError)} onError Callback to execute on error.
  */
 Volume.prototype.onReadFileRequested = function(options, onSuccess, onError) {
+  console.assert(this.isReady(), 'Metadata must be loaded.');
   var openOptions = this.openedFiles[options.openRequestId];
   if (!openOptions) {
     onError('INVALID_OPERATION');

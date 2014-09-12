@@ -59,8 +59,8 @@ describe('Volume', function() {
 
   var volume;
   var decompressor;
-  var onReadMetadataSuccessSpy;
-  var onReadMetadataErrorSpy;
+  var onInitializeSuccessSpy;
+  var onInitializeErrorSpy;
 
   beforeEach(function() {
     volume = null;
@@ -71,13 +71,13 @@ describe('Volume', function() {
       readFile: sinon.stub()
     };
 
-    onReadMetadataSuccessSpy = sinon.spy();
-    onReadMetadataErrorSpy = sinon.spy();
+    onInitializeSuccessSpy = sinon.spy();
+    onInitializeErrorSpy = sinon.spy();
 
     volume = new Volume(decompressor, ENTRY);
   });
 
-  it('should have null metadata before calling readMetadata', function() {
+  it('should have null metadata before calling initialize', function() {
     expect(volume.metadata).to.be.null;
   });
 
@@ -89,35 +89,35 @@ describe('Volume', function() {
     expect(Object.keys(volume.openedFiles).length).to.equal(0);
   });
 
-  // Invalid metadata.
-  describe('that reads invalid metadata', function() {
+  // Test volume that fails to initialize.
+  describe('that fails to initialize', function() {
     beforeEach(function() {
       decompressor.readMetadata.callsArg(2);
-      volume.readMetadata(onReadMetadataSuccessSpy, onReadMetadataErrorSpy);
+      volume.initialize(onInitializeSuccessSpy, onInitializeErrorSpy);
     });
 
-    it('should not call onSuccess for volume.readMetadata', function() {
-      expect(onReadMetadataSuccessSpy.called).to.be.false;
+    it('should not call onSuccess for volume.initialize', function() {
+      expect(onInitializeSuccessSpy.called).to.be.false;
     });
 
-    it('should call onError for volume.readMetadata', function() {
-      expect(onReadMetadataErrorSpy.calledOnce).to.be.true;
+    it('should call onError for volume.initialize', function() {
+      expect(onInitializeErrorSpy.calledOnce).to.be.true;
     });
   });
 
-  // Valid metadata.
-  describe('that reads correct metadata', function() {
+  // Test volume that initializes correctly.
+  describe('that correctly initializes', function() {
     beforeEach(function() {
       decompressor.readMetadata.callsArgWith(1, METADATA);
-      volume.readMetadata(onReadMetadataSuccessSpy, onReadMetadataErrorSpy);
+      volume.initialize(onInitializeSuccessSpy, onInitializeErrorSpy);
     });
 
-    it('should call onSuccess for volume.readMetadata', function() {
-      expect(onReadMetadataSuccessSpy.calledOnce).to.be.true;
+    it('should call onSuccess for volume.initialize', function() {
+      expect(onInitializeSuccessSpy.calledOnce).to.be.true;
     });
 
-    it('should not call onError for volume.readMetadata', function() {
-      expect(onReadMetadataErrorSpy.called).to.be.false;
+    it('should not call onError for volume.initialize', function() {
+      expect(onInitializeErrorSpy.called).to.be.false;
     });
 
     it('should be ready to use', function() {

@@ -164,10 +164,11 @@ describe('Unpacker extension', function() {
   // Check unmount.
   tests_helper.volumesInformation.forEach(function(volumeInformation) {
     var fileSystemId = volumeInformation.fileSystemId;
-    describe('that unmounts volume <' + fileSystemId + '>', function() {
-      var onSuccessSpy;
 
-      beforeEach(function() {
+    describe('that unmounts volume <' + fileSystemId + '>', function() {
+      var unmountError;
+
+      beforeEach(function(done) {
         // Reinitialize spies in order to register only the calls after suspend
         // and not before it.
         tests_helper.initChromeApis();
@@ -176,22 +177,22 @@ describe('Unpacker extension', function() {
         expect(tests_helper.localStorageState[app.STORAGE_KEY][fileSystemId])
             .to.not.be.undefined;
 
-        onSuccessSpy = sinon.spy();
-        var options = {
-          fileSystemId: fileSystemId
-        };
-        app.onUnmountRequested(options, onSuccessSpy, function() {
-          // Force failure, first 2 parameters don't matter.
-          assert.fail(undefined, undefined, 'Could not umount volume.');
+        app.onUnmountRequested({fileSystemId: fileSystemId}, function() {
+          done();
+        }, function(error) {
+          unmountError = error;
+          done();
         });
+      });
+
+      it('should not throw an error', function() {
+        if (unmountError)
+          console.error(unmountError.stack || unmountError);
+        expect(unmountError).to.be.undefined;
       });
 
       it('should remove volume from app.volumes', function() {
         expect(app.volumes[fileSystemId]).to.be.undefined;
-      });
-
-      it('should call onSuccessSpy', function() {
-        expect(onSuccessSpy.calledOnce).to.be.true;
       });
 
       it('should not call retainEntry', function() {
