@@ -17,15 +17,46 @@
 
 #include "javascript_requestor.h"
 #include "javascript_message_sender.h"
-#include "request.h"
 #include "volume_archive.h"
 
-// TODO(cmihail): Write unit tests for this class.
+// A factory that creates VolumeArchive(s). Useful for testing.
+class VolumeArchiveFactoryInterface {
+ public:
+  virtual ~VolumeArchiveFactoryInterface() {}
+
+  // Creates a new VolumeArchive. Returns NULL if failed.
+  virtual VolumeArchive* Create(const std::string& request_id,
+                                VolumeReader* reader) = 0;
+};
+
+// A factory that creates VolumeReader(s). Useful for testing.
+class VolumeReaderFactoryInterface {
+ public:
+  virtual ~VolumeReaderFactoryInterface() {}
+
+  // Creates a new VolumeReader. Returns NULL if failed.
+  // Passes VolumeReader ownership to the implementation of
+  // VolumeArchiveInterfaceInterface.
+  virtual VolumeReader* Create(const std::string& request_id,
+                               int64_t archive_size) = 0;
+};
+
+// Handles all operations like reading metadata and reading files from a single
+// Volume.
 class Volume {
  public:
   Volume(const pp::InstanceHandle& instance_handle /* Used for workers. */,
          const std::string& file_system_id,
          JavaScriptMessageSender* message_sender);
+
+  // Used by tests to create custom VolumeArchive and VolumeReader objects.
+  // VolumeArchiveFactory and VolumeReaderFactory should be allocated with new
+  // and the ownership will be passed to Volume on constructing it.
+  Volume(const pp::InstanceHandle& instance_handle /* Used for workers. */,
+         const std::string& file_system_id,
+         JavaScriptMessageSender* message_sender,
+         VolumeArchiveFactoryInterface* volume_archive_factory,
+         VolumeReaderFactoryInterface* volume_reader_factory);
 
   virtual ~Volume();
 
@@ -147,6 +178,12 @@ class Volume {
 
   // A requestor for making calls to JavaScript.
   JavaScriptRequestor* requestor_;
+
+  // A factory for creating VolumeArchive.
+  VolumeArchiveFactoryInterface* volume_archive_factory_;
+
+  // A factory for creating VolumeReader.
+  VolumeReaderFactoryInterface* volume_reader_factory_;
 };
 
 #endif  /// VOLUME_H_

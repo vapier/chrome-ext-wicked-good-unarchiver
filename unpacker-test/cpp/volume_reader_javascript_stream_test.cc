@@ -235,7 +235,7 @@ TEST_F(VolumeReaderJavaScriptStreamTest, Read) {
   ASSERT_GE(read_bytes, 0);
 
   const void* expected_buffer = fake_javascript_requestor->array_buffer().Map();
-  EXPECT_TRUE(memcmp(buffer, expected_buffer, read_bytes) == 0);
+  EXPECT_EQ(0, memcmp(buffer, expected_buffer, read_bytes));
   fake_javascript_requestor->array_buffer().Unmap();
 }
 
@@ -253,7 +253,7 @@ TEST_F(VolumeReaderJavaScriptStreamTest, BigLengthRead) {
   ASSERT_GE(read_bytes, 0);
 
   const void* expected_buffer = fake_javascript_requestor->array_buffer().Map();
-  EXPECT_TRUE(memcmp(buffer, expected_buffer, read_bytes) == 0);
+  EXPECT_EQ(0, memcmp(buffer, expected_buffer, read_bytes));
   fake_javascript_requestor->array_buffer().Unmap();
 }
 
@@ -271,7 +271,7 @@ TEST_F(VolumeReaderJavaScriptStreamTest, SmallReads) {
 
   const void* expected_buffer_1 =
       fake_javascript_requestor->array_buffer().Map();
-  EXPECT_TRUE(memcmp(buffer_1, expected_buffer_1, read_bytes_1) == 0);
+  EXPECT_EQ(0, memcmp(buffer_1, expected_buffer_1, read_bytes_1));
   fake_javascript_requestor->array_buffer().Unmap();
 
   // Second read.
@@ -285,7 +285,7 @@ TEST_F(VolumeReaderJavaScriptStreamTest, SmallReads) {
   const void* expected_buffer_2 =
       static_cast<char*>(fake_javascript_requestor->array_buffer().Map()) +
       read_bytes_1;
-  EXPECT_TRUE(memcmp(buffer_2, expected_buffer_2, read_bytes_2) == 0);
+  EXPECT_EQ(0, memcmp(buffer_2, expected_buffer_2, read_bytes_2));
   fake_javascript_requestor->array_buffer().Unmap();
 
   // Third read.
@@ -299,7 +299,7 @@ TEST_F(VolumeReaderJavaScriptStreamTest, SmallReads) {
   const void* expected_buffer_3 =
       static_cast<char*>(fake_javascript_requestor->array_buffer().Map()) +
       read_bytes_1 + read_bytes_2;
-  EXPECT_TRUE(memcmp(buffer_3, expected_buffer_3, read_bytes_3) == 0);
+  EXPECT_EQ(0, memcmp(buffer_3, expected_buffer_3, read_bytes_3));
   fake_javascript_requestor->array_buffer().Unmap();
 }
 

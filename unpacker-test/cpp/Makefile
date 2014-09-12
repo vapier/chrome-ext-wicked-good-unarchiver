@@ -35,9 +35,11 @@ SOURCES = \
   main.cc \
   $(CODE_DIR)/request.cc \
   request_test.cc \
-  $(CODE_DIR)/volume_archive.cc \
-  volume_archive_read_test.cc \
-  volume_archive_test.cc \
+  $(CODE_DIR)/volume.cc \
+  volume_test.cc \
+  $(CODE_DIR)/volume_archive_libarchive.cc \
+  volume_archive_libarchive_read_test.cc \
+  volume_archive_libarchive_test.cc \
   $(CODE_DIR)/volume_reader_javascript_stream.cc \
   volume_reader_javascript_stream_test.cc
 
@@ -58,11 +60,17 @@ $(eval $(call NMF_RULE,$(TARGET),))
 
 # Run tests. By default it will run the Release tests, but if used as a
 # dependency rule to debug_tests_run then it will run the Debug tests.
+# In case tests are run for desktop Chrome build, the window is automatically
+# closed, but not for Chrome OS build. For Chrome OS build, it has to be closed
+# manually.
+# -disable-setuid-sandbox is optional, but otherwise it is necessary to set up
+# the sandbox for development. See
+# https://code.google.com/p/chromium/wiki/LinuxSUIDSandboxDevelopment.
 .PHONY: tests_run
 tests_run: check_for_chrome all $(TEST_PAGE)
 	$(RUN_PY) -C $(CURDIR) -P $(TEST_PAGE_CONFIG) \
 	    $(addprefix -E ,$(CHROME_ENV)) -- $(CHROME_PATH_ESCAPE) \
-	    $(CHROME_ARGS) \
+	    $(CHROME_ARGS) --disable-setuid-sandbox \
 	    --register-pepper-plugins="$(PPAPI_DEBUG),$(PPAPI_RELEASE)"
 
 # Run Debug tests. Every rule that contains "debug" will build and use the

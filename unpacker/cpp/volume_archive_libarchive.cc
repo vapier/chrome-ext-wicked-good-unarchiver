@@ -2,14 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "volume_archive.h"
+#include "volume_archive_libarchive.h"
 
 #include <algorithm>
 
 #include "archive_entry.h"
 #include "ppapi/cpp/logging.h"
-
-#include "volume_reader_javascript_stream.h"
 
 namespace {
 
@@ -51,30 +49,29 @@ int CustomArchiveClose(archive* archive_object, void* client_data) {
 
 }  // namespace
 
-VolumeArchive::VolumeArchive(const std::string& request_id,
-                             VolumeReader* reader)
-    : request_id_(request_id),
-      reader_(reader),
+VolumeArchiveLibarchive::VolumeArchiveLibarchive(const std::string& request_id,
+                                                 VolumeReader* reader)
+    : VolumeArchive(request_id, reader),
       archive_(NULL),
       current_archive_entry_(NULL),
       last_read_data_offset_(0) {
 }
 
-VolumeArchive::~VolumeArchive() {
+VolumeArchiveLibarchive::~VolumeArchiveLibarchive() {
   Cleanup();
 }
 
-bool VolumeArchive::Init() {
+bool VolumeArchiveLibarchive::Init() {
   archive_ = archive_read_new();
   if (!archive_) {
-    error_message_ = volume_archive_constants::kArchiveReadNewError;
+    set_error_message(volume_archive_constants::kArchiveReadNewError);
     return false;
   }
 
   if (archive_read_support_format_rar(archive_) != ARCHIVE_OK ||
       archive_read_support_format_zip(archive_) != ARCHIVE_OK) {
-    error_message_ = ArchiveError(
-        volume_archive_constants::kArchiveSupportErrorPrefix, archive_);
+    set_error_message(ArchiveError(
+        volume_archive_constants::kArchiveSupportErrorPrefix, archive_));
     return false;
   }
 
@@ -84,21 +81,21 @@ bool VolumeArchive::Init() {
       archive_read_set_skip_callback(archive_, CustomArchiveSkip) != ok ||
       archive_read_set_seek_callback(archive_, CustomArchiveSeek) != ok ||
       archive_read_set_close_callback(archive_, CustomArchiveClose) != ok ||
-      archive_read_set_callback_data(archive_, reader_) != ok ||
+      archive_read_set_callback_data(archive_, reader()) != ok ||
       archive_read_open1(archive_) != ok) {
-    error_message_ = ArchiveError(
-        volume_archive_constants::kArchiveOpenErrorPrefix, archive_);
+    set_error_message(ArchiveError(
+        volume_archive_constants::kArchiveOpenErrorPrefix, archive_));
     return false;
   }
 
   return true;
 }
 
-bool VolumeArchive::GetNextHeader(const char** pathname,
-                                  int64_t* size,
-                                  bool* is_directory,
-                                  time_t* modification_time) {
-  // Reset to 0 for new VolumeArchive::ReadData operation.
+bool VolumeArchiveLibarchive::GetNextHeader(const char** pathname,
+                                            int64_t* size,
+                                            bool* is_directory,
+                                            time_t* modification_time) {
+  // Reset to 0 for new VolumeArchiveLibarchive::ReadData operation.
   last_read_data_offset_ = 0;
 
   // Archive data is skipped automatically by next call to
@@ -114,13 +111,15 @@ bool VolumeArchive::GetNextHeader(const char** pathname,
       *is_directory = S_ISDIR(archive_entry_filetype(current_archive_entry_));
       return true;
     default:
-      error_message_ = ArchiveError(
-          volume_archive_constants::kArchiveNextHeaderErrorPrefix, archive_);
+      set_error_message(ArchiveError(
+          volume_archive_constants::kArchiveNextHeaderErrorPrefix, archive_));
       return false;
   }
 }
 
-bool VolumeArchive::ReadData(int64_t offset, int32_t length, char* buffer) {
+bool VolumeArchiveLibarchive::ReadData(int64_t offset,
+                                       int32_t length,
+                                       char* buffer) {
   // TODO(cmihail): As an optimization consider using archive_read_data_block
   // which avoids extra copying in case offset != last_read_data_offset_.
   // The logic will be more complicated because archive_read_data_block offset
@@ -137,17 +136,18 @@ bool VolumeArchive::ReadData(int64_t offset, int32_t length, char* buffer) {
 
     // Cleanup old archive. Don't delete VolumeReader as it will be reused.
     if (archive_read_free(archive_) != ARCHIVE_OK) {
-      error_message_ = ArchiveError(
-          volume_archive_constants::kArchiveReadDataErrorPrefix, archive_);
+      set_error_message(ArchiveError(
+          volume_archive_constants::kArchiveReadDataErrorPrefix, archive_));
       return false;
     }
-    reader_->Seek(0, SEEK_SET);  // Reset reader.
+    reader()->Seek(0, SEEK_SET);  // Reset reader.
 
     // Reinitialize archive.
     if (!Init())
       return false;
 
-    // Reach file data by iterating through VolumeArchive::GetNextHeader.
+    // Reach file data by iterating through
+    // VolumeArchiveLibarchive::GetNextHeader.
     const char* path_name = NULL;
     int64_t file_size = 0;
     bool is_directory = false;
@@ -157,14 +157,15 @@ bool VolumeArchive::ReadData(int64_t offset, int32_t length, char* buffer) {
               &path_name, &file_size, &is_directory, &modification_time))
         return false;
       if (!path_name) {
-        error_message_ = volume_archive_constants::kFileNotFound;
+        set_error_message(volume_archive_constants::kFileNotFound);
         return false;
       }
 
       if (file_path_name == std::string(path_name))
         break;  // File reached.
     }
-    // Data offset was already reset to 0 by VolumeArchive::GetNextHeader.
+    // Data offset was already reset to 0 by
+    // VolumeArchiveLibarchive::GetNextHeader.
   }
 
   // Request with offset greater than last read offset. Skip not needed bytes.
@@ -179,8 +180,8 @@ bool VolumeArchive::ReadData(int64_t offset, int32_t length, char* buffer) {
                           std::min(offset - last_read_data_offset_,
                                    volume_archive_constants::kDummyBufferSize));
     if (size < 0) {  // Error.
-      error_message_ = ArchiveError(
-          volume_archive_constants::kArchiveReadDataErrorPrefix, archive_);
+      set_error_message(ArchiveError(
+          volume_archive_constants::kArchiveReadDataErrorPrefix, archive_));
       return false;
     }
     last_read_data_offset_ += size;
@@ -194,8 +195,8 @@ bool VolumeArchive::ReadData(int64_t offset, int32_t length, char* buffer) {
   do {
     size = archive_read_data(archive_, buffer + buffer_offset, length);
     if (size < 0) {  // Error.
-      error_message_ = ArchiveError(
-          volume_archive_constants::kArchiveReadDataErrorPrefix, archive_);
+      set_error_message(ArchiveError(
+          volume_archive_constants::kArchiveReadDataErrorPrefix, archive_));
       return false;
     }
     buffer_offset += size;
@@ -206,18 +207,17 @@ bool VolumeArchive::ReadData(int64_t offset, int32_t length, char* buffer) {
   return true;
 }
 
-bool VolumeArchive::Cleanup() {
+bool VolumeArchiveLibarchive::Cleanup() {
   bool returnValue = true;
   if (archive_ && archive_read_free(archive_) != ARCHIVE_OK) {
-    error_message_ = ArchiveError(
-        volume_archive_constants::kArchiveReadFreeErrorPrefix, archive_);
+    set_error_message(ArchiveError(
+        volume_archive_constants::kArchiveReadFreeErrorPrefix, archive_));
     returnValue = false;  // Cleanup should release all resources even
                           // in case of failures.
   }
   archive_ = NULL;
 
-  delete reader_;
-  reader_ = NULL;
+  CleanupReader();
 
   return returnValue;
 }

@@ -10,8 +10,6 @@
 #include "archive.h"
 #include "ppapi/cpp/logging.h"
 
-#include "request.h"
-
 namespace {
 
 // The minimum number of bytes that read ahead will request.
@@ -188,7 +186,7 @@ int64_t VolumeReaderJavaScriptStream::Seek(int64_t offset, int whence) {
       new_offset = archive_size_ + offset;
       break;
     default:
-      PP_DCHECK(false);  // Should never get here.
+      PP_NOTREACHED();
       return ARCHIVE_FATAL;
   }
   if (new_offset < 0 || new_offset > archive_size_)

@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "request.h"
+#include "volume_archive_libarchive.h"
 #include "volume_reader_javascript_stream.h"
 
 namespace {
@@ -113,6 +114,44 @@ class VolumeJavaScriptRequestor : public JavaScriptRequestor {
   Volume* volume_;
 };
 
+// An internal implementation of VolumeArchiveFactoryInterface for default
+// Volume constructor.
+class VolumeArchiveFactory : public VolumeArchiveFactoryInterface {
+ public:
+  virtual VolumeArchive* Create(const std::string& request_id,
+                                VolumeReader* reader) {
+    return new VolumeArchiveLibarchive(request_id, reader);
+  }
+};
+
+// An internal implementation of VolumeReaderFactoryInterface for default Volume
+// constructor.
+class VolumeReaderFactory : public VolumeReaderFactoryInterface {
+ public:
+  explicit VolumeReaderFactory(Volume* volume) : volume_(volume) {}
+
+  virtual VolumeReader* Create(const std::string& request_id,
+                               int64_t archive_size) {
+    VolumeReader* reader = new VolumeReaderJavaScriptStream(
+        request_id, archive_size, volume_->requestor());
+    if (reader->Open() != ARCHIVE_OK) {
+      // TODO(cmihail): In case we have another VolumeReader implementation we
+      // could use that as a backup. e.g.: If we have both FileIO and
+      // VolumeReaderJavaScriptStream, one of them can be the backup used here.
+      volume_->message_sender()->SendFileSystemError(
+          volume_->file_system_id(),
+          request_id,
+          "Couldn't open volume reader.");
+      delete reader;
+      return NULL;
+    }
+    return reader;
+  }
+
+ private:
+  Volume* volume_;
+};
+
 }  // namespace
 
 Volume::Volume(const pp::InstanceHandle& instance_handle,
@@ -122,6 +161,23 @@ Volume::Volume(const pp::InstanceHandle& instance_handle,
       message_sender_(message_sender),
       worker_(instance_handle),
       callback_factory_(this) {
+  requestor_ = new VolumeJavaScriptRequestor(this);
+  volume_archive_factory_ = new VolumeArchiveFactory();
+  volume_reader_factory_ = new VolumeReaderFactory(this);
+  // Delegating constructors only from c++11.
+}
+
+Volume::Volume(const pp::InstanceHandle& instance_handle,
+               const std::string& file_system_id,
+               JavaScriptMessageSender* message_sender,
+               VolumeArchiveFactoryInterface* volume_archive_factory,
+               VolumeReaderFactoryInterface* volume_reader_factory)
+    : file_system_id_(file_system_id),
+      message_sender_(message_sender),
+      worker_(instance_handle),
+      callback_factory_(this),
+      volume_archive_factory_(volume_archive_factory),
+      volume_reader_factory_(volume_reader_factory) {
   requestor_ = new VolumeJavaScriptRequestor(this);
 }
 
@@ -139,6 +195,8 @@ Volume::~Volume() {
   }
 
   delete requestor_;
+  delete volume_archive_factory_;
+  delete volume_reader_factory_;
 }
 
 bool Volume::Init() {
@@ -250,7 +308,7 @@ void Volume::ReadMetadataCallback(int32_t /*result*/,
   if (!CleanupVolumeArchive(volume_archive, true))
     return;
 
-  // Send metadata back to JS.
+  // Send metadata back to JavaScript.
   message_sender_->SendReadMetadataDone(
       file_system_id_, request_id, root_metadata);
 }
@@ -379,19 +437,15 @@ void Volume::ReadFileCallback(int32_t /*result*/,
 VolumeArchive* Volume::CreateVolumeArchive(const std::string& request_id,
                                            int64_t archive_size) {
   VolumeReader* reader =
-      new VolumeReaderJavaScriptStream(request_id, archive_size, requestor_);
-  if (reader->Open() != ARCHIVE_OK) {
-    // TODO(cmihail): In case we have another VolumeReader implementation we
-    // could use that as a backup. e.g. If we have both FileIO and JavaScript
-    // stream, one of them can be the backup used here.
-    message_sender()->SendFileSystemError(
-        file_system_id_, request_id, "Couldn't open volume reader.");
-    delete reader;
+      volume_reader_factory_->Create(request_id, archive_size);
+  if (!reader)
     return NULL;
-  }
 
   // Pass VolumeReader ownership to VolumeArchive.
-  VolumeArchive* volume_archive = new VolumeArchive(request_id, reader);
+  VolumeArchive* volume_archive =
+      volume_archive_factory_->Create(request_id, reader);
+  if (!volume_archive)
+    return NULL;
 
   worker_reads_in_progress_lock_.Acquire();
 
