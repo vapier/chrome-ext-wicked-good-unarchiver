@@ -17,71 +17,66 @@
 
 namespace {
 
-// An internal implementation of JavaScriptMessageSender. This class is the only
-// place where pp::Instance::PostMessage is allowed to be called in this NaCl
-// module in order to ensure thread safety, else we can end up with races as
-// mentioned at crbug.com/412692.
-class ModuleJavaScriptMessageSender : public JavaScriptMessageSender {
+// An internal implementation of JavaScriptMessageSenderInterface. This class
+// handles all communication from the module to the JavaScript code. Thread
+// safety is ensured only for PNaCl, not NaCl. See crbug.com/412692 and
+// crbug.com/413513.
+class JavaScriptMessageSender : public JavaScriptMessageSenderInterface {
  public:
-  explicit ModuleJavaScriptMessageSender(pp::Instance* instance)
+  // JavaScriptMessageSender does not own the instance pointer.
+  explicit JavaScriptMessageSender(pp::Instance* instance)
       : instance_(instance) {}
 
-  void SendFileSystemError(const std::string& file_system_id,
-                           const std::string& request_id,
-                           const std::string& message) {
-    SafePostMessage(
+  virtual void SendFileSystemError(const std::string& file_system_id,
+                                   const std::string& request_id,
+                                   const std::string& message) {
+    JavaScriptPostMessage(
         request::CreateFileSystemError(file_system_id, request_id, message));
   }
 
-  void SendFileChunkRequest(const std::string& file_system_id,
-                            const std::string& request_id,
-                            int64_t offset,
-                            size_t bytes_to_read) {
-    SafePostMessage(request::CreateReadChunkRequest(
+  virtual void SendFileChunkRequest(const std::string& file_system_id,
+                                    const std::string& request_id,
+                                    int64_t offset,
+                                    size_t bytes_to_read) {
+    JavaScriptPostMessage(request::CreateReadChunkRequest(
         file_system_id, request_id, offset, bytes_to_read));
   }
 
-  void SendReadMetadataDone(const std::string& file_system_id,
+  virtual void SendReadMetadataDone(const std::string& file_system_id,
                             const std::string& request_id,
                             const pp::VarDictionary& metadata) {
-    SafePostMessage(request::CreateReadMetadataDoneResponse(
+    JavaScriptPostMessage(request::CreateReadMetadataDoneResponse(
         file_system_id, request_id, metadata));
   }
 
-  void SendOpenFileDone(const std::string& file_system_id,
+  virtual void SendOpenFileDone(const std::string& file_system_id,
                         const std::string& request_id) {
-    SafePostMessage(
+    JavaScriptPostMessage(
         request::CreateOpenFileDoneResponse(file_system_id, request_id));
   }
 
-  void SendCloseFileDone(const std::string& file_system_id,
+  virtual void SendCloseFileDone(const std::string& file_system_id,
                          const std::string& request_id,
                          const std::string& open_request_id) {
-    SafePostMessage(request::CreateCloseFileDoneResponse(
+    JavaScriptPostMessage(request::CreateCloseFileDoneResponse(
         file_system_id, request_id, open_request_id));
   }
 
-  void SendReadFileDone(const std::string& file_system_id,
+  virtual void SendReadFileDone(const std::string& file_system_id,
                         const std::string& request_id,
                         const pp::VarArrayBuffer& array_buffer,
                         bool has_more_data) {
-    SafePostMessage(request::CreateReadFileDoneResponse(
+    JavaScriptPostMessage(request::CreateReadFileDoneResponse(
         file_system_id, request_id, array_buffer, has_more_data));
   }
 
  private:
-  // Posts a message to JavaScript in a lock, since PostMessage() is actually
-  // not thread safe (See: crbug.com/412692). This should be the only method
-  // that sends message to JavaScript in the whole NaCl extension code and
-  // ModuleJavaScriptMessageSender instance should be unique per every
-  // NaclArchiveInstance.
-  void SafePostMessage(const pp::VarDictionary& message) {
-    post_message_lock_.Acquire();
+  // Posts a message to JavaScript. This is prone to races in case of using
+  // NaCl instead of PNaCl. See crbug.com/413513.
+  void JavaScriptPostMessage(const pp::VarDictionary& message) {
     instance_->PostMessage(message);
-    post_message_lock_.Release();
   }
 
-  pp::Lock post_message_lock_;
   pp::Instance* instance_;
 };
 
@@ -281,9 +276,7 @@ class NaclArchiveInstance : public pp::Instance {
   pp::InstanceHandle instance_handle_;
 
   // An object used to send messages to JavaScript.
-  // All Volumes should be created using this object in order for
-  // ModuleJavaScriptMessageSender::SafePostMessage to correctly work.
-  ModuleJavaScriptMessageSender message_sender_;
+  JavaScriptMessageSender message_sender_;
 };
 
 // The Module class. The browser calls the CreateInstance() method to create

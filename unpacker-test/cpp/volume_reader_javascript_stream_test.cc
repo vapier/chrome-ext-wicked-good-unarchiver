@@ -22,7 +22,7 @@ const char kRequestId[] = "1";
 
 // Fake JavaScriptRequestor that responds to
 // VolumeReaderJavaScriptStream::Read.
-class FakeJavaScriptRequestor : public JavaScriptRequestor {
+class FakeJavaScriptRequestor : public JavaScriptRequestorInterface {
  public:
   explicit FakeJavaScriptRequestor(pp::InstanceHandle instance_handle)
       : volume_reader_(NULL),

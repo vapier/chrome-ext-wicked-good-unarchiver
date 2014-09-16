@@ -32,10 +32,8 @@ module.exports = function(config) {
     files: [
       // Application files. Only *.js files are included as <script>, the rest
       // only served.
-      {pattern: 'newlib/*/*.nmf', watched: false, included: false,
-                served: true},
-      {pattern: 'newlib/*/*.[n|p]exe', watched: false, included: false,
-                served: true},
+      {pattern: '**/*.nmf', watched: false, included: false, served: true},
+      {pattern: '**/*.[p|n]exe', watched: false, included: false, served: true},
       {pattern: 'js/*.js', watched: true, included: true, served: true},
 
       // Test files.
@@ -58,7 +56,7 @@ module.exports = function(config) {
      * @type {Array.<string>}
      */
     exclude: [
-      'js/background.js' // Contains direct calls to chrome API.
+      'js/background.js'  // Contains direct calls to Chrome API.
     ],
 
     /**
@@ -102,8 +100,8 @@ module.exports = function(config) {
      * Custom launchers to be used in browsers. A custom launcher is required in
      * order to enable Nacl for every application, even those that are not
      * installed from the Chrome market.
-     * DO NOT use '--enable-nacl-debug' (the module won't be loaded normally
-     * anymore, probably because of how the debugger connects to Chrome).
+     * DO NOT use '--enable-nacl-debug'. The module will block until typing
+     * 'continue' in the gdb console, but tests have a timeout limit.
      * @type {Object.<string, Object>}
      */
     customLaunchers: {
@@ -112,7 +110,8 @@ module.exports = function(config) {
         flags: [
             '--disable-setuid-sandbox',
             '--enable-nacl',
-            '--user-data-dir=user-data-dir',
+            '--enable-pnacl',
+            '--user-data-dir=user-data-dir-karma',
             // Required for redirecting NaCl module stdout and stderr outputs
             // using NACL_EXE_STDOUT and NACL_EXE_STDERR environment variables.
             // See run_js_tests.js.

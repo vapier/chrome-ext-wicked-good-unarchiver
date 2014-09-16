@@ -10,7 +10,7 @@
 #include "archive.h"
 #include "ppapi/cpp/var_array_buffer.h"
 
-#include "javascript_requestor.h"
+#include "javascript_requestor_interface.h"
 #include "volume_reader.h"
 
 // A VolumeReader that reads the content of the volume's archive from
@@ -25,7 +25,7 @@ class VolumeReaderJavaScriptStream : public VolumeReader {
   // requestor is used to request more data from JavaScript.
   VolumeReaderJavaScriptStream(const std::string& request_id,
                                int64_t archive_size,
-                               JavaScriptRequestor* requestor);
+                               JavaScriptRequestorInterface* requestor);
 
   virtual ~VolumeReaderJavaScriptStream();
 
@@ -33,8 +33,8 @@ class VolumeReaderJavaScriptStream : public VolumeReader {
   // VolumeReaderJavaScriptStream::Read to continue execution. SHOULD be done in
   // a different thread from VolumeReaderJavaScriptStream::Read method.
   // read_offset represents the offset from which VolumeReaderJavaScriptStream
-  // requested a chunk read from JavaScriptRequestor. May block for a few
-  // cycles in order to synchronize with VolumeReaderJavaScriptStream::Read.
+  // requested a chunk read from JavaScriptRequestorInterface. May block for a
+  // few cycles in order to synchronize with VolumeReaderJavaScriptStream::Read.
   // TODO(cmihail): Move the call from the main thread to another thread.
   void SetBufferAndSignal(const pp::VarArrayBuffer& array_buffer,
                           int64_t read_offset);
@@ -73,7 +73,7 @@ class VolumeReaderJavaScriptStream : public VolumeReader {
   const std::string request_id_;    // The request id for which the reader was
                                     // created.
   const int64_t archive_size_;      // The archive size.
-  JavaScriptRequestor* requestor_;  // A requestor that makes calls to
+  JavaScriptRequestorInterface* requestor_;  // A requestor that makes calls to
                                     // JavaScript to obtain file chunks.
 
   bool available_data_;  // Used by mutex / cond to synchronize with JavaScript.

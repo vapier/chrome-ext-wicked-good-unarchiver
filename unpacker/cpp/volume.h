@@ -15,8 +15,8 @@
 #include "ppapi/utility/threading/simple_thread.h"
 #include "ppapi/utility/completion_callback_factory.h"
 
-#include "javascript_requestor.h"
-#include "javascript_message_sender.h"
+#include "javascript_requestor_interface.h"
+#include "javascript_message_sender_interface.h"
 #include "volume_archive.h"
 
 // A factory that creates VolumeArchive(s). Useful for testing.
@@ -47,14 +47,14 @@ class Volume {
  public:
   Volume(const pp::InstanceHandle& instance_handle /* Used for workers. */,
          const std::string& file_system_id,
-         JavaScriptMessageSender* message_sender);
+         JavaScriptMessageSenderInterface* message_sender);
 
   // Used by tests to create custom VolumeArchive and VolumeReader objects.
   // VolumeArchiveFactory and VolumeReaderFactory should be allocated with new
   // and the ownership will be passed to Volume on constructing it.
   Volume(const pp::InstanceHandle& instance_handle /* Used for workers. */,
          const std::string& file_system_id,
-         JavaScriptMessageSender* message_sender,
+         JavaScriptMessageSenderInterface* message_sender,
          VolumeArchiveFactoryInterface* volume_archive_factory,
          VolumeReaderFactoryInterface* volume_reader_factory);
 
@@ -93,8 +93,8 @@ class Volume {
   void ReadFile(const std::string& request_id,
                 const pp::VarDictionary& dictionary);
 
-  JavaScriptMessageSender* message_sender() { return message_sender_; }
-  JavaScriptRequestor* requestor() { return requestor_; }
+  JavaScriptMessageSenderInterface* message_sender() { return message_sender_; }
+  JavaScriptRequestorInterface* requestor() { return requestor_; }
   std::string file_system_id() { return file_system_id_; }
 
  private:
@@ -142,7 +142,7 @@ class Volume {
   std::string file_system_id_;
 
   // An object that sends messages to JavaScript.
-  JavaScriptMessageSender* message_sender_;
+  JavaScriptMessageSenderInterface* message_sender_;
 
   // A worker for jobs that require blocking operations or a lot of processing
   // time. Those shouldn't be done on the main thread. The jobs submitted to
@@ -177,7 +177,7 @@ class Volume {
   pp::Lock worker_reads_in_progress_lock_;  // A lock for guarding above map.
 
   // A requestor for making calls to JavaScript.
-  JavaScriptRequestor* requestor_;
+  JavaScriptRequestorInterface* requestor_;
 
   // A factory for creating VolumeArchive.
   VolumeArchiveFactoryInterface* volume_archive_factory_;

@@ -4,12 +4,13 @@ See https://code.google.com/p/naclports/wiki/HowTo_Checkout?tm=4
 > cd src  # In naclports repository.
 > ./make_all.sh libarchive
 
-Build the NaCl module.
+Build the NaCl module. To use NaCl by default for "make" see unpacker/Makefile
+for instructions.
 > cd unpacker
-> make  # For NaCl.
-> make debug_for_tests  # For NaCl debug.
-> make VALID_TOOLCHAINS=pnacl  # For PNaCl.
-> make VALID_TOOLCHAINS=pnacl debug_for_tests  # For PNaCl debug.
+> make  # For PNaCl.
+> make debug_for_tests  # For PNaCl debug.
+> make VALID_TOOLCHAINS=nacl  # For NaCl.
+> make VALID_TOOLCHAINS=nacl debug_for_tests  # For NaCl debug.
 
 In order to use Release / Debug or NaCl / PNaCl see js/background for
 instructions.
@@ -44,7 +45,7 @@ Chai for assertions (http://chaijs.com/) and Sinon for spies and stubs
 # Run tests:
 > cd unpacker-test
 > ./run_js_tests.sh  # JavaScript tests.
-> ./run_nacl_tests.sh  # NaCl tests.
+> ./run_cpp_tests.sh  # C++ tests.
 
 # Run gdb:
 > export CHROME_PATH=<path_to_chrome_with_file_system_provider_api_support>

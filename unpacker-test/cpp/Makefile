@@ -5,7 +5,9 @@
 # GNU Makefile based on shared rules provided by the Native Client SDK.
 # See README.Makefiles for more details.
 
-VALID_TOOLCHAINS := newlib pnacl
+# In order to build with newlib by default change "pnacl newlib" to
+# "newlib pnacl" or use make VAILD_TOOLCHAINS=newlib.
+VALID_TOOLCHAINS := pnacl newlib
 
 NACL_SDK_ROOT ?= $(abspath $(CURDIR)/../../..)
 
@@ -23,7 +25,7 @@ TEST_PAGE = index.html
 # By default CONFIG is Release, but in case of using a rule that contains the
 # "debug" string it will be set to Debug. See $NACL_SDK_ROOT/tools/common.mk.
 TEST_PAGE_CONFIG = \
-  "$(TEST_PAGE)?pathToNmfFile=newlib/$(CONFIG)/main.nmf&mimeType=application/x-nacl"
+  "$(TEST_PAGE)?pathToNmfFile=pnacl/$(CONFIG)/main.nmf&mimeType=application/x-pnacl"
 
 TARGET = main
 LIBS = ppapi_simple nacl_io ppapi_cpp ppapi gtest pthread

@@ -5,7 +5,9 @@
 # GNU Makefile based on shared rules provided by the Native Client SDK.
 # See README.Makefiles for more details.
 
-VALID_TOOLCHAINS := newlib pnacl
+# In order to build with newlib by default change "pnacl newlib" to
+# "newlib pnacl" or use make VAILD_TOOLCHAINS=newlib.
+VALID_TOOLCHAINS := pnacl newlib
 
 NACL_SDK_ROOT ?= $(abspath $(CURDIR)/../..)
 

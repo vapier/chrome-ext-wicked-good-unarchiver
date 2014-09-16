@@ -50,11 +50,21 @@ var initPromise = tests_helper.init([
 // Run tests.
 describe('Unpacker extension', function() {
   before(function(done) {
+    // Modify the default timeout until Karma kills the test and marks it as
+    // failed in order to give enough time to the browser to load the PNaCl
+    // module. First load requires more than the default 2000 ms timeout, but
+    // next loads will be faster due to caching in user-data-dir.
+    // Timeout is set per every before, beforeEach, it, afterEach, so there is
+    // no need to restore it.
+    this.timeout(5000 /* milliseconds */);
     expect(app.naclModuleIsLoaded()).to.be.false;
 
     app.loadNaclModule(tests_helper.MODULE_NMF_FILE_PATH,
                        tests_helper.MODULE_MIME_TYPE);
     Promise.all([initPromise, app.moduleLoadedPromise]).then(function() {
+      // In case below is not printed probably 5000 ms for this.timeout wasn't
+      // enough for PNaCl to load during first time run.
+      console.debug('Initialization and module loading finished.');
       done();
     }).catch(tests_helper.forceFailure);
   });

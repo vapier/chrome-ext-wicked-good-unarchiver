@@ -23,14 +23,14 @@ var tests_helper = {
    * @type {string}
    * @const
    */
-  MODULE_NMF_FILE_PATH: 'base/newlib/Debug/module.nmf',
+  MODULE_NMF_FILE_PATH: 'base/pnacl/Debug/module.nmf',
 
   /**
    * The mime type of the module.
    * @type {string}
    * @const
    */
-  MODULE_MIME_TYPE: 'application/x-nacl',
+  MODULE_MIME_TYPE: 'application/x-pnacl',
 
   /**
    * Define information for the volumes to check.

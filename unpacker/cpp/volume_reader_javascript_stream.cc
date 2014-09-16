@@ -21,7 +21,7 @@ size_t kReadAheadLengthThreshold = 10 * 1024;  // 10 KB.
 VolumeReaderJavaScriptStream::VolumeReaderJavaScriptStream(
     const std::string& request_id,
     int64_t archive_size,
-    JavaScriptRequestor* const requestor)
+    JavaScriptRequestorInterface* requestor)
     : request_id_(request_id),
       archive_size_(archive_size),
       requestor_(requestor),

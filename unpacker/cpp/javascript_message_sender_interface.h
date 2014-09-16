@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef JAVASCRIPT_MESSAGE_SENDER_H_
-#define JAVASCRIPT_MESSAGE_SENDER_H_
+#ifndef JAVASCRIPT_MESSAGE_SENDER_INTERFACE_H_
+#define JAVASCRIPT_MESSAGE_SENDER_INTERFACE_H_
 
 #include <string>
 
 // Creates and sends messages to JavaScript. Messages are send asynchronously.
-class JavaScriptMessageSender {
+class JavaScriptMessageSenderInterface {
  public:
-  virtual ~JavaScriptMessageSender() {}
+  virtual ~JavaScriptMessageSenderInterface() {}
 
   virtual void SendFileSystemError(const std::string& file_system_id,
                                    const std::string& request_id,
@@ -38,4 +38,4 @@ class JavaScriptMessageSender {
                                 bool has_more_data) = 0;
 };
 
-#endif  // JAVASCRIPT_MESSAGE_SENDER_H_
+#endif  // JAVASCRIPT_MESSAGE_SENDER_INTERFACE_H_

@@ -15,7 +15,7 @@ namespace {
 const char kFileSystemId[] = "fileSystemId";
 
 // A fake implementation of JavaScriptMessageSender used for testing purposes.
-class FakeJavaScriptMessageSender : public JavaScriptMessageSender {
+class FakeJavaScriptMessageSender : public JavaScriptMessageSenderInterface {
  public:
   virtual void SendFileSystemError(const std::string& file_system_id,
                                    const std::string& request_id,

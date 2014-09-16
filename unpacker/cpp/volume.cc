@@ -98,10 +98,11 @@ void ConstructMetadata(const std::string& entry_path,
   parent_metadata->Set("entries", parent_entries);
 }
 
-// An internal implementation of JavaScriptRequestor.
-class VolumeJavaScriptRequestor : public JavaScriptRequestor {
+// An internal implementation of JavaScriptRequestorInterface.
+class JavaScriptRequestor : public JavaScriptRequestorInterface {
  public:
-  explicit VolumeJavaScriptRequestor(Volume* volume) : volume_(volume) {}
+  // JavaScriptRequestor does not own the volume pointer.
+  explicit JavaScriptRequestor(Volume* volume) : volume_(volume) {}
 
   virtual void RequestFileChunk(const std::string& request_id,
                                 int64_t offset,
@@ -128,6 +129,7 @@ class VolumeArchiveFactory : public VolumeArchiveFactoryInterface {
 // constructor.
 class VolumeReaderFactory : public VolumeReaderFactoryInterface {
  public:
+  // VolumeReaderFactory does not own the volume pointer.
   explicit VolumeReaderFactory(Volume* volume) : volume_(volume) {}
 
   virtual VolumeReader* Create(const std::string& request_id,
@@ -156,12 +158,12 @@ class VolumeReaderFactory : public VolumeReaderFactoryInterface {
 
 Volume::Volume(const pp::InstanceHandle& instance_handle,
                const std::string& file_system_id,
-               JavaScriptMessageSender* message_sender)
+               JavaScriptMessageSenderInterface* message_sender)
     : file_system_id_(file_system_id),
       message_sender_(message_sender),
       worker_(instance_handle),
       callback_factory_(this) {
-  requestor_ = new VolumeJavaScriptRequestor(this);
+  requestor_ = new JavaScriptRequestor(this);
   volume_archive_factory_ = new VolumeArchiveFactory();
   volume_reader_factory_ = new VolumeReaderFactory(this);
   // Delegating constructors only from c++11.
@@ -169,7 +171,7 @@ Volume::Volume(const pp::InstanceHandle& instance_handle,
 
 Volume::Volume(const pp::InstanceHandle& instance_handle,
                const std::string& file_system_id,
-               JavaScriptMessageSender* message_sender,
+               JavaScriptMessageSenderInterface* message_sender,
                VolumeArchiveFactoryInterface* volume_archive_factory,
                VolumeReaderFactoryInterface* volume_reader_factory)
     : file_system_id_(file_system_id),
@@ -178,7 +180,7 @@ Volume::Volume(const pp::InstanceHandle& instance_handle,
       callback_factory_(this),
       volume_archive_factory_(volume_archive_factory),
       volume_reader_factory_(volume_reader_factory) {
-  requestor_ = new VolumeJavaScriptRequestor(this);
+  requestor_ = new JavaScriptRequestor(this);
 }
 
 Volume::~Volume() {
