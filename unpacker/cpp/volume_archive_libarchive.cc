@@ -5,6 +5,7 @@
 #include "volume_archive_libarchive.h"
 
 #include <algorithm>
+#include <cerrno>
 
 #include "archive_entry.h"
 #include "ppapi/cpp/logging.h"
@@ -15,36 +16,61 @@ namespace {
 // or file to decompress. See crbug.com/411792.
 const size_t kChunkSize = 512 * 1024;  // 512 KB.
 
-inline std::string ArchiveError(const std::string& message,
-                                archive* archive_object) {
+std::string ArchiveError(const std::string& message, archive* archive_object) {
   return message + archive_error_string(archive_object);
+}
+
+// Sets the libarchive internal error to a VolumeReader related error.
+// archive_error_string function must work on valid strings, but in case of
+// errors in the custom functions, libarchive API assumes the error is set by
+// us. If we don't set it, we will get a Segmentation Fault because
+// archive_error_string will work on invalid memory.
+void SetLibarchiveErrorToVolumeReaderError(archive* archive_object) {
+  archive_set_error(archive_object,
+                    EIO /* I/O error. */,
+                    "%s" /* Format string similar to printf. */,
+                    volume_archive_constants::kVolumeReaderError);
 }
 
 ssize_t CustomArchiveRead(archive* archive_object,
                           void* client_data,
                           const void** buffer) {
-  VolumeReader* reader_ = static_cast<VolumeReader*>(client_data);
-  return reader_->Read(kChunkSize, buffer);
+  VolumeReader* reader = static_cast<VolumeReader*>(client_data);
+
+  ssize_t result = reader->Read(kChunkSize, buffer);
+  if (result == ARCHIVE_FATAL)
+    SetLibarchiveErrorToVolumeReaderError(archive_object);
+  return result;
 }
 
 int64_t CustomArchiveSkip(archive* archive_object,
                           void* client_data,
                           int64_t request) {
-  VolumeReader* reader_ = static_cast<VolumeReader*>(client_data);
-  return reader_->Skip(request);
+  VolumeReader* reader = static_cast<VolumeReader*>(client_data);
+  // VolumeReader::Skip returns 0 in case of failure and CustomArchiveRead is
+  // used instead, so there is no need to check for VolumeReader error.
+  return reader->Skip(request);
 }
 
 int64_t CustomArchiveSeek(archive* archive_object,
                           void* client_data,
                           int64_t offset,
                           int whence) {
-  VolumeReader* reader_ = static_cast<VolumeReader*>(client_data);
-  return reader_->Seek(offset, whence);
+  VolumeReader* reader = static_cast<VolumeReader*>(client_data);
+
+  int64_t result = reader->Seek(offset, whence);
+  if (result == ARCHIVE_FATAL)
+    SetLibarchiveErrorToVolumeReaderError(archive_object);
+  return result;
 }
 
 int CustomArchiveClose(archive* archive_object, void* client_data) {
-  VolumeReader* reader_ = static_cast<VolumeReader*>(client_data);
-  return reader_->Close();
+  VolumeReader* reader = static_cast<VolumeReader*>(client_data);
+
+  int result = reader->Close();
+  if (result == ARCHIVE_FATAL)
+    SetLibarchiveErrorToVolumeReaderError(archive_object);
+  return result;
 }
 
 }  // namespace

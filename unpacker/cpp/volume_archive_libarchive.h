@@ -16,6 +16,7 @@ namespace volume_archive_constants {
 
 const char kArchiveReadNewError[] = "Could not allocate archive.";
 const char kFileNotFound[] = "File not found for read data request.";
+const char kVolumeReaderError[] = "VolumeReader failed to retrieve data.";
 const char kArchiveSupportErrorPrefix[] = "Error at support rar/zip format: ";
 const char kArchiveOpenErrorPrefix[] = "Error at open archive: ";
 const char kArchiveNextHeaderErrorPrefix[] =

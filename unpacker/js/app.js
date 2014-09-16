@@ -321,9 +321,6 @@ var app = {
         return;
       }
 
-      // TODO(cmihail): In case we unmount the outer archive and then try
-      // to read a file from the inner archive we will end up with a
-      // NaCl module crash. Investigate.
       var options = {
         fileSystemId: fileSystemId
       };

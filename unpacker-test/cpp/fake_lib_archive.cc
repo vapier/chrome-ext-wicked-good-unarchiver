@@ -82,6 +82,10 @@ const char* archive_error_string(archive* archive_object) {
   return lib_archive_variables::kArchiveError;
 }
 
+void archive_set_error(struct archive *, int error_code, const char *fmt, ...) {
+  // Nothing to do.
+}
+
 int archive_read_support_format_rar(archive* archive_object) {
   return lib_archive_variables::fail_archive_rar_support ? ARCHIVE_FATAL
                                                          : ARCHIVE_OK;

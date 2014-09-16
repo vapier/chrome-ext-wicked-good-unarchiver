@@ -25,12 +25,15 @@ class VolumeReader {
   // the next VolumeReader:Read call or until VolumeReader is destructed.
   // The operation must be synchronous (libarchive requirement), so it
   // should NOT be done on the main thread.
-  // Returns the actual number of read bytes.
+  // Returns the actual number of read bytes or ARCHIVE_FATAL in case of
+  // failure.
   virtual ssize_t Read(size_t bytes_to_read,
                        const void** destination_buffer) = 0;
 
   // Tries to skyp bytes_to_skip number of bytes. Returns the actual number of
-  // skipped bytes or 0 if none were skipped.
+  // skipped bytes or 0 if none were skipped. In case of failure
+  // VolumeReader::Skip returns 0 bytes and VolumeReader::Read can be used
+  // to skip those bytes by discarding them.
   virtual int64_t Skip(int64_t bytes_to_skip) = 0;
 
   // Tries to seek to offset from whence. Returns the resulting offset location
