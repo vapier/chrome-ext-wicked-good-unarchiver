@@ -12,6 +12,7 @@ export NACL_EXE_STDOUT=`pwd`/nacl.stdout
 export NACL_EXE_STDERR=`pwd`/nacl.stderr
 
 cd ../unpacker/
-make debug_for_tests
+# Build both Release and Debug executables for integration tests.
+make && make debug_for_tests || { exit 1; }  # In case any make fails, exit.
 cd ../unpacker-test/
 karma start

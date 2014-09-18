@@ -16,6 +16,13 @@ var app = {
   STORAGE_KEY: 'state',
 
   /**
+   * The default id for the NaCl module.
+   * @type {string}
+   * @const
+   */
+  DEFAULT_MODULE_ID: 'nacl_module',
+
+  /**
    * Multiple volumes can be opened at the same time. The key is the
    * fileSystemId and the value is a Volume object.
    * @type {Object.<string, Volume>}
@@ -41,9 +48,8 @@ var app = {
   /**
    * The NaCl module containing the logic for decompressing archives.
    * @type {Object}
-   * @private
    */
-  naclModule_: null,
+  naclModule: null,
 
   /**
    * Function called on receiving a message from NaCl module. Registered by
@@ -188,7 +194,7 @@ var app = {
 
       // File is a Blob object, so it's ok to construct the Decompressor
       // directly with it.
-      var decompressor = new Decompressor(app.naclModule_, fileSystemId, file);
+      var decompressor = new Decompressor(app.naclModule, fileSystemId, file);
       var volume = new Volume(decompressor, entry, opt_openedFiles);
       volume.initialize(onLoadVolumeSuccess, rejectVolumeLoad);
       app.volumes[fileSystemId] = volume;
@@ -253,7 +259,7 @@ var app = {
    * @return {boolean} True if NaCl module is loaded.
    */
   naclModuleIsLoaded: function() {
-    return !!app.naclModule_;
+    return !!app.naclModule;
   },
 
   /**
@@ -262,21 +268,24 @@ var app = {
    *     file, which should be a .nmf file.
    * @param {string} mimeType The type of the NaCl executable (e.g. .nexe or
    *     .pexe).
+   * @param {string=} opt_moduleId The NaCl module id. Necessary for testing
+   *     purposes.
    */
-  loadNaclModule: function(pathToConfigureFile, mimeType) {
+  loadNaclModule: function(pathToConfigureFile, mimeType, opt_moduleId) {
     app.moduleLoadedPromise = new Promise(function(fulfill) {
+      var moduleId = opt_moduleId ? opt_moduleId : app.DEFAULT_MODULE_ID;
       var elementDiv = document.createElement('div');
 
       // Promise fulfills only after NaCl module has been loaded.
       elementDiv.addEventListener('load', function() {
-        app.naclModule_ = document.getElementById('nacl_module');
+        app.naclModule = document.getElementById(moduleId);
         fulfill();
       }, true);
 
       elementDiv.addEventListener('message', app.handleMessage_, true);
 
       var elementEmbed = document.createElement('embed');
-      elementEmbed.id = 'nacl_module';
+      elementEmbed.id = moduleId;
       elementEmbed.style.width = 0;
       elementEmbed.style.height = 0;
       elementEmbed.src = pathToConfigureFile;
@@ -288,12 +297,22 @@ var app = {
   },
 
   /**
+   * Unloads the NaCl module.
+   */
+  unloadNaclModule: function() {
+    var naclModuleParentNode = app.naclModule.parentNode;
+    naclModuleParentNode.parentNode.removeChild(naclModuleParentNode);
+    app.naclModule = null;
+    app.moduleLoadedPromise = null;
+  },
+
+  /**
    * Cleans up the resources for a volume, except for the local storage. If
    * necessary that can be done using app.removeState_.
    * @param {string} fileSystemId The file system id of the volume to clean.
    */
   cleanupVolume: function(fileSystemId) {
-    app.naclModule_.postMessage(
+    app.naclModule.postMessage(
         request.createCloseVolumeRequest(fileSystemId));
     delete app.volumes[fileSystemId];
     delete app.volumeLoadedPromises[fileSystemId];  // Allow mount after clean.
@@ -310,7 +329,7 @@ var app = {
    * @private
    */
   unmountVolume_: function(fileSystemId, opt_forceUnmount) {
-    return new Promise(function (fulfill, reject) {
+    return new Promise(function(fulfill, reject) {
       var volume = app.volumes[fileSystemId];
       console.assert(!opt_forceUnmount && volume,
           'Unmount that is not forced must not be called for volumes that ' +

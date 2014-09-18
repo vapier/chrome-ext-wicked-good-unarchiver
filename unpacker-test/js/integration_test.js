@@ -47,173 +47,199 @@ var initPromise = tests_helper.init([
   }
 ]);
 
-// Run tests.
-describe('Unpacker extension', function() {
-  before(function(done) {
-    // Modify the default timeout until Karma kills the test and marks it as
-    // failed in order to give enough time to the browser to load the PNaCl
-    // module. First load requires more than the default 2000 ms timeout, but
-    // next loads will be faster due to caching in user-data-dir.
-    // Timeout is set per every before, beforeEach, it, afterEach, so there is
-    // no need to restore it.
-    this.timeout(5000 /* milliseconds */);
-    expect(app.naclModuleIsLoaded()).to.be.false;
+/**
+ * Runs the integration tests.
+ * @param {string} describeMessage The integration tests describe message.
+ * @param {string} moduleNmfFilePath The path to the NaCl / PNaCl module nmf
+ *     file.
+ * @param {string} moduleMimeType The type of the module, which can be either
+ *     NaCl or PNaCl.
+ * @param {string} moduleId The module id. It shold be unique per every
+ *     integration tests run. The id is used to test if the correct module is
+ *     loaded while running the tests.
+ */
+var integration_tests = function(describeMessage, moduleNmfFilePath,
+                                 moduleMimeType, moduleId) {
+  describe(describeMessage, function() {
+    before(function(done) {
+      // Modify the default timeout until Karma kills the test and marks it as
+      // failed in order to give enough time to the browser to load the PNaCl
+      // module. First load requires more than the default 2000 ms timeout, but
+      // next loads will be faster due to caching in user-data-dir.
+      // Timeout is set per every before, beforeEach, it, afterEach, so there is
+      // no need to restore it.
+      this.timeout(5000 /* milliseconds */);
 
-    app.loadNaclModule(tests_helper.MODULE_NMF_FILE_PATH,
-                       tests_helper.MODULE_MIME_TYPE);
-    Promise.all([initPromise, app.moduleLoadedPromise]).then(function() {
-      // In case below is not printed probably 5000 ms for this.timeout wasn't
-      // enough for PNaCl to load during first time run.
-      console.debug('Initialization and module loading finished.');
-      done();
-    }).catch(tests_helper.forceFailure);
-  });
+      // Cannot use 'after' because 'after' gets executed after all 'before'
+      // even though 'before' is in another 'describe'. But 'before' gets
+      // correctly executed for every 'describe'. So below workaround solves
+      // this problem.
+      if (app.naclModuleIsLoaded())
+        app.unloadNaclModule();
+      expect(app.naclModuleIsLoaded()).to.be.false;
 
-  beforeEach(function(done) {
-    expect(app.naclModuleIsLoaded()).to.be.true;
+      // Load the module.
+      app.loadNaclModule(moduleNmfFilePath, moduleMimeType, moduleId);
 
-    // Called on beforeEach() in order for spies and stubs to reset registered
-    // number of calls to methods.
-    tests_helper.initChromeApis();
-
-    var launchData = {items: []};
-    tests_helper.volumesInformation.forEach(function(volume) {
-      launchData.items.push({entry: volume.entry});
-    });
-
-    var successfulVolumeLoads = 0;
-    app.onLaunched(launchData, function(fileSystemId) {
-      successfulVolumeLoads++;
-      if (successfulVolumeLoads == tests_helper.volumesInformation.length)
+      Promise.all([initPromise, app.moduleLoadedPromise]).then(function() {
+        // In case below is not printed probably 5000 ms for this.timeout wasn't
+        // enough for PNaCl to load during first time run.
+        console.debug('Initialization and module loading for <' +
+                      moduleNmfFilePath + '> finished.');
         done();
-    }, function(fileSystemId) {
-      forceFailure('Could not load volume <' + fileSystemId + '>.');
+      }).catch(tests_helper.forceFailure);
     });
-  });
 
-  afterEach(function() {
-    unloadExtension();
-  });
+    beforeEach(function(done) {
+      expect(app.naclModuleIsLoaded()).to.be.true;
+      // In case below is false then 'before' wasn't executed correctly for
+      // different runs of the integration tests.
+      expect(app.naclModule.id).to.equal(moduleId);
 
-  // Check if volumes were correctly loaded.
-  tests_helper.volumesInformation.forEach(function(volumeInformation) {
-    describe('that launches <' + volumeInformation.fileSystemId + '>',
-             function() {
-      volumeInformation.afterOnLaunchTests();
-    });
-  });
+      // Called on beforeEach() in order for spies and stubs to reset registered
+      // number of calls to methods.
+      tests_helper.initChromeApis();
 
-  // Test state save.
-  describe('should save state in case of restarts or crashes', function() {
-    it('by calling retainEntry with the volume\'s entry', function() {
-      expect(chrome.fileSystem.retainEntry.callCount)
-          .to.equal(tests_helper.volumesInformation.length);
+      var launchData = {items: []};
       tests_helper.volumesInformation.forEach(function(volume) {
-        expect(chrome.fileSystem.retainEntry.calledWith(volume.entry)).
-            to.be.true;
+        launchData.items.push({entry: volume.entry});
+      });
+
+      var successfulVolumeLoads = 0;
+      app.onLaunched(launchData, function(fileSystemId) {
+        successfulVolumeLoads++;
+        if (successfulVolumeLoads == tests_helper.volumesInformation.length)
+          done();
+      }, function(fileSystemId) {
+        forceFailure('Could not load volume <' + fileSystemId + '>.');
       });
     });
 
-    it('by storing the volumes state', function() {
-      tests_helper.volumesInformation.forEach(function(volumeInformation) {
-        var fileSystemId = volumeInformation.fileSystemId;
-        expect(tests_helper.localStorageState[app.STORAGE_KEY][fileSystemId])
-            .to.not.be.undefined;
-      });
-      expect(chrome.storage.local.set.called).to.be.true;
-    });
-  });
-
-  // Test restore after suspend page event.
-  describe('that receives a suspend page event', function() {
-    beforeEach(function() {
-      // Reinitialize spies in order to register only the calls after suspend
-      // and not before it.
-      tests_helper.initChromeApis();
-
-      app.onSuspend();  // This gets called before suspend.
+    afterEach(function() {
       unloadExtension();
     });
 
-    it('should call retainEntry again for all mounted volumes', function() {
-      expect(chrome.fileSystem.retainEntry.callCount)
-          .to.equal(tests_helper.volumesInformation.length);
+    // Check if volumes were correctly loaded.
+    tests_helper.volumesInformation.forEach(function(volumeInformation) {
+      describe('that launches <' + volumeInformation.fileSystemId + '>',
+          function() {
+            volumeInformation.afterOnLaunchTests();
+          });
     });
 
-    it('should store the volumes state for all mounted volumes', function() {
-      tests_helper.volumesInformation.forEach(function(volumeInformation) {
-        var fileSystemId = volumeInformation.fileSystemId;
-        expect(tests_helper.localStorageState[app.STORAGE_KEY][fileSystemId])
-            .to.not.be.undefined;
+    // Test state save.
+    describe('should save state in case of restarts or crashes', function() {
+      it('by calling retainEntry with the volume\'s entry', function() {
+        expect(chrome.fileSystem.retainEntry.callCount)
+            .to.equal(tests_helper.volumesInformation.length);
+        tests_helper.volumesInformation.forEach(function(volume) {
+          expect(chrome.fileSystem.retainEntry.calledWith(volume.entry)).
+              to.be.true;
+        });
       });
-      expect(chrome.storage.local.set.called).to.be.true;
+
+      it('by storing the volumes state', function() {
+        tests_helper.volumesInformation.forEach(function(volumeInformation) {
+          var fileSystemId = volumeInformation.fileSystemId;
+          expect(tests_helper.localStorageState[app.STORAGE_KEY][fileSystemId])
+              .to.not.be.undefined;
+        });
+        expect(chrome.storage.local.set.called).to.be.true;
+      });
     });
 
-    // Check if restore was successful.
-    tests_helper.volumesInformation.forEach(function(volumeInformation) {
-      volumeInformation.afterSuspendTests();
-    });
-  });
-
-  // Test restore after restarts, crashes, etc.
-  describe('that is restarted', function() {
-    beforeEach(function() {
-      unloadExtension();
-      app.onStartup();  // This gets called after restart.
-
-      // Reset spies and stubs.
-      tests_helper.initChromeApis();
-    });
-
-    // Check if restore was successful.
-    tests_helper.volumesInformation.forEach(function(volumeInformation) {
-      volumeInformation.afterRestartTests();
-    });
-  });
-
-  // Check unmount.
-  tests_helper.volumesInformation.forEach(function(volumeInformation) {
-    var fileSystemId = volumeInformation.fileSystemId;
-
-    describe('that unmounts volume <' + fileSystemId + '>', function() {
-      var unmountError;
-
-      beforeEach(function(done) {
+    // Test restore after suspend page event.
+    describe('that receives a suspend page event', function() {
+      beforeEach(function() {
         // Reinitialize spies in order to register only the calls after suspend
         // and not before it.
         tests_helper.initChromeApis();
 
-        expect(app.volumes[fileSystemId]).to.not.be.undefined;
-        expect(tests_helper.localStorageState[app.STORAGE_KEY][fileSystemId])
-            .to.not.be.undefined;
+        app.onSuspend();  // This gets called before suspend.
+        unloadExtension();
+      });
 
-        app.onUnmountRequested({fileSystemId: fileSystemId}, function() {
-          done();
-        }, function(error) {
-          unmountError = error;
-          done();
+      it('should call retainEntry again for all mounted volumes', function() {
+        expect(chrome.fileSystem.retainEntry.callCount)
+            .to.equal(tests_helper.volumesInformation.length);
+      });
+
+      it('should store the volumes state for all mounted volumes', function() {
+        tests_helper.volumesInformation.forEach(function(volumeInformation) {
+          var fileSystemId = volumeInformation.fileSystemId;
+          expect(tests_helper.localStorageState[app.STORAGE_KEY][fileSystemId])
+              .to.not.be.undefined;
         });
-      });
-
-      it('should not throw an error', function() {
-        if (unmountError)
-          console.error(unmountError.stack || unmountError);
-        expect(unmountError).to.be.undefined;
-      });
-
-      it('should remove volume from app.volumes', function() {
-        expect(app.volumes[fileSystemId]).to.be.undefined;
-      });
-
-      it('should not call retainEntry', function() {
-        expect(chrome.fileSystem.retainEntry.called).to.be.false;
-      });
-
-      it('should remove volume from local storage', function() {
-        expect(tests_helper.localStorageState[app.STORAGE_KEY][fileSystemId])
-            .to.be.undefined;
         expect(chrome.storage.local.set.called).to.be.true;
+      });
+
+      // Check if restore was successful.
+      tests_helper.volumesInformation.forEach(function(volumeInformation) {
+        volumeInformation.afterSuspendTests();
+      });
+    });
+
+    // Test restore after restarts, crashes, etc.
+    describe('that is restarted', function() {
+      beforeEach(function() {
+        unloadExtension();
+        app.onStartup();  // This gets called after restart.
+
+        // Reset spies and stubs.
+        tests_helper.initChromeApis();
+      });
+
+      // Check if restore was successful.
+      tests_helper.volumesInformation.forEach(function(volumeInformation) {
+        volumeInformation.afterRestartTests();
+      });
+    });
+
+    // Check unmount.
+    tests_helper.volumesInformation.forEach(function(volumeInformation) {
+      var fileSystemId = volumeInformation.fileSystemId;
+
+      describe('that unmounts volume <' + fileSystemId + '>', function() {
+        beforeEach(function(done) {
+          // Reinitialize spies in order to register only the calls after
+          // suspend and not before it.
+          tests_helper.initChromeApis();
+
+          expect(app.volumes[fileSystemId]).to.not.be.undefined;
+          expect(tests_helper.localStorageState[app.STORAGE_KEY][fileSystemId])
+              .to.not.be.undefined;
+
+          app.onUnmountRequested({fileSystemId: fileSystemId}, function() {
+            done();
+          }, tests_helper.forceFailure);
+        });
+
+        it('should remove volume from app.volumes', function() {
+          expect(app.volumes[fileSystemId]).to.be.undefined;
+        });
+
+        it('should not call retainEntry', function() {
+          expect(chrome.fileSystem.retainEntry.called).to.be.false;
+        });
+
+        it('should remove volume from local storage', function() {
+          expect(tests_helper.localStorageState[app.STORAGE_KEY][fileSystemId])
+              .to.be.undefined;
+          expect(chrome.storage.local.set.called).to.be.true;
+        });
       });
     });
   });
-});
+};
+
+// Run the tests for the Release executables.
+integration_tests('Release unpacker extension',
+                  tests_helper.MODULE_RELEASE_NMF_FILE_PATH,
+                  tests_helper.MODULE_MIME_TYPE,
+                  'release_module');
+
+// Run the tests for the Debug executables.
+integration_tests('Debug unpacker extension',
+                  tests_helper.MODULE_DEBUG_NMF_FILE_PATH,
+                  tests_helper.MODULE_MIME_TYPE,
+                  'debug_module');

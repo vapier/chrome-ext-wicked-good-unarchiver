@@ -11,7 +11,7 @@ echo "============================================="
 echo "============== Release tests ================"
 echo "============================================="
 echo ""
-make tests_run
+make tests_run || { exit 1; }
 
 # Run Debug tests.
 echo ""

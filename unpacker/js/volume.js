@@ -96,7 +96,6 @@ Volume.prototype.inUse = function() {
  * Initializes the volume by reading its metadata.
  * @param {function()} onSuccess Callback to execute on success.
  * @param {function(ProviderError)} onError Callback to execute on error.
- * @private
  */
 Volume.prototype.initialize = function(onSuccess, onError) {
   var requestId = this.DEFAULT_READ_METADATA_REQUEST_ID;
@@ -266,7 +265,7 @@ Volume.prototype.getEntryMetadata_ = function(entryPath) {
         !entryMetadata.isDirectory && i != limit - 1 /* Parent directory. */)
       return null;
     entryMetadata = entryMetadata.entries[pathArray[i]];
-  };
+  }
 
   return entryMetadata;
 };
