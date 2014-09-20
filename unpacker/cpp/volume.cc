@@ -4,6 +4,7 @@
 
 #include "volume.h"
 
+#include <cstring>
 #include <sstream>
 
 #include "request.h"
@@ -13,7 +14,6 @@
 namespace {
 
 const char kPathDelimiter[] = "/";
-const int32_t kReadBufferSizeMax = 512 * 1024;  // 512 KB.
 
 // size is int64_t and modification_time is time_t because this is how
 // libarchive is going to pass them to us.
@@ -395,25 +395,15 @@ void Volume::ReadFileCallback(int32_t /*result*/,
                               // opened files that have a corresponding
                               // VolumeArchive.
 
-  // Decompress data and send it to JavaScript. In case length is too big, we
-  // will send multiple chunks with limit kReadBufferSizeMax per chunk in
-  // order to avoid out of memory issues.
-  while (length > 0) {
-    int32_t buffer_size;
-    bool has_more_data;
-    if (length > kReadBufferSizeMax) {
-      has_more_data = true;
-      buffer_size = kReadBufferSizeMax;
-    } else {
-      has_more_data = false;
-      buffer_size = length;
-    }
+  // Decompress data and send it to JavaScript. Sending data is done in chunks
+  // depending on how many bytes VolumeArchive::ReadData returns.
+  int32_t left_length = length;
+  while (left_length > 0) {
+    const char* destination_buffer = NULL;
+    int64_t read_bytes =
+        volume_archive->ReadData(offset, left_length, &destination_buffer);
 
-    // Read decompressed data.
-    pp::VarArrayBuffer array_buffer(buffer_size);
-    char* array_buffer_data = static_cast<char*>(array_buffer.Map());
-
-    if (!volume_archive->ReadData(offset, buffer_size, array_buffer_data)) {
+    if (read_bytes < 0) {
       // Error messages should be sent to the read request (request_id), not
       // open request (open_request_id), as the last one has finished and this
       // is a read file.
@@ -422,17 +412,28 @@ void Volume::ReadFileCallback(int32_t /*result*/,
 
       // Should not cleanup VolumeArchive as Volume::CloseFile will be called in
       // case of failure.
-      array_buffer.Unmap();
       return;
     }
-    array_buffer.Unmap();
 
     // Send response back to ReadFile request.
+    pp::VarArrayBuffer array_buffer(read_bytes);
+    if (read_bytes > 0) {
+      char* array_buffer_data = static_cast<char*>(array_buffer.Map());
+      memcpy(array_buffer_data, destination_buffer, read_bytes);
+      array_buffer.Unmap();
+    }
+
+    bool has_more_data = left_length - read_bytes > 0 && read_bytes > 0;
     message_sender_->SendReadFileDone(
         file_system_id_, request_id, array_buffer, has_more_data);
 
-    length -= buffer_size;
-    offset += buffer_size;
+    if (read_bytes == 0)
+      break;  // No more available data.
+
+    left_length -= read_bytes;
+    offset += read_bytes;
+
+    volume_archive->MaybeDecompressAhead();
   }
 }
 

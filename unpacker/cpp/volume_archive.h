@@ -34,17 +34,36 @@ class VolumeArchive {
                              bool* is_directory,
                              time_t* modification_time) = 0;
 
-  // Gets data from offset to offset + length for the file reached
-  // with VolumeArchiveInterace::GetNextHeader. The data should be
-  // stored starting from *buffer. In case offset is less then last
-  // VolumeArchiveInterace::ReadData offset, then the read will be done
-  // from the start of the archive. The API assumes offset is valid.
-  // JavaScript shouldn't make requests with offset greater than data size.
-  // Returns true if reading was successful for all the required number of
-  // bytes. Length must be greater than 0.
-  // In case of failure the error message can be obtained with
+  // Gets data from offset to offset + length for the file reached with
+  // VolumeArchive::GetNextHeader. The data is stored in an internal buffer
+  // in the implementation of VolumeArchive and it will be returned
+  // via *buffer parameter to avoid an extra copy. *buffer is owned by
+  // VolumeArchive.
+  //
+  // Supports file seek by using the offset parameter. In case offset is less
+  // then last VolumeArchive::ReadData offset, then the read will be restarted
+  // from the beginning of the archive.
+  //
+  // For improving perfomance use VolumeArchive::MaybeDecompressAhead. Using
+  // VolumeArchive::MaybeDecompressAhead is not mandatory, but without it
+  // performance will suffer.
+  //
+  // The API assumes offset >= 0 and length > 0. length can be as big as
+  // possible, but its up to the implementation to avoid big memory usage.
+  // It can return up to length bytes of data, however 0 is returned only in
+  // case of EOF.
+  //
+  // Returns the actual number of read bytes. The API ensures that *buffer will
+  // have available as many bytes as returned. In case of failure, returns a
+  // negative value and the error message can be obtained with
   // VolumeArchive::error_message().
-  virtual bool ReadData(int64_t offset, int32_t length, char* buffer) = 0;
+  virtual int64_t ReadData(int64_t offset,
+                           int64_t length,
+                           const char** buffer) = 0;
+
+  // Decompress ahead in case there are no more available bytes in the internal
+  // buffer.
+  virtual void MaybeDecompressAhead() = 0;
 
   // Cleans all resources. Should be called only once. Returns true if
   // successful. In case of failure the error message can be obtained with

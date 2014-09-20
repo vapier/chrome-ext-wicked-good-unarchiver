@@ -12,6 +12,8 @@
 
 namespace {
 
+const int64_t kArchiveReadDataError = -1;  // Negative value means error.
+
 std::string ArchiveError(const std::string& message, archive* archive_object) {
   return message + archive_error_string(archive_object);
 }
@@ -34,9 +36,8 @@ ssize_t CustomArchiveRead(archive* archive_object,
   VolumeArchiveLibarchive* volume_archive =
       static_cast<VolumeArchiveLibarchive*>(client_data);
 
-  ssize_t result =
-      volume_archive->reader()->Read(volume_archive->reader_data_size(),
-                                     buffer);
+  ssize_t result = volume_archive->reader()->Read(
+      volume_archive->reader_data_size(), buffer);
   if (result == ARCHIVE_FATAL)
     SetLibarchiveErrorToVolumeReaderError(archive_object);
   return result;
@@ -85,7 +86,11 @@ VolumeArchiveLibarchive::VolumeArchiveLibarchive(const std::string& request_id,
       reader_data_size_(volume_archive_constants::kHeaderChunkSize),
       archive_(NULL),
       current_archive_entry_(NULL),
-      last_read_data_offset_(0) {
+      last_read_data_offset_(0),
+      last_read_data_length_(0),
+      decompressed_data_(NULL),
+      decompressed_data_size_(0),
+      decompressed_error_(false) {
 }
 
 VolumeArchiveLibarchive::~VolumeArchiveLibarchive() {
@@ -156,18 +161,11 @@ bool VolumeArchiveLibarchive::GetNextHeader(const char** pathname,
   }
 }
 
-bool VolumeArchiveLibarchive::ReadData(int64_t offset,
-                                       int32_t length,
-                                       char* buffer) {
+void VolumeArchiveLibarchive::DecompressData(int64_t offset, int64_t length) {
   // TODO(cmihail): As an optimization consider using archive_read_data_block
   // which avoids extra copying in case offset != last_read_data_offset_.
   // The logic will be more complicated because archive_read_data_block offset
   // will not be aligned with the offset of the read request from JavaScript.
-
-  PP_DCHECK(length > 0);              // Length must be at least 1.
-  PP_DCHECK(current_archive_entry_);  // Check that GetNextHeader was called at
-                                      // least once. In case it wasn't, this is
-                                      // a programmer error.
 
   // Request with offset smaller than last read offset.
   if (offset < last_read_data_offset_) {
@@ -177,13 +175,16 @@ bool VolumeArchiveLibarchive::ReadData(int64_t offset,
     if (archive_read_free(archive_) != ARCHIVE_OK) {
       set_error_message(ArchiveError(
           volume_archive_constants::kArchiveReadDataErrorPrefix, archive_));
-      return false;
+      decompressed_error_ = true;
+      return;
     }
     reader()->Seek(0, SEEK_SET);  // Reset reader.
 
     // Reinitialize archive.
-    if (!Init())
-      return false;
+    if (!Init()) {
+      decompressed_error_ = true;
+      return;
+    }
 
     // Reach file data by iterating through
     // VolumeArchiveLibarchive::GetNextHeader.
@@ -193,11 +194,14 @@ bool VolumeArchiveLibarchive::ReadData(int64_t offset,
     time_t modification_time = 0;
     for (;;) {
       if (!GetNextHeader(
-              &path_name, &file_size, &is_directory, &modification_time))
-        return false;
+              &path_name, &file_size, &is_directory, &modification_time)) {
+        decompressed_error_ = true;
+        return;
+      }
       if (!path_name) {
         set_error_message(volume_archive_constants::kFileNotFound);
-        return false;
+        decompressed_error_ = true;
+        return;
       }
 
       if (file_path_name == std::string(path_name))
@@ -217,10 +221,10 @@ bool VolumeArchiveLibarchive::ReadData(int64_t offset,
     // offset - last_read_data_offset_, kMaximumDataChunkSize in case the former
     // is too big or kMinimumDataChunkSize in case its too small and we might
     // end up with too many IPCs.
-    reader_data_size_ = std::max(
-        std::min(offset - last_read_data_offset_,
-                 volume_archive_constants::kMaximumDataChunkSize),
-        volume_archive_constants::kMinimumDataChunkSize);
+    reader_data_size_ =
+        std::max(std::min(offset - last_read_data_offset_,
+                          volume_archive_constants::kMaximumDataChunkSize),
+                 volume_archive_constants::kMinimumDataChunkSize);
 
     // No need for an offset in dummy_buffer as it will be ignored anyway.
     size =
@@ -228,41 +232,52 @@ bool VolumeArchiveLibarchive::ReadData(int64_t offset,
                           dummy_buffer_,
                           std::min(offset - last_read_data_offset_,
                                    volume_archive_constants::kDummyBufferSize));
+    PP_DCHECK(size != 0);  // The actual read is done below. We shouldn't get to
+                           // end of file here.
     if (size < 0) {  // Error.
       set_error_message(ArchiveError(
           volume_archive_constants::kArchiveReadDataErrorPrefix, archive_));
-      return false;
+      decompressed_error_ = true;
+      return;
     }
     last_read_data_offset_ += size;
   }
+
+  // Do not decompress more bytes than we can store internally. The
+  // kDecompressBufferSize limit is used to avoid huge memory usage.
+  int64_t left_length =
+      std::min(length, volume_archive_constants::kDecompressBufferSize);
 
   // ReadData will call CustomArchiveRead when calling archive_read_data. The
   // read should be done with a value similar to length, which is the requested
   // number of bytes, or kMaximumDataChunkSize / kMinimumDataChunkSize
   // in case length is too big or too small.
   reader_data_size_ =
-      std::max(std::min(static_cast<int64_t>(length),
+      std::max(std::min(static_cast<int64_t>(left_length),
                         volume_archive_constants::kMaximumDataChunkSize),
                volume_archive_constants::kMinimumDataChunkSize);
 
-  // Perform  the actual copy.
-  int32_t buffer_offset = 0;  // Not file offset, so it's ok to be int32_t.
-                              // A read cannot be greater than length, which is
-                              // int32_t. Having more than 4GB in memory for a
-                              // single read is not possible.
+  // Perform the actual copy.
+  int64_t bytes_read = 0;
   do {
-    size = archive_read_data(archive_, buffer + buffer_offset, length);
+    size = archive_read_data(
+        archive_, decompressed_data_buffer_ + bytes_read, left_length);
     if (size < 0) {  // Error.
       set_error_message(ArchiveError(
           volume_archive_constants::kArchiveReadDataErrorPrefix, archive_));
-      return false;
+      decompressed_error_ = true;
+      return;
     }
-    buffer_offset += size;
-    length -= size;
-  } while (length > 0 && size != 0);  // There is still data to read.
+    bytes_read += size;
+    left_length -= size;
+  } while (left_length > 0 && size != 0);  // There is still data to read.
 
-  last_read_data_offset_ += buffer_offset;
-  return true;
+  // VolumeArchiveLibarchive::DecompressData always stores the data from
+  // beginning of the buffer. VolumeArchiveLibarchive::ConsumeData is used
+  // to preserve the bytes that are decompressed but not required by
+  // VolumeArchiveLibarchive::ReadData.
+  decompressed_data_ = decompressed_data_buffer_;
+  decompressed_data_size_ = bytes_read;
 }
 
 bool VolumeArchiveLibarchive::Cleanup() {
@@ -278,4 +293,52 @@ bool VolumeArchiveLibarchive::Cleanup() {
   CleanupReader();
 
   return returnValue;
+}
+
+int64_t VolumeArchiveLibarchive::ReadData(int64_t offset,
+                                          int64_t length,
+                                          const char** buffer) {
+  PP_DCHECK(length > 0);              // Length must be at least 1.
+  PP_DCHECK(current_archive_entry_);  // Check that GetNextHeader was called at
+                                      // least once. In case it wasn't, this is
+                                      // a programmer error.
+
+  // End of archive.
+  if (archive_entry_size(current_archive_entry_) <= offset)
+    return 0;
+
+  // In case of first read or no more available data in the internal buffer or
+  // offset is different from the last_read_data_offset_, then force
+  // VolumeArchiveLibarchive::DecompressData as the decompressed data is
+  // invalid.
+  if (!decompressed_data_ ||
+      last_read_data_offset_ != offset ||
+      decompressed_data_size_ == 0)
+    DecompressData(offset, length);
+
+  // Decompressed failed.
+  if (decompressed_error_)
+    return kArchiveReadDataError;
+
+  last_read_data_length_ = length;  // Used for decompress ahead.
+
+  // Assign the output *buffer parameter to the internal buffer.
+  *buffer = decompressed_data_;
+
+  // Advance internal buffer for next ReadData call.
+  int64_t read_bytes = std::min(decompressed_data_size_, length);
+  decompressed_data_ = decompressed_data_ + read_bytes;
+  decompressed_data_size_ -= read_bytes;
+  last_read_data_offset_ += read_bytes;
+
+  PP_DCHECK(decompressed_data_ + decompressed_data_size_ <=
+            decompressed_data_buffer_ +
+                volume_archive_constants::kDecompressBufferSize);
+
+  return read_bytes;
+}
+
+void VolumeArchiveLibarchive::MaybeDecompressAhead() {
+  if (decompressed_data_size_ == 0)
+    DecompressData(last_read_data_offset_, last_read_data_length_);
 }

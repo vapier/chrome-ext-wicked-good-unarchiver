@@ -24,8 +24,11 @@ const char kArchiveNextHeaderErrorPrefix[] =
 const char kArchiveReadDataErrorPrefix[] = "Error at reading data: ";
 const char kArchiveReadFreeErrorPrefix[] = "Error at archive free: ";
 
-// Size of the buffer used to skip unnecessary data.
-const int64_t kDummyBufferSize = 512 * 1024;
+// The size of the buffer used to skip unnecessary data.
+const int64_t kDummyBufferSize = 512 * 1024;  // 512 KB
+
+// The size of the buffer used by ReadInProgress to decompress data.
+const int64_t kDecompressBufferSize = 512 * 1024;  // 512 KB.
 
 // The archive header chunk size for VolumeReader::Read requests.
 const int64_t kHeaderChunkSize = 16 * 1024;  // 16 KB.
@@ -56,7 +59,10 @@ class VolumeArchiveLibarchive : public VolumeArchive {
                              time_t* modification_time);
 
   // See volume_archive_interface.h.
-  virtual bool ReadData(int64_t offset, int32_t length, char* buffer);
+  virtual int64_t ReadData(int64_t offset, int64_t length, const char** buffer);
+
+  // See volume_archive_interface.h.
+  virtual void MaybeDecompressAhead();
 
   // See volume_archive_interface.h.
   virtual bool Cleanup();
@@ -64,6 +70,9 @@ class VolumeArchiveLibarchive : public VolumeArchive {
   size_t reader_data_size() const { return reader_data_size_; }
 
  private:
+  // Decompress length bytes of data starting from offset.
+  void DecompressData(int64_t offset, int64_t length);
+
   // The size of the requested data from VolumeReader.
   size_t reader_data_size_;
 
@@ -88,12 +97,34 @@ class VolumeArchiveLibarchive : public VolumeArchive {
   // then dummy_buffer_ will be used to ignore unused bytes.
   int64_t last_read_data_offset_;
 
+  // The length of the last VolumeArchiveLibarchive::ReadData. Used for
+  // decompress ahead.
+  int64_t last_read_data_length_;
+
   // Dummy buffer for unused data read using VolumeArchiveLibarchive::ReadData.
   // Sometimes VolumeArchiveLibarchive::ReadData can require reading from
   // offsets different from last_read_data_offset_. In this case some bytes
   // must be skipped. Because seeking is not possible inside compressed files,
   // the bytes will be discarded using this buffer.
   char dummy_buffer_[volume_archive_constants::kDummyBufferSize];
+
+  // The address where the decompressed data starting from
+  // decompressed_offset_ is stored. It should point to a valid location
+  // inside decompressed_data_buffer_. Necesssary in order to NOT throw
+  // away unused decompressed bytes as throwing them away would mean in some
+  // situations restarting decompressing the file from the beginning.
+  char* decompressed_data_;
+
+  // The actual buffer that contains the decompressed data.
+  char decompressed_data_buffer_
+      [volume_archive_constants::kDecompressBufferSize];
+
+  // The size of valid data starting from decompressed_data_ that is stored
+  // inside decompressed_data_buffer_.
+  int64_t decompressed_data_size_;
+
+  // True if VolumeArchiveLibarchive::DecompressData failed.
+  bool decompressed_error_;
 };
 
 #endif  // VOLUME_ARCHIVE_LIBARCHIVE_H
