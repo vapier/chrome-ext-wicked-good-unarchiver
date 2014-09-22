@@ -34,6 +34,8 @@ CFLAGS = -Wall -Wno-sign-compare -I$(CODE_DIR)
 SOURCES = \
   fake_lib_archive.cc \
   fake_volume_reader.cc \
+  $(CODE_DIR)/header_cache.cc \
+  header_cache_test.cc \
   main.cc \
   $(CODE_DIR)/request.cc \
   request_test.cc \

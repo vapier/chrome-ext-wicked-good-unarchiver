@@ -61,7 +61,8 @@ class VolumeReaderJavaScriptStream : public VolumeReader {
   // See volume_reader.h for description.
   virtual int Close();
 
-  int64_t offset() const { return offset_; }
+  // See volume_reader.h for description.
+  virtual int64_t GetOffset() const;
 
  private:
   // Request a chunk of length number of bytes from JavaScript starting from

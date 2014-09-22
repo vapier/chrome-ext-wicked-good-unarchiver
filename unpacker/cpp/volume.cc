@@ -119,10 +119,17 @@ class JavaScriptRequestor : public JavaScriptRequestorInterface {
 // Volume constructor.
 class VolumeArchiveFactory : public VolumeArchiveFactoryInterface {
  public:
+  // VolumeReaderFactory does not own the volume pointer.
+  explicit VolumeArchiveFactory(Volume* volume) : volume_(volume) {}
+
   virtual VolumeArchive* Create(const std::string& request_id,
                                 VolumeReader* reader) {
-    return new VolumeArchiveLibarchive(request_id, reader);
+    return new VolumeArchiveLibarchive(
+        request_id, reader, volume_->header_cache());
   }
+
+ private:
+  Volume* volume_;
 };
 
 // An internal implementation of VolumeReaderFactoryInterface for default Volume
@@ -164,7 +171,7 @@ Volume::Volume(const pp::InstanceHandle& instance_handle,
       worker_(instance_handle),
       callback_factory_(this) {
   requestor_ = new JavaScriptRequestor(this);
-  volume_archive_factory_ = new VolumeArchiveFactory();
+  volume_archive_factory_ = new VolumeArchiveFactory(this);
   volume_reader_factory_ = new VolumeReaderFactory(this);
   // Delegating constructors only from c++11.
 }

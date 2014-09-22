@@ -4,9 +4,11 @@
 
 #include "volume_archive_libarchive.h"
 
+#include "gtest/gtest.h"
+
 #include "fake_lib_archive.h"
 #include "fake_volume_reader.h"
-#include "gtest/gtest.h"
+#include "header_cache.h"
 
 namespace {
 
@@ -29,8 +31,8 @@ class VolumeArchiveLibarchiveReadTest : public testing::Test {
   virtual void SetUp() {
     fake_lib_archive_config::ResetVariables();
     // Pass FakeVolumeReader ownership to VolumeArchiveLibarchive.
-    volume_archive = new VolumeArchiveLibarchive(std::string(kRequestId),
-                                                 new FakeVolumeReader());
+    volume_archive = new VolumeArchiveLibarchive(
+        std::string(kRequestId), new FakeVolumeReader(), new HeaderCache());
 
     // Prepare for read.
     volume_archive->Init();

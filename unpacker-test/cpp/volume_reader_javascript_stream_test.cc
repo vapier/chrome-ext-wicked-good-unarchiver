@@ -115,7 +115,7 @@ class VolumeReaderJavaScriptStreamTest : public testing::Test {
     volume_reader = new VolumeReaderJavaScriptStream(
         std::string(kRequestId), kArchiveSize, fake_javascript_requestor);
     fake_javascript_requestor->SetVolumeReader(volume_reader);
-    ASSERT_EQ(0, volume_reader->offset());
+    ASSERT_EQ(0, volume_reader->GetOffset());
   }
 
   virtual void TearDown() {
@@ -139,14 +139,14 @@ TEST_F(VolumeReaderJavaScriptStreamTest, Open) {
 TEST_F(VolumeReaderJavaScriptStreamTest, SmallSkip) {
   // Skip with value smaller than int32_t.
   EXPECT_EQ(1, volume_reader->Skip(1));
-  EXPECT_EQ(1, volume_reader->offset());
+  EXPECT_EQ(1, volume_reader->GetOffset());
 }
 
 TEST_F(VolumeReaderJavaScriptStreamTest, BigSkip) {
   // Skip with value greater than int32_t but less than archive size.
   int64_t bigBytesToSkipNum = kArchiveSize - 50;  // See kArchiveSize value.
   EXPECT_EQ(bigBytesToSkipNum, volume_reader->Skip(bigBytesToSkipNum));
-  EXPECT_EQ(bigBytesToSkipNum, volume_reader->offset());
+  EXPECT_EQ(bigBytesToSkipNum, volume_reader->GetOffset());
 }
 
 // If read_ahead_length has an invalid length then Skip will return 0.
@@ -154,63 +154,63 @@ TEST_F(VolumeReaderJavaScriptStreamTest, ZeroSkip) {
   // Skip with value greater than archive size but less han int64_t max value.
   int64_t veryBigBytesToSkipNum = kArchiveSize + 50;  // See kArchiveSize value.
   EXPECT_EQ(0, volume_reader->Skip(veryBigBytesToSkipNum));
-  EXPECT_EQ(0, volume_reader->offset());
+  EXPECT_EQ(0, volume_reader->GetOffset());
 
   // Can't skip backwards.
   int64_t invalidSkipNum = -1;  // See kArchiveSize value.
   EXPECT_EQ(0, volume_reader->Skip(invalidSkipNum));
-  EXPECT_EQ(0, volume_reader->offset());
+  EXPECT_EQ(0, volume_reader->GetOffset());
 }
 
 TEST_F(VolumeReaderJavaScriptStreamTest, Seek) {
   // Seek from start.
   EXPECT_EQ(10, volume_reader->Seek(10, SEEK_SET));
-  EXPECT_EQ(10, volume_reader->offset());
+  EXPECT_EQ(10, volume_reader->GetOffset());
 
   // Seek from current with positive value.
   EXPECT_EQ(15, volume_reader->Seek(5, SEEK_CUR));
-  EXPECT_EQ(15, volume_reader->offset());
+  EXPECT_EQ(15, volume_reader->GetOffset());
 
   // Seek from current with negative value.
   EXPECT_EQ(5, volume_reader->Seek(-10, SEEK_CUR));
-  EXPECT_EQ(5, volume_reader->offset());
+  EXPECT_EQ(5, volume_reader->GetOffset());
 
   // Seek from current with value greater than int32_t.
   int64_t positiveSkipValue = kArchiveSize - 50;  // See kArchiveSize value.
   EXPECT_EQ(positiveSkipValue + 5 /* +5 from last Seek call. */,
             volume_reader->Seek(positiveSkipValue, SEEK_CUR));
-  EXPECT_EQ(positiveSkipValue + 5, volume_reader->offset());
+  EXPECT_EQ(positiveSkipValue + 5, volume_reader->GetOffset());
 
   // Seek from current with value smaller than int32_t.
   int64_t negativeSkipValue = -positiveSkipValue;
   EXPECT_EQ(5, volume_reader->Seek(negativeSkipValue, SEEK_CUR));
-  EXPECT_EQ(5, volume_reader->offset());
+  EXPECT_EQ(5, volume_reader->GetOffset());
 
   // Seek from start with value greater than int32_t.
   EXPECT_EQ(positiveSkipValue,
             volume_reader->Seek(positiveSkipValue, SEEK_SET));
-  EXPECT_EQ(positiveSkipValue, volume_reader->offset());
+  EXPECT_EQ(positiveSkipValue, volume_reader->GetOffset());
 
   // Seek from end. SEEK_END requires negative values.
   EXPECT_EQ(kArchiveSize - 5, volume_reader->Seek(-5, SEEK_END));
-  EXPECT_EQ(kArchiveSize - 5, volume_reader->offset());
+  EXPECT_EQ(kArchiveSize - 5, volume_reader->GetOffset());
 
   // Seek from end with value smaller than int32_t.
   int64_t expectedOffset = kArchiveSize + negativeSkipValue;
   EXPECT_EQ(expectedOffset, volume_reader->Seek(negativeSkipValue, SEEK_END));
-  EXPECT_EQ(expectedOffset, volume_reader->offset());
+  EXPECT_EQ(expectedOffset, volume_reader->GetOffset());
 
   // Seek from current with 0.
   EXPECT_EQ(expectedOffset, volume_reader->Seek(0, SEEK_CUR));
-  EXPECT_EQ(expectedOffset, volume_reader->offset());
+  EXPECT_EQ(expectedOffset, volume_reader->GetOffset());
 
   // Seek from start with 0.
   EXPECT_EQ(0, volume_reader->Seek(0, SEEK_SET));
-  EXPECT_EQ(0, volume_reader->offset());
+  EXPECT_EQ(0, volume_reader->GetOffset());
 
   // Seek from end with 0.
   EXPECT_EQ(kArchiveSize, volume_reader->Seek(0, SEEK_END));
-  EXPECT_EQ(kArchiveSize, volume_reader->offset());
+  EXPECT_EQ(kArchiveSize, volume_reader->GetOffset());
 }
 
 TEST_F(VolumeReaderJavaScriptStreamTest, InvalidSeekNegativeOffsetResult) {

@@ -15,6 +15,7 @@
 #include "ppapi/utility/threading/simple_thread.h"
 #include "ppapi/utility/completion_callback_factory.h"
 
+#include "header_cache.h"
 #include "javascript_requestor_interface.h"
 #include "javascript_message_sender_interface.h"
 #include "volume_archive.h"
@@ -96,6 +97,7 @@ class Volume {
   JavaScriptMessageSenderInterface* message_sender() { return message_sender_; }
   JavaScriptRequestorInterface* requestor() { return requestor_; }
   std::string file_system_id() { return file_system_id_; }
+  HeaderCache* header_cache() { return &header_cache_; }
 
  private:
   // A callback helper for ReadMetadata.
@@ -184,6 +186,14 @@ class Volume {
 
   // A factory for creating VolumeReader.
   VolumeReaderFactoryInterface* volume_reader_factory_;
+
+  // A cache with the volume's corresponding archive header and file headers.
+  // HeaderCache is shared between all VolumeArchive objects in
+  // worker_reads_in_progress_. Though it is not thread safe, all VolumeArchive
+  // operations are done from worker_ thread, which ensures correctness.
+  // In case of using multiple workers, then HeaderCache MUST be synchronized
+  // when used inside VolumeArchive.
+  HeaderCache header_cache_;
 };
 
 #endif  /// VOLUME_H_

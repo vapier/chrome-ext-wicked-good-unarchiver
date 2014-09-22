@@ -209,6 +209,10 @@ int VolumeReaderJavaScriptStream::Close() {
   return ARCHIVE_OK;
 }
 
+int64_t VolumeReaderJavaScriptStream::GetOffset() const {
+  return offset_;
+}
+
 void VolumeReaderJavaScriptStream::RequestChunk(size_t length) {
   // Read next chunk only if not at the end of archive.
   if (archive_size_ <= offset_)

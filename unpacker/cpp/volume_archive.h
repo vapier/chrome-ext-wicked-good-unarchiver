@@ -11,6 +11,9 @@
 
 // Defines a wrapper for operations executed on an archive. API is not meant
 // to be thread safe and its methods shouldn't be called in parallel.
+// Represents a view of a physical archive. A physical archive can have multiple
+// instances of VolumeArchive in order to handle every request from
+// fileSystemProvider API independently from other requests.
 class VolumeArchive {
  public:
   // VolumeReader should be allocated with new and the memory handling should be
