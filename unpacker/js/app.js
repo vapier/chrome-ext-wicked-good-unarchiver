@@ -178,7 +178,11 @@ var app = {
   loadVolume_: function(fileSystemId, entry, fulfillVolumeLoad,
                         rejectVolumeLoad, opt_openedFiles) {
     entry.file(function(file) {
-      // Read metadata from NaCl.
+      // File is a Blob object, so it's ok to construct the Decompressor
+      // directly with it.
+      var decompressor = new Decompressor(app.naclModule, fileSystemId, file);
+      var volume = new Volume(decompressor, entry, opt_openedFiles);
+
       var onLoadVolumeSuccess = function() {
         opt_openedFiles = opt_openedFiles ? opt_openedFiles : {};
         if (Object.keys(opt_openedFiles).length == 0) {
@@ -187,15 +191,16 @@ var app = {
         }
 
         // Restore opened files on NaCl side.
-        // TODO(cmihail): Implement this feature after integration tests are
-        // finished.
-        rejectVolumeLoad('INVALID_OPERATION');
-      };
+        var openFilePromises = [];
+        for (var openRequestId in opt_openedFiles) {
+          var options = opt_openedFiles[openRequestId];
+          openFilePromises.push(new Promise(function(resolve, reject) {
+            volume.onOpenFileRequested(options, resolve, reject);
+          }));
+        }
 
-      // File is a Blob object, so it's ok to construct the Decompressor
-      // directly with it.
-      var decompressor = new Decompressor(app.naclModule, fileSystemId, file);
-      var volume = new Volume(decompressor, entry, opt_openedFiles);
+        Promise.all(openFilePromises).then(fulfillVolumeLoad, rejectVolumeLoad);
+      };
       volume.initialize(onLoadVolumeSuccess, rejectVolumeLoad);
       app.volumes[fileSystemId] = volume;
     });

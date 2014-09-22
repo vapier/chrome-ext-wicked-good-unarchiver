@@ -28,6 +28,7 @@ var initPromise = tests_helper.init([
     },
     afterSuspendTests: function() {
       smallArchiveCheck('small_rar.rar', SMALL_RAR_METADATA, true);
+      smallArchiveCheckAfterSuspend('small_rar.rar');
     },
     afterRestartTests: function() {
       smallArchiveCheck('small_rar.rar', SMALL_RAR_METADATA, true);
@@ -40,6 +41,7 @@ var initPromise = tests_helper.init([
     },
     afterSuspendTests: function() {
       smallArchiveCheck('small_zip.zip', SMALL_ZIP_METADATA, true);
+      smallArchiveCheckAfterSuspend('small_zip.zip');
     },
     afterRestartTests: function() {
       smallArchiveCheck('small_zip.zip', SMALL_ZIP_METADATA, true);
@@ -157,6 +159,14 @@ var integration_tests = function(describeMessage, moduleNmfFilePath,
 
         app.onSuspend();  // This gets called before suspend.
         unloadExtension();
+
+        // Set the opened files before suspend. Used to test correct restoring
+        // after suspend.
+        tests_helper.volumesInformation.forEach(function(volumeInformation) {
+          var fileSystemId = volumeInformation.fileSystemId;
+          tests_helper.localStorageState[app.STORAGE_KEY][fileSystemId]
+              .openedFiles = getOpenedFilesBeforeSuspend(fileSystemId);
+        });
       });
 
       it('should call retainEntry again for all mounted volumes', function() {

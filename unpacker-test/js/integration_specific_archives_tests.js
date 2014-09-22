@@ -85,6 +85,14 @@ var SMALL_ZIP_METADATA = {
   size: 0
 };
 
+/**
+ * The small archive path prefix in 'test-files/' directory. Used to obtain the
+ * expected files for read file requests. The small archive structure should be
+ * identical to the metadata obtained from the archive.
+ * @type {string}
+ * @const
+ */
+var SMALL_ARCHIVE_PATH_PREFIX = 'small_archive';
 
 /**
  * Tests if metadata is the same as expectedEntryMetadata. The function tests
@@ -119,22 +127,85 @@ var testMetadata = function(entryMetadata, expectedEntryMetadata) {
 };
 
 /**
+ * Tests read for a file in the archive. The file must be opened with
+ * openRequestId before calling this function.
+ * @param {string} fileSystemId The file system id.
+ * @param {string} filePath The file path in the archive.
+ * @param {number} openRequestId The open request id for the file to read.
+ * @param {number} readRequestId The read request id.
+ */
+var testReadFile = function(fileSystemId, filePath, openRequestId,
+                            readRequestId) {
+  var expectedBuffer;
+
+  beforeEach(function(done) {
+    var promise = tests_helper.getAndReadFileBlobPromise(
+        SMALL_ARCHIVE_PATH_PREFIX + filePath);
+
+    promise.then(function(buffer) {
+      expectedBuffer = buffer;
+      done();
+    }).catch(tests_helper.forceFailure);
+  });
+
+  it('should read the whole file', function(done) {
+    var offset = 0;
+    var length = Math.floor(expectedBuffer.length / 2);
+    var left_length;
+    var promise = tests_helper.createReadFilePromise(
+        fileSystemId, readRequestId, openRequestId, offset, length);
+
+    promise.then(function(receivedBuffer) {
+      // It is possible tha receivedBuffer.length is different from length.
+      // This scenario is plausible in case length is really big, but we
+      // requested a small chunk so we should receive the same amount of
+      // data.
+      expect(receivedBuffer.length).to.equal(length);
+      expect(receivedBuffer).to.deep.equal(
+          expectedBuffer.subarray(offset, offset + length));
+
+      // Get the last chunk of data.
+      offset += length;
+      left_length = expectedBuffer.length - receivedBuffer.length;
+      return tests_helper.createReadFilePromise(
+          fileSystemId, readRequestId, openRequestId, offset, left_length);
+    }).then(function(receivedBuffer) {
+      expect(receivedBuffer.length).to.equal(left_length);
+      expect(receivedBuffer).to.deep.equal(
+          expectedBuffer.subarray(offset, offset + left_length));
+      done();
+    }).catch(tests_helper.forceFailure);
+  });
+
+  it('should read middle chunk from file', function(done) {
+    var offset = Math.floor(expectedBuffer.length / 4);
+    var length = Math.floor(expectedBuffer.length / 2);
+    var promise = tests_helper.createReadFilePromise(
+        fileSystemId, readRequestId, openRequestId, offset, length);
+
+    promise.then(function(receivedBuffer) {
+      expect(receivedBuffer.length).to.equal(length);
+      expect(receivedBuffer).to.deep.equal(
+          expectedBuffer.subarray(offset, offset + length));
+      done();
+    }).catch(tests_helper.forceFailure);
+  });
+};
+
+/**
  * Tests open, read and close for a file in the archive.
  * @param {string} fileSystemId The file system id.
  * @param {Object} expectedMetadata The volume's expected metadata.
- * @param {boolean} restore True if this is request after restoring state.
  * @param {string} filePath The file path in the archive.
- * @param {string} testFilePath The file path in the 'test-files/' directory.
+ * @param {number} openRequestId The open request id.
+ * @param {number} readRequestId The read request id.
+ * @param {number} closeRequestId The close request id.
  */
-var testOpenReadClose = function(fileSystemId, expectedMetadata, restore,
-                                 filePath, testFilePath) {
+var testOpenReadClose = function(fileSystemId, expectedMetadata, filePath,
+                                 openRequestId, readRequestId, closeRequestId) {
   // Test onOpenFileRequested.
   describe('and then opens file <' + filePath + '> for <' + fileSystemId + '>',
            function() {
-    var openRequestId = 3;
-    var readRequestId = 4;
-    var closeRequestId = 5;
-
     beforeEach(function(done) {
       var options = {
         fileSystemId: fileSystemId,
@@ -151,63 +222,9 @@ var testOpenReadClose = function(fileSystemId, expectedMetadata, restore,
       testMetadata(app.volumes[fileSystemId].metadata, expectedMetadata);
     });
 
+    // Test read file operation.
     describe('to read file contents of ' + filePath, function() {
-      var expectedBuffer;
-
-      beforeEach(function(done) {
-        // TODO(cmihail): Download this file before running the tests or lazy
-        // download it before use and then reuse it for next tests in order to
-        // reduce execution time.
-        var promise = tests_helper.getAndReadFileBlobPromise(testFilePath);
-
-        promise.then(function(buffer) {
-          expectedBuffer = buffer;
-          done();
-        }).catch(tests_helper.forceFailure);
-      });
-
-      it('should read the whole file', function(done) {
-        var offset = 0;
-        var length = Math.floor(expectedBuffer.length / 2);
-        var left_length;
-        var promise = tests_helper.createReadFilePromise(
-            fileSystemId, readRequestId, openRequestId, offset, length);
-
-        promise.then(function(receivedBuffer) {
-          // It is possible tha receivedBuffer.length is different from length.
-          // This scenario is plausible in case length is really big, but we
-          // requested a small chunk so we should receive the same amount of
-          // data.
-          expect(receivedBuffer.length).to.equal(length);
-          expect(receivedBuffer).to.deep.equal(
-              expectedBuffer.subarray(offset, offset + length));
-
-          // Get the last chunk of data.
-          offset += length;
-          left_length = expectedBuffer.length - receivedBuffer.length;
-          return tests_helper.createReadFilePromise(
-              fileSystemId, readRequestId, openRequestId, offset, left_length);
-        }).then(function(receivedBuffer) {
-          expect(receivedBuffer.length).to.equal(left_length);
-          expect(receivedBuffer).to.deep.equal(
-              expectedBuffer.subarray(offset, offset + left_length));
-          done();
-        }).catch(tests_helper.forceFailure);
-      });
-
-      it('should read middle chunk from file', function(done) {
-        var offset = Math.floor(expectedBuffer.length / 4);
-        var length = Math.floor(expectedBuffer.length / 2);
-        var promise = tests_helper.createReadFilePromise(
-            fileSystemId, readRequestId, openRequestId, offset, length);
-
-        promise.then(function(receivedBuffer) {
-          expect(receivedBuffer.length).to.equal(length);
-          expect(receivedBuffer).to.deep.equal(
-              expectedBuffer.subarray(offset, offset + length));
-          done();
-        }).catch(tests_helper.forceFailure);
-      });
+      testReadFile(fileSystemId, filePath, openRequestId, readRequestId);
     });
 
     // Clean resources.
@@ -314,10 +331,68 @@ var smallArchiveCheck = function(fileSystemId, expectedMetadata, restore) {
     });
   });
 
-  testOpenReadClose(fileSystemId, expectedMetadata, restore,
-                    '/file1', 'small_archive/file1');
-  testOpenReadClose(fileSystemId, expectedMetadata, restore,
-                    '/file2', 'small_archive/file2');
-  testOpenReadClose(fileSystemId, expectedMetadata, restore,
-                    '/dir/file3', 'small_archive/dir/file3');
+  testOpenReadClose(fileSystemId, expectedMetadata, '/file1', 7, 8, 5);
+  testOpenReadClose(fileSystemId, expectedMetadata, '/file2', 13, 16, 17);
+  testOpenReadClose(fileSystemId, expectedMetadata, '/dir/file3', 21, 24 , 25);
+};
+
+/**
+ * Gets the map of opened files before suspend. Used to test correct restore
+ * after receiving a fileSystemProvider API call after suspend page event.
+ * The key is the open request id and the value is the open request options.
+ * @param {string} fileSystemId The file system id.
+ * @return {Object.<number, fileSystemProvider.OpenFileRequestedOptions>}
+ */
+var getOpenedFilesBeforeSuspend = function(fileSystemId) {
+  return {
+    30: /* requestId */ {
+      fileSystemId: fileSystemId,
+      mode: 'READ',
+      create: false,
+      requestId: 30,
+      filePath: '/file1'
+    },
+    40: /* requestId */ {
+      fileSystemId: fileSystemId,
+      mode: 'READ',
+      create: false,
+      requestId: 40,
+      filePath: '/file2'
+    }
+  };
+};
+
+/**
+ * Tests read and close file operations after suspend page event for files that
+ * were opened but not closed before suspending.
+ * @param {string} fileSystemId The file system id.
+ */
+var smallArchiveCheckAfterSuspend = function(fileSystemId) {
+  var openedFilesBeforeSuspend =
+      getOpenedFilesBeforeSuspend(fileSystemId);
+
+  for (var openRequestId in openedFilesBeforeSuspend) {
+    var openOptions = openedFilesBeforeSuspend[openRequestId];
+    var describeMessage =
+        'for <' + fileSystemId + '> and then reads contents of file <' +
+        openOptions.filePath + '> ' + 'opened before suspend page event,';
+    describe(describeMessage, function() {
+      // Test read file.
+      testReadFile(fileSystemId, openOptions.filePath, openRequestId,
+                   openRequestId + 1);
+
+      // Clean resources.
+      afterEach(function(done) {
+        var options = {
+          fileSystemId: fileSystemId,
+          requestId: openRequestId + 2,
+          openRequestId: openRequestId
+        };
+
+        app.onCloseFileRequested(options, function() {
+          done();
+        }, tests_helper.forceFailure);
+      });
+    });
+  }
 };

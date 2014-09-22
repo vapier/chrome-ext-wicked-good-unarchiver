@@ -64,8 +64,8 @@ function Volume(decompressor, entry, opt_openedFiles) {
 
   /**
    * A map with currently opened files. The key is a requestId value from the
-   * openFileRequested event and the value is the file path.
-   * @type {Object.<number, string>}
+   * openFileRequested event and the value is the open file options.
+   * @type {Object.<number, fileSystemProvider.OpenFileRequestedOptions>}
    */
   this.openedFiles = opt_openedFiles ? opt_openedFiles : {};
 

@@ -57,6 +57,14 @@ var tests_helper = {
   localStorageState: {},
 
   /**
+   * A cache with downloaded files' Blob objects. The key is the file path and
+   * the value is a Promise that fulfills with the file's Blob object.
+   * @type {Object.<string, Promise>}
+   * @private
+   */
+  fileBlobCache_: {},
+
+  /**
    * Downloads a file in order to use it inside the tests. The download
    * operation is required in order to obtain a Blob object for the file,
    * object that is needed by the Decompressor to read the archive's file data
@@ -66,6 +74,9 @@ var tests_helper = {
    *     with the download failure error.
    */
   getFileBlob: function(filePath) {
+    if (tests_helper.fileBlobCache_[filePath])
+      return Promise.resolve(tests_helper.fileBlobCache_[filePath]);
+
     return new Promise(function(fulfill, reject) {
       var xhr = new XMLHttpRequest();
       xhr.open('GET', tests_helper.TEST_FILES_BASE_URL_ + filePath);
@@ -79,6 +90,7 @@ var tests_helper = {
     }).then(function(xhr) {
       if (xhr.readyState === 4) {
         if (xhr.status === 200) {
+          tests_helper.fileBlobCache_[filePath] = xhr.response;
           return xhr.response;  // The blob.
         } else {
           return Promise.reject(xhr.statusText + ': ' + filePath);
@@ -121,22 +133,23 @@ var tests_helper = {
           // 'set' must be a function before we can stub it with a custom
           // function. This is a sinon requirement.
         },
-        get: sinon.stub()
+        get: function() {
+          // Must be a function for same reasons as 'set'.
+        }
       }
     };
-    // Make a deep copy as tests_helper.localStorageState is the data on the
-    // local storage and not in memory. This way the extension will work on a
-    // different memory which is the case in real scenarios.
-    var localStorageState =
-        JSON.parse(JSON.stringify(tests_helper.localStorageState));
-    chrome.storage.local.get.withArgs([app.STORAGE_KEY])
-        .callsArgWith(1, localStorageState);
-    chrome.storage.local.get.throws(
-        'Invalid argument for get.' /* If app.STORAGE_KEY is invalid. */);
-
     sinon.stub(chrome.storage.local, 'set', function(state) {
       // Save the state in the local storage in a different memory.
       tests_helper.localStorageState = JSON.parse(JSON.stringify(state));
+    });
+
+    sinon.stub(chrome.storage.local, 'get', function(state, onSuccess) {
+      // Make a deep copy as tests_helper.localStorageState is the data on the
+      // local storage and not in memory. This way the extension will work on a
+      // different memory which is the case in real scenarios.
+      var localStorageState =
+          JSON.parse(JSON.stringify(tests_helper.localStorageState));
+      onSuccess(localStorageState);
     });
 
     // File system API.
