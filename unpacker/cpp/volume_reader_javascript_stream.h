@@ -35,7 +35,6 @@ class VolumeReaderJavaScriptStream : public VolumeReader {
   // read_offset represents the offset from which VolumeReaderJavaScriptStream
   // requested a chunk read from JavaScriptRequestorInterface. May block for a
   // few cycles in order to synchronize with VolumeReaderJavaScriptStream::Read.
-  // TODO(cmihail): Move the call from the main thread to another thread.
   void SetBufferAndSignal(const pp::VarArrayBuffer& array_buffer,
                           int64_t read_offset);
 
@@ -43,7 +42,6 @@ class VolumeReaderJavaScriptStream : public VolumeReader {
   // and return an error code. SHOULD be called from a different thread than
   // VolumeReaderJavaScriptStream::Read. May block for a few cycles in order
   // to synchronize with VolumeReaderJavaScriptStream::Read.
-  // TODO(cmihail): Move the call from the main thread to another thread.
   void ReadErrorSignal();
 
   // See volume_reader.h for description.
@@ -66,15 +64,16 @@ class VolumeReaderJavaScriptStream : public VolumeReader {
   int64_t offset() const { return offset_; }
 
  private:
-  // Read ahead read_ahead_length number of bytes from offset_ member.
-  // In case offset_ >= archive_size call is ignored.
-  void ReadAhead(size_t read_ahead_length);
+  // Request a chunk of length number of bytes from JavaScript starting from
+  // offset_ member. In case offset_ >= archive_size call is ignored.
+  void RequestChunk(size_t length);
 
   const std::string request_id_;    // The request id for which the reader was
                                     // created.
   const int64_t archive_size_;      // The archive size.
-  JavaScriptRequestorInterface* requestor_;  // A requestor that makes calls to
-                                    // JavaScript to obtain file chunks.
+
+  // A requestor that makes calls to JavaScript to obtain file chunks.
+  JavaScriptRequestorInterface* requestor_;
 
   bool available_data_;  // Used by mutex / cond to synchronize with JavaScript.
   bool read_error_;  // Used to mark a read error from JavaScript and unblock.
@@ -87,6 +86,8 @@ class VolumeReaderJavaScriptStream : public VolumeReader {
   pthread_cond_t available_data_cond_;
 
   int64_t offset_;  // The offset from where read should be done.
+  int64_t last_read_chunk_offset_; // The offset reached after last call to
+                                   // VolumeReaderJavaScriptStream::Read.
 
   // Two buffers used to store the actual data used by libarchive and the data
   // read ahead.

@@ -10,14 +10,6 @@
 #include "archive.h"
 #include "ppapi/cpp/logging.h"
 
-namespace {
-
-// The minimum number of bytes that read ahead will request.
-// TODO(cmihail): Do benchmarks for choosing a better value.
-size_t kReadAheadLengthThreshold = 10 * 1024;  // 10 KB.
-
-}  //  namespace
-
 VolumeReaderJavaScriptStream::VolumeReaderJavaScriptStream(
     const std::string& request_id,
     int64_t archive_size,
@@ -28,6 +20,9 @@ VolumeReaderJavaScriptStream::VolumeReaderJavaScriptStream(
       available_data_(false),
       read_error_(false),
       offset_(0),
+      last_read_chunk_offset_(-1) /* For first call -1 will force a chunk
+                                     request from JavaScript as offset
+                                     parameter is 0. */,
       read_ahead_array_buffer_ptr_(&first_array_buffer_) {
   pthread_mutex_init(&available_data_lock_, NULL);
   pthread_cond_init(&available_data_cond_, NULL);
@@ -36,9 +31,6 @@ VolumeReaderJavaScriptStream::VolumeReaderJavaScriptStream(
   // read_ahead_array_buffer_ptr_. This operation is required in order for Unmap
   // to correctly work in the destructor and VolumeReaderJavaScriptStream::Read.
   second_array_buffer_.Map();
-
-  // Read ahead first chunk.
-  ReadAhead(kReadAheadLengthThreshold);
 }
 
 VolumeReaderJavaScriptStream::~VolumeReaderJavaScriptStream() {
@@ -59,7 +51,7 @@ void VolumeReaderJavaScriptStream::SetBufferAndSignal(
     int64_t read_offset) {
 
   // Ignore read ahead in case offset was changed using Skip or Seek and in case
-  // we already have available data. This can happen in case of 2+ ReadAhead
+  // we already have available data. This can happen in case of 2+ RequestChunk
   // calls done in parallel as a result of calling Read, Skip and Seek one after
   // another really fast. The usage of the buffer is not guarded so in case we
   // overwrite *read_ahead_array_buffer_ptr_ we will end up with memory
@@ -110,10 +102,14 @@ ssize_t VolumeReaderJavaScriptStream::Read(size_t bytes_to_read,
   if (offset_ >= archive_size_)
     return 0;
 
+  // Call in case of first read or read after Seek and Skip.
+  if (last_read_chunk_offset_ != offset_)
+    RequestChunk(bytes_to_read);
+
   // Lock only if no available data. Though available data can be set from true
-  // to false when calling ReadAhead, this is safe because ReadAhead is always
-  // called from the same thread as Read, Seek and Skip are called only by
-  // libarchive that works in its own worker_. If libarchive would be handled
+  // to false when calling RequestChunk, this is safe because RequestChunk is
+  // always called from the same thread as Read, Seek and Skip are called only
+  // by libarchive that works in its own worker_. If libarchive would be handled
   // in multiple threads than this is not safe anymore and must be updated.
   if (!available_data_) {
     // Wait for data from JavaScript.
@@ -133,25 +129,24 @@ ssize_t VolumeReaderJavaScriptStream::Read(size_t bytes_to_read,
     return ARCHIVE_FATAL;
 
   // Make data available for libarchive custom read. No need to lock this part.
-  // The reason is that VolumeReaderJavaScriptStream::ReadAhead is the only
+  // The reason is that VolumeReaderJavaScriptStream::RequestChunk is the only
   // function that can set available_data_ back to false and let
   // VolumeReaderJavaScriptStream::SetBufferAndSignal overwrite the buffer. But
   // reading ahead is done only at the end of this function after the buffers
-  // are switched or in Seek and Skip which are called from the same thread as
-  // this function.
+  // are switched.
   *destination_buffer = read_ahead_array_buffer_ptr_->Map();
   ssize_t bytes_read =
       std::min(read_ahead_array_buffer_ptr_->ByteLength(), bytes_to_read);
 
   offset_ += bytes_read;
+  last_read_chunk_offset_ = offset_;
 
   // Ask for more data from JavaScript in the other buffer. This is the only
   // time when we switch buffers. The reason is that libarchive must
   // always work on valid data and that data must be available until next
-  // VolumeReaderJavaScriptStream::Read call. All other calls to ReadAhead
-  // should overwrite the old data as they were requested from Seek or Skip,
-  // which means that the data read ahead will not be used here as it starts
-  // from a diffferent offset.
+  // VolumeReaderJavaScriptStream::Read call, and as the data can be received
+  // at any time from JavaScript, we need a buffer to store it in case of
+  // reading ahead.
   read_ahead_array_buffer_ptr_ =
       read_ahead_array_buffer_ptr_ != &first_array_buffer_
           ? &first_array_buffer_
@@ -159,7 +154,7 @@ ssize_t VolumeReaderJavaScriptStream::Read(size_t bytes_to_read,
 
   // Unmap old buffer. Only Read and constructor can Map the buffers so Read and
   // destructor should be the one to Unmap them. This will work because it is
-  // called before ReadAhead which is the only method that overwrites the
+  // called before RequestChunk which is the only method that overwrites the
   // buffer. The constructor should also Map a default pp::VarArrayBuffer and
   // destructor Unmap the last used array buffer (which is the other buffer than
   // read_ahead_array_buffer_ptr_). Unfortunately it's not clear from the
@@ -167,8 +162,8 @@ ssize_t VolumeReaderJavaScriptStream::Read(size_t bytes_to_read,
   // destructor.
   read_ahead_array_buffer_ptr_->Unmap();
 
-  // Read ahead should be performed with a length similar to current read.
-  ReadAhead(bytes_to_read);
+  // Read ahead next chunk with a length similar to current read.
+  RequestChunk(bytes_to_read);
 
   return bytes_read;
 }
@@ -193,10 +188,6 @@ int64_t VolumeReaderJavaScriptStream::Seek(int64_t offset, int whence) {
     return ARCHIVE_FATAL;
 
   offset_ = new_offset;
-
-  // As seek changes the next read offset position it's better to restart read
-  // ahead length.
-  ReadAhead(kReadAheadLengthThreshold);
   return offset_;
 }
 
@@ -210,10 +201,6 @@ int64_t VolumeReaderJavaScriptStream::Skip(int64_t bytes_to_skip) {
     return 0;
 
   offset_ += bytes_to_skip;
-
-  // As skip changes the next read offset position it's better to restart read
-  // ahead length.
-  ReadAhead(kReadAheadLengthThreshold);
   return bytes_to_skip;
 }
 
@@ -222,13 +209,13 @@ int VolumeReaderJavaScriptStream::Close() {
   return ARCHIVE_OK;
 }
 
-void VolumeReaderJavaScriptStream::ReadAhead(size_t read_ahead_length) {
-  // Read ahead next chunk only if not at the end of archive.
+void VolumeReaderJavaScriptStream::RequestChunk(size_t length) {
+  // Read next chunk only if not at the end of archive.
   if (archive_size_ <= offset_)
     return;
 
   size_t bytes_to_read =
-      std::min(static_cast<int64_t>(read_ahead_length),
+      std::min(static_cast<int64_t>(length),
                archive_size_ - offset_ /* Positive check above. */);
 
   available_data_ = false;
