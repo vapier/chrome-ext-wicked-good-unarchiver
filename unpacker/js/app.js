@@ -46,6 +46,16 @@ var app = {
   moduleLoadedPromise: null,
 
   /**
+   * A Promise used to postpone all calls to fileSystemProvider API after
+   * onStartup event is processed. This Promise is used only after restarts
+   * because onStartup event is fired only in this case scenario. By default
+   * it successfully resolves (e.g. after onSuspend event or when installing
+   * the extension).
+   * @type {Promise}
+   */
+  onStartupPromise: Promise.resolve(),
+
+  /**
    * The NaCl module containing the logic for decompressing archives.
    * @type {Object}
    */
@@ -240,17 +250,19 @@ var app = {
    * @private
    */
   ensureVolumeLoaded_: function(fileSystemId) {
-    return app.moduleLoadedPromise.then(function() {
-      // In case there is no volume promise for fileSystemId then we received a
-      // call after restart / suspend as load promises are created on launched.
-      // In this case we will restore volume state from local storage and
-      // create a new load promise.
-      if (!app.volumeLoadedPromises[fileSystemId]) {
-        app.volumeLoadedPromises[fileSystemId] =
-            app.restoreSingleVolume_(fileSystemId);
-      }
+    return app.onStartupPromise.then(function() {
+      return app.moduleLoadedPromise.then(function() {
+        // In case there is no volume promise for fileSystemId then we received
+        // a call after restart / suspend as load promises are created on
+        // launched. In this case we will restore volume state from local
+        // storage and create a new load promise.
+        if (!app.volumeLoadedPromises[fileSystemId]) {
+          app.volumeLoadedPromises[fileSystemId] =
+              app.restoreSingleVolume_(fileSystemId);
+        }
 
-      return app.volumeLoadedPromises[fileSystemId];
+        return app.volumeLoadedPromises[fileSystemId];
+      });
     }).catch(function(error) {
       console.error(error.stack || error);
       // Promise normally would reject with ProviderError, but in case of
@@ -523,18 +535,22 @@ var app = {
    * Restores the state on a profile startup.
    */
   onStartup: function() {
-    chrome.storage.local.get([app.STORAGE_KEY], function(result) {
-      // Nothing to change.
-      if (!result[app.STORAGE_KEY])
-        return;
+    app.onStartupPromise = new Promise(function(fulfill, reject) {
+      chrome.storage.local.get([app.STORAGE_KEY], function(result) {
+        // Nothing to change.
+        if (!result[app.STORAGE_KEY]) {
+          fulfill();
+          return;
+        }
 
-      // Remove files opened before the profile shutdown from the local
-      // storage.
-      for (var fileSystemId in result[app.STORAGE_KEY]) {
-        result[app.STORAGE_KEY][fileSystemId].openedFiles = {};
-      }
+        // Remove files opened before the profile shutdown from the local
+        // storage.
+        for (var fileSystemId in result[app.STORAGE_KEY]) {
+          result[app.STORAGE_KEY][fileSystemId].openedFiles = {};
+        }
 
-      chrome.storage.local.set(result);
+        chrome.storage.local.set(result, fulfill);
+      });
     });
   },
 

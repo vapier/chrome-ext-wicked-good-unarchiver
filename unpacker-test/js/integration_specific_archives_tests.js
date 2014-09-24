@@ -235,9 +235,7 @@ var testOpenReadClose = function(fileSystemId, expectedMetadata, filePath,
         openRequestId: openRequestId
       };
 
-      app.onCloseFileRequested(options, function() {
-        done();
-      }, tests_helper.forceFailure);
+      app.onCloseFileRequested(options, done, tests_helper.forceFailure);
     });
   });
 };
@@ -376,6 +374,7 @@ var smallArchiveCheckAfterSuspend = function(fileSystemId) {
     var describeMessage =
         'for <' + fileSystemId + '> and then reads contents of file <' +
         openOptions.filePath + '> ' + 'opened before suspend page event,';
+
     describe(describeMessage, function() {
       // Test read file.
       testReadFile(fileSystemId, openOptions.filePath, openRequestId,
@@ -389,9 +388,60 @@ var smallArchiveCheckAfterSuspend = function(fileSystemId) {
           openRequestId: openRequestId
         };
 
-        app.onCloseFileRequested(options, function() {
-          done();
-        }, tests_helper.forceFailure);
+        app.onCloseFileRequested(options, done, tests_helper.forceFailure);
+      });
+    });
+  }
+};
+
+/**
+ * Tests read and close file operations after restart for files that were opened
+ * but not closed before restart. The requests should fail because after restart
+ * volume's opened files are cleared.
+ * @param {string} fileSystemId The file system id.
+ */
+var smallArchiveCheckAfterRestart = function(fileSystemId) {
+  var openedFilesBeforeSuspend =
+      getOpenedFilesBeforeSuspend(fileSystemId);
+
+  for (var openRequestId in openedFilesBeforeSuspend) {
+    var openOptions = openedFilesBeforeSuspend[openRequestId];
+
+    describe('for <' + fileSystemId + '>', function() {
+      it('and then tries to read contents of a previous opened file must fail',
+          function(done) {
+        var options = {
+          fileSystemId: fileSystemId,
+          requestId: openRequestId + 1,
+          openRequestId: openRequestId,
+          offset: 0,
+          length: 10
+        };
+
+        app.onReadFileRequested(options, tests_helper.forceFailure,
+            function(error) {
+          setTimeout(function() {
+            expect(error).to.equal('INVALID_OPERATION');
+            done();
+          });
+        });
+      });
+
+      it('and then tries to close a previous opened file must fail',
+          function(done) {
+        var options = {
+          fileSystemId: fileSystemId,
+          requestId: openRequestId + 2,
+          openRequestId: openRequestId
+        };
+
+        app.onCloseFileRequested(options, tests_helper.forceFailure,
+            function(error) {
+          setTimeout(function() {
+            expect(error).to.equal('INVALID_OPERATION');
+            done();
+          });
+        });
       });
     });
   }

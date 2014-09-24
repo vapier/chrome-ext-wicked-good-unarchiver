@@ -32,6 +32,7 @@ var initPromise = tests_helper.init([
     },
     afterRestartTests: function() {
       smallArchiveCheck('small_rar.rar', SMALL_RAR_METADATA, true);
+      smallArchiveCheckAfterRestart('small_rar.rar');
     }
   },
   {
@@ -45,6 +46,7 @@ var initPromise = tests_helper.init([
     },
     afterRestartTests: function() {
       smallArchiveCheck('small_zip.zip', SMALL_ZIP_METADATA, true);
+      smallArchiveCheckAfterRestart('small_zip.zip');
     }
   }
 ]);
@@ -192,6 +194,14 @@ var integration_tests = function(describeMessage, moduleNmfFilePath,
     // Test restore after restarts, crashes, etc.
     describe('that is restarted', function() {
       beforeEach(function() {
+        // Set the opened files before restart. Used to test correct restoring
+        // after restart.
+        tests_helper.volumesInformation.forEach(function(volumeInformation) {
+          var fileSystemId = volumeInformation.fileSystemId;
+          tests_helper.localStorageState[app.STORAGE_KEY][fileSystemId]
+              .openedFiles = getOpenedFilesBeforeSuspend(fileSystemId);
+        });
+
         unloadExtension();
         app.onStartup();  // This gets called after restart.
 

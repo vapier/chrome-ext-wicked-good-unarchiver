@@ -11,6 +11,9 @@
 export NACL_EXE_STDOUT=`pwd`/nacl.stdout
 export NACL_EXE_STDERR=`pwd`/nacl.stderr
 
+rm -r user-data-dir-karma  # user-data-dir-karma will cache extension files and
+                           # might lead to test failures when changing branches.
+
 cd ../unpacker/
 # Build both Release and Debug executables for integration tests.
 make && make debug_for_tests || { exit 1; }  # In case any make fails, exit.

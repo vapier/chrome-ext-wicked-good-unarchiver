@@ -138,9 +138,12 @@ var tests_helper = {
         }
       }
     };
-    sinon.stub(chrome.storage.local, 'set', function(state) {
+
+    sinon.stub(chrome.storage.local, 'set', function(state, opt_successfulSet) {
       // Save the state in the local storage in a different memory.
       tests_helper.localStorageState = JSON.parse(JSON.stringify(state));
+      if (opt_successfulSet)
+        opt_successfulSet();
     });
 
     sinon.stub(chrome.storage.local, 'get', function(state, onSuccess) {
