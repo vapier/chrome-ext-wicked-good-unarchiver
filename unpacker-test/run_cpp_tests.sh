@@ -6,17 +6,17 @@
 
 cd cpp
 
-# Run Release tests.
-echo "============================================="
-echo "============== Release tests ================"
-echo "============================================="
-echo ""
-make tests_run || { exit 1; }
-
 # Run Debug tests.
 echo ""
 echo "============================================="
 echo "=============== Debug tests ================="
 echo "============================================="
 echo ""
-make debug_tests_run
+make debug_tests_run || { exit 1; }
+
+# Run Release tests.
+echo "============================================="
+echo "============== Release tests ================"
+echo "============================================="
+echo ""
+make tests_run

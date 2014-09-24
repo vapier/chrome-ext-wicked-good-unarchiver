@@ -7,12 +7,12 @@
 
 #include <map>
 
-#include "archive_entry.h"  // For ssize_t.
+#include "archive_entry.h"  // For int64_t when building for NaCl.
 
 namespace header_cache_config {
 
 // The maximum size of data per header saved in the cache.
-const ssize_t kMaximumHeaderBufferSize = 512;  // in bytes.
+const int64_t kMaximumHeaderBufferSize = 512;  // in bytes.
 
 // The maximum number of cache entries that HeaderCache can store.
 // Any call to HeaderCache::AddHeader after adding kMaximumNumberOfCacheEntries
@@ -49,7 +49,7 @@ class HeaderCache {
   // overwritting doesn't make sense.
   void AddHeader(int64_t offset,
                  const char* header_buffer,
-                 ssize_t header_buffer_size);
+                 int64_t header_buffer_size);
 
   // Gets the stored header data for offset. It is possible to return less bytes
   // then header_buffer_size parameter received when calling
@@ -60,7 +60,7 @@ class HeaderCache {
   // contain the internal buffer size.
   //
   // The returned data is available until HeaderCache object is destructed.
-  const char* GetHeader(int64_t offset, ssize_t* cached_buffer_size) const;
+  const char* GetHeader(int64_t offset, int64_t* cached_buffer_size) const;
 
  private:
   // A private class for storing header cache entries.

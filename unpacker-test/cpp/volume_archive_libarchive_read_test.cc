@@ -67,7 +67,7 @@ class VolumeArchiveLibarchiveReadTest : public testing::Test {
 TEST_F(VolumeArchiveLibarchiveReadTest, ReadSuccessForSmallLengths) {
   fake_lib_archive_config::archive_data = kArchiveData;
   fake_lib_archive_config::archive_data_size = sizeof(kArchiveData);
-  size_t archive_data_size = fake_lib_archive_config::archive_data_size;
+  int64_t archive_data_size = fake_lib_archive_config::archive_data_size;
 
   // Test successful ReadData with length equal to data size.
   {
@@ -115,7 +115,7 @@ TEST_F(VolumeArchiveLibarchiveReadTest, ReadSuccessForSmallLengths) {
   // Test successful read with offset less than last read but greater than 0.
   {
     int64_t offset = archive_data_size / 4;
-    size_t length = archive_data_size - offset;
+    int64_t length = archive_data_size - offset;
     const char* buffer = NULL;
     int64_t read_bytes = volume_archive->ReadData(offset, length, &buffer);
     EXPECT_LT(0, read_bytes);
@@ -130,7 +130,7 @@ TEST_F(VolumeArchiveLibarchiveReadTest, ReadSuccessForSmallLengths) {
 TEST_F(VolumeArchiveLibarchiveReadTest, ReadSuccessForSmallLengthsWithConsume) {
   fake_lib_archive_config::archive_data = kArchiveData;
   fake_lib_archive_config::archive_data_size = sizeof(kArchiveData);
-  size_t archive_data_size = fake_lib_archive_config::archive_data_size;
+  int64_t archive_data_size = fake_lib_archive_config::archive_data_size;
 
   // Test successful ReadData with length equal to data size.
   {
@@ -183,7 +183,7 @@ TEST_F(VolumeArchiveLibarchiveReadTest, ReadSuccessForSmallLengthsWithConsume) {
   // This should trigger the execution of all the code inside ReadData.
   {
     int64_t offset = archive_data_size / 4;
-    size_t length = archive_data_size - offset;
+    int64_t length = archive_data_size - offset;
     const char* buffer = NULL;
     int64_t read_bytes = volume_archive->ReadData(offset, length, &buffer);
     EXPECT_LT(0, read_bytes);
@@ -198,9 +198,9 @@ TEST_F(VolumeArchiveLibarchiveReadTest,
        ReadSuccessForSmallLengthGreaterThanArchiveDataSize) {
   fake_lib_archive_config::archive_data = kArchiveData;
   fake_lib_archive_config::archive_data_size = sizeof(kArchiveData);
-  size_t archive_data_size = fake_lib_archive_config::archive_data_size;
+  int64_t archive_data_size = fake_lib_archive_config::archive_data_size;
 
-  size_t length = archive_data_size * 2;
+  int64_t length = archive_data_size * 2;
   const char* buffer = NULL;
   int64_t read_bytes = volume_archive->ReadData(0, length, &buffer);
   EXPECT_LT(0, read_bytes);
@@ -212,7 +212,7 @@ TEST_F(VolumeArchiveLibarchiveReadTest,
 // and volume_archive_constants::kMaximumDataChunkSize.
 // VolumeArchive::ReadData should not be affected by this constant.
 TEST_F(VolumeArchiveLibarchiveReadTest, ReadSuccessForMediumLength) {
-  size_t buffer_length = volume_archive_constants::kMinimumDataChunkSize * 2;
+  int64_t buffer_length = volume_archive_constants::kMinimumDataChunkSize * 2;
   ASSERT_LT(buffer_length, volume_archive_constants::kMaximumDataChunkSize);
 
   char* expected_buffer = new char[buffer_length];  // Stack is small for tests.
@@ -233,7 +233,7 @@ TEST_F(VolumeArchiveLibarchiveReadTest, ReadSuccessForMediumLength) {
 // Test Read with length > volume_archive_constants::kMaximumDataChunkSize.
 // VolumeArchive::ReadData should not be affected by this constant.
 TEST_F(VolumeArchiveLibarchiveReadTest, ReadSuccessForLargeLength) {
-  size_t buffer_length = volume_archive_constants::kMaximumDataChunkSize * 2;
+  int64_t buffer_length = volume_archive_constants::kMaximumDataChunkSize * 2;
 
   char* expected_buffer = new char[buffer_length];  // Stack is small for tests.
   memset(expected_buffer, 1, buffer_length);
@@ -276,7 +276,7 @@ TEST_F(VolumeArchiveLibarchiveReadTest, ReadFailureAfterSucessfulRead) {
   // Read successfully the first chunk.
   fake_lib_archive_config::archive_data = kArchiveData;
   fake_lib_archive_config::archive_data_size = sizeof(kArchiveData);
-  size_t archive_data_size = fake_lib_archive_config::archive_data_size;
+  int64_t archive_data_size = fake_lib_archive_config::archive_data_size;
   {
     int64_t length = archive_data_size / 2;
     const char* buffer = NULL;

@@ -14,7 +14,7 @@
 // data size.
 class HeaderCache::CacheEntry {
  public:
-  CacheEntry(const char* buffer, ssize_t buffer_size) {
+  CacheEntry(const char* buffer, int64_t buffer_size) {
     cached_buffer_size_ =
         std::min(buffer_size, header_cache_config::kMaximumHeaderBufferSize);
     cached_buffer_ = new char[cached_buffer_size_];
@@ -27,11 +27,11 @@ class HeaderCache::CacheEntry {
   // The size of the cached header data. It's possible to cache less data than
   // the received buffer_size in the constructor in case buffer size is too
   // large.
-  ssize_t cached_buffer_size() const { return cached_buffer_size_; }
+  int64_t cached_buffer_size() const { return cached_buffer_size_; }
 
  private:
   char* cached_buffer_;
-  ssize_t cached_buffer_size_;
+  int64_t cached_buffer_size_;
 };
 
 HeaderCache::~HeaderCache() {
@@ -44,7 +44,7 @@ HeaderCache::~HeaderCache() {
 
 void HeaderCache::AddHeader(int64_t offset,
                             const char* header_buffer,
-                            ssize_t header_buffer_size) {
+                            int64_t header_buffer_size) {
   PP_DCHECK(offset >= 0);
   PP_DCHECK(header_buffer_size > 0);
   // Overwrite operation is not supported.
@@ -57,7 +57,7 @@ void HeaderCache::AddHeader(int64_t offset,
 }
 
 const char* HeaderCache::GetHeader(int64_t offset,
-                                   ssize_t* cached_buffer_size) const {
+                                   int64_t* cached_buffer_size) const {
   std::map<int64_t, CacheEntry*>::const_iterator entry = cache_.find(offset);
   if (entry == cache_.end())
     return NULL;

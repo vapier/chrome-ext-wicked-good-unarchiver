@@ -37,7 +37,7 @@ extern const char* archive_data;
 
 // The size of archive_data.
 // By default it is set to 0, which forces failure for archive_read_data.
-extern size_t archive_data_size;
+extern int64_t archive_data_size;
 
 // Bool variables used to force failure responses for libarchive API.
 // By default all should be set to false.

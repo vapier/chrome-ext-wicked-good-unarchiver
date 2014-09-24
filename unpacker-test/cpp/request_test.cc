@@ -14,7 +14,7 @@ namespace {
 const char kFileSystemId[] = "id";
 const char kRequestId[] = "0";
 const char kError[] = "error";
-const int32_t kLength = 100;
+const int64_t kLength = 100;
 
 }  // namespace
 
@@ -63,8 +63,11 @@ TEST(request, CreateReadChunkRequest) {
   ss_offset >> offset;
   EXPECT_EQ(expected_offset, offset);
 
-  EXPECT_TRUE(read_chunk.Get(request::key::kLength).is_int());
-  EXPECT_EQ(kLength, read_chunk.Get(request::key::kLength).AsInt());
+  EXPECT_TRUE(read_chunk.Get(request::key::kLength).is_string());
+  std::stringstream ss_length(read_chunk.Get(request::key::kLength).AsString());
+  int64_t length;
+  ss_length >> length;
+  EXPECT_EQ(kLength, length);
 }
 
 TEST(request, CreateOpenFileDoneResponse) {

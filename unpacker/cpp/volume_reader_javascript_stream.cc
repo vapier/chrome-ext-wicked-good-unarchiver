@@ -49,6 +49,7 @@ VolumeReaderJavaScriptStream::~VolumeReaderJavaScriptStream() {
 void VolumeReaderJavaScriptStream::SetBufferAndSignal(
     const pp::VarArrayBuffer& array_buffer,
     int64_t read_offset) {
+  PP_DCHECK(read_offset >= 0);
 
   // Ignore read ahead in case offset was changed using Skip or Seek and in case
   // we already have available data. This can happen in case of 2+ RequestChunk
@@ -96,8 +97,10 @@ int VolumeReaderJavaScriptStream::Open() {
   return ARCHIVE_OK;
 }
 
-ssize_t VolumeReaderJavaScriptStream::Read(size_t bytes_to_read,
+int64_t VolumeReaderJavaScriptStream::Read(int64_t bytes_to_read,
                                            const void** destination_buffer) {
+  PP_DCHECK(bytes_to_read > 0);
+
   // No more data, so signal end of reading.
   if (offset_ >= archive_size_)
     return 0;
@@ -135,8 +138,9 @@ ssize_t VolumeReaderJavaScriptStream::Read(size_t bytes_to_read,
   // reading ahead is done only at the end of this function after the buffers
   // are switched.
   *destination_buffer = read_ahead_array_buffer_ptr_->Map();
-  ssize_t bytes_read =
-      std::min(read_ahead_array_buffer_ptr_->ByteLength(), bytes_to_read);
+  int64_t bytes_read =
+      std::min(static_cast<int64_t>(read_ahead_array_buffer_ptr_->ByteLength()),
+               bytes_to_read);
 
   offset_ += bytes_read;
   last_read_chunk_offset_ = offset_;
@@ -213,14 +217,13 @@ int64_t VolumeReaderJavaScriptStream::GetOffset() const {
   return offset_;
 }
 
-void VolumeReaderJavaScriptStream::RequestChunk(size_t length) {
+void VolumeReaderJavaScriptStream::RequestChunk(int64_t length) {
   // Read next chunk only if not at the end of archive.
   if (archive_size_ <= offset_)
     return;
 
-  size_t bytes_to_read =
-      std::min(static_cast<int64_t>(length),
-               archive_size_ - offset_ /* Positive check above. */);
+  int64_t bytes_to_read =
+      std::min(length, archive_size_ - offset_ /* Positive check above. */);
 
   available_data_ = false;
   requestor_->RequestFileChunk(request_id_, offset_, bytes_to_read);

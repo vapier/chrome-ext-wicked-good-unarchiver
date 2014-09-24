@@ -24,7 +24,7 @@ class FakeJavaScriptMessageSender : public JavaScriptMessageSenderInterface {
   virtual void SendFileChunkRequest(const std::string& file_system_id,
                                     const std::string& request_id,
                                     int64_t offset,
-                                    size_t bytes_to_read) {}
+                                    int64_t bytes_to_read) {}
 
   virtual void SendReadMetadataDone(const std::string& file_system_id,
                                     const std::string& request_id,

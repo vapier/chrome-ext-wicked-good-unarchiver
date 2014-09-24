@@ -41,7 +41,7 @@ class FakeJavaScriptRequestor : public JavaScriptRequestorInterface {
 
   void RequestFileChunk(const std::string& request_id,
                         int64_t offset,
-                        size_t bytes_to_read) {
+                        int64_t bytes_to_read) {
     worker_.message_loop().PostWork(callback_factory_.NewCallback(
         &FakeJavaScriptRequestor::RequestFileChunkCallback,
         offset,
@@ -59,20 +59,20 @@ class FakeJavaScriptRequestor : public JavaScriptRequestorInterface {
  private:
   void RequestFileChunkCallback(int32_t /*result*/,
                                 int64_t offset,
-                                size_t bytes_to_read) {
+                                int64_t bytes_to_read) {
     if (offset < 0 || force_failure_) {
       volume_reader_->ReadErrorSignal();
       return;
     }
 
-    size_t array_buffer_size = array_buffer_.ByteLength();
+    int64_t array_buffer_size = array_buffer_.ByteLength();
     if (offset >= array_buffer_size) {
       // Nothing left to read so return empty buffer.
       volume_reader_->SetBufferAndSignal(pp::VarArrayBuffer(0), offset);
     } else {
       // We checked above for negative offsets and offsets > array buffer size
       // so this should be safe.
-      size_t left_size = array_buffer_size - static_cast<size_t>(offset);
+      int64_t left_size = array_buffer_size - static_cast<int64_t>(offset);
       pp::VarArrayBuffer buffer_to_set(left_size);
 
       char* data = static_cast<char*>(buffer_to_set.Map());
@@ -226,10 +226,10 @@ TEST_F(VolumeReaderJavaScriptStreamTest,
 
 TEST_F(VolumeReaderJavaScriptStreamTest, Read) {
   // Valid read with bytes to read = arrayi buffer size.
-  ssize_t array_buffer_size =
+  int64_t array_buffer_size =
       fake_javascript_requestor->array_buffer().ByteLength();
   const void* buffer = NULL;
-  ssize_t read_bytes = volume_reader->Read(array_buffer_size, &buffer);
+  int64_t read_bytes = volume_reader->Read(array_buffer_size, &buffer);
   ASSERT_GE(array_buffer_size, read_bytes);  // Read can return less bytes
                                              // than required.
   ASSERT_GE(read_bytes, 0);
@@ -241,11 +241,11 @@ TEST_F(VolumeReaderJavaScriptStreamTest, Read) {
 
 TEST_F(VolumeReaderJavaScriptStreamTest, BigLengthRead) {
   // Valid read with bytes to read > array buffer size.
-  ssize_t array_buffer_size =
+  int64_t array_buffer_size =
       fake_javascript_requestor->array_buffer().ByteLength();
   const void* buffer = NULL;
-  ssize_t read_bytes =
-      volume_reader->Read(std::numeric_limits<size_t>::max(), &buffer);
+  int64_t read_bytes =
+      volume_reader->Read(std::numeric_limits<int64_t>::max(), &buffer);
 
   // Though the request was for more than array_buffer_size, Read returns
   // maximum array_buffer_size as the buffer is set to array_buffer.
@@ -261,11 +261,11 @@ TEST_F(VolumeReaderJavaScriptStreamTest, SmallReads) {
   // Test multiple reads with bytes to read < array buffer size.
 
   // First read.
-  ssize_t array_buffer_size =
+  int64_t array_buffer_size =
       fake_javascript_requestor->array_buffer().ByteLength();
   const void* buffer_1 = NULL;
-  size_t bytes_to_read_1 = array_buffer_size / 4;
-  ssize_t read_bytes_1 = volume_reader->Read(bytes_to_read_1, &buffer_1);
+  int64_t bytes_to_read_1 = array_buffer_size / 4;
+  int64_t read_bytes_1 = volume_reader->Read(bytes_to_read_1, &buffer_1);
   ASSERT_GE(bytes_to_read_1, read_bytes_1);
   ASSERT_GE(read_bytes_1, 0);
 
@@ -275,9 +275,9 @@ TEST_F(VolumeReaderJavaScriptStreamTest, SmallReads) {
   fake_javascript_requestor->array_buffer().Unmap();
 
   // Second read.
-  size_t bytes_to_read_2 = bytes_to_read_1 * 3;
+  int64_t bytes_to_read_2 = bytes_to_read_1 * 3;
   const void* buffer_2 = NULL;
-  ssize_t read_bytes_2 = volume_reader->Read(bytes_to_read_2, &buffer_2);
+  int64_t read_bytes_2 = volume_reader->Read(bytes_to_read_2, &buffer_2);
   ASSERT_GE(bytes_to_read_2, read_bytes_2);
   ASSERT_GE(read_bytes_2, 0);
   ASSERT_GE(array_buffer_size, read_bytes_1 + read_bytes_2);
@@ -289,9 +289,9 @@ TEST_F(VolumeReaderJavaScriptStreamTest, SmallReads) {
   fake_javascript_requestor->array_buffer().Unmap();
 
   // Third read.
-  size_t bytes_to_read_3 = bytes_to_read_2;
+  int64_t bytes_to_read_3 = bytes_to_read_2;
   const void* buffer_3 = NULL;
-  ssize_t read_bytes_3 = volume_reader->Read(bytes_to_read_3, &buffer_3);
+  int64_t read_bytes_3 = volume_reader->Read(bytes_to_read_3, &buffer_3);
   ASSERT_GE(bytes_to_read_3, read_bytes_3);
   ASSERT_GE(read_bytes_3, 0);
   ASSERT_GE(array_buffer_size, read_bytes_1 + read_bytes_2 + read_bytes_3);
@@ -316,7 +316,7 @@ TEST_F(VolumeReaderJavaScriptStreamTest, InvalidRead) {
   // finishes before we do set_force_failure.
   fake_javascript_requestor->set_force_failure(true);
   volume_reader->Seek(0, SEEK_SET);
-  ssize_t bytes_to_read =
+  int64_t bytes_to_read =
       fake_javascript_requestor->array_buffer().ByteLength();
   const void* buffer = NULL;
   EXPECT_EQ(ARCHIVE_FATAL, volume_reader->Read(bytes_to_read, &buffer));

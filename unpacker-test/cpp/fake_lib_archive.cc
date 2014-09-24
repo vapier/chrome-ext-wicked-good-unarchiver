@@ -20,7 +20,7 @@
 struct archive {
   // Used by archive_read_data to know how many bytes were read from
   // fake_lib_archive_config::kArchiveData during last call.
-  size_t data_offset;
+  int64_t data_offset;
 };
 
 struct archive_entry {
@@ -40,7 +40,7 @@ archive_entry test_archive_entry;
 namespace fake_lib_archive_config {
 
 const char* archive_data = NULL;
-size_t archive_data_size = 0;
+int64_t archive_data_size = 0;
 
 // By default libarchive API functions will return success.
 bool fail_archive_read_new = false;
@@ -88,7 +88,7 @@ const char* archive_error_string(archive* archive_object) {
   return fake_lib_archive_config::kArchiveError;
 }
 
-void archive_set_error(struct archive *, int error_code, const char *fmt, ...) {
+void archive_set_error(struct archive*, int error_code, const char* fmt, ...) {
   // Nothing to do.
 }
 
@@ -169,15 +169,17 @@ ssize_t archive_read_data(archive* archive_object,
   // TODO(cmihail): Instead of returning the archive data directly here use the
   // callback function set with archive_read_set_read_callback.
   // See crbug.com/415871.
-  size_t archive_data_size = fake_lib_archive_config::archive_data_size;
+  int64_t archive_data_size = fake_lib_archive_config::archive_data_size;
   if (fake_lib_archive_config::archive_data == NULL || archive_data_size == 0)
     return ARCHIVE_FATAL;
 
   PP_DCHECK(archive_data_size >= archive_object->data_offset);
 
-  size_t read_bytes =
-      std::min(archive_data_size - archive_object->data_offset, length);
+  int64_t read_bytes = std::min(archive_data_size - archive_object->data_offset,
+                                static_cast<int64_t>(length));
   PP_DCHECK(archive_data_size >= read_bytes);
+  PP_DCHECK(read_bytes <
+            static_cast<int64_t>(std::numeric_limits<ssize_t>::max()));
 
   // Copy data content.
   const char* source =

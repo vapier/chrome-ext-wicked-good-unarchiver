@@ -212,15 +212,20 @@ Decompressor.prototype.processMessage = function(data, operation, requestId) {
  * @private
  */
 Decompressor.prototype.readChunk_ = function(data, requestId) {
-  var offset = data[request.Key.OFFSET];
-  var length = data[request.Key.LENGTH];
-  // Explicit check if offset is undefined as it can be 0.
-  console.assert(offset !== undefined && offset >= 0 &&
-                 offset < this.blob_.size, 'Invalid offset');
-  console.assert(length && length > 0, 'Invalid length');
+  // Offset and length are received as strings. See request.js.
+  var offset_str = data[request.Key.OFFSET];
+  var length_str = data[request.Key.LENGTH];
 
-  offset = Number(offset);  // Received as string. See request.js.
-  length = Math.min(this.blob_.size - offset, length);
+  // Explicit check if offset is undefined as it can be 0.
+  console.assert(offset_str !== undefined && !isNaN(offset_str) &&
+                     Number(offset_str) >= 0 &&
+                     Number(offset_str) < this.blob_.size,
+                 'Invalid offset');
+  console.assert(length_str && !isNaN(length_str) && Number(length_str) > 0,
+                 'Invalid length');
+
+  var offset = Number(offset_str);
+  var length = Math.min(this.blob_.size - offset, Number(length_str));
 
   // Read a chunk from offset to offset + length.
   var blob = this.blob_.slice(offset, offset + length);

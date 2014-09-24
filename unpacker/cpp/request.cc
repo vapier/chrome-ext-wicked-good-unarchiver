@@ -35,7 +35,7 @@ pp::VarDictionary request::CreateReadChunkRequest(
     const std::string& file_system_id,
     const std::string& request_id,
     int64_t offset,
-    size_t length) {
+    int64_t length) {
   pp::VarDictionary request =
       CreateBasicRequest(READ_CHUNK, file_system_id, request_id);
 
@@ -43,9 +43,9 @@ pp::VarDictionary request::CreateReadChunkRequest(
   ss_offset << offset;
   request.Set(request::key::kOffset, ss_offset.str());
 
-  // TODO(cmihail): Think of using either size_t, int32_t or int64_t everywhere.
-  // The static cast is just a temporary solution to avoid big CL.
-  request.Set(request::key::kLength, static_cast<int32_t>(length));
+  std::stringstream ss_length;
+  ss_length << length;
+  request.Set(request::key::kLength, ss_length.str());
   return request;
 }
 

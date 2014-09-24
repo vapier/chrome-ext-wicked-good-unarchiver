@@ -50,7 +50,7 @@ class VolumeReaderJavaScriptStream : public VolumeReader {
   // See volume_reader.h for description. This method blocks on
   // available_data_cond_. SetBufferAndSignal should unblock it from
   // another thread.
-  virtual ssize_t Read(size_t bytes_to_read, const void** destination_buffer);
+  virtual int64_t Read(int64_t bytes_to_read, const void** destination_buffer);
 
   // See volume_reader.h for description.
   virtual int64_t Skip(int64_t bytes_to_skip);
@@ -67,11 +67,11 @@ class VolumeReaderJavaScriptStream : public VolumeReader {
  private:
   // Request a chunk of length number of bytes from JavaScript starting from
   // offset_ member. In case offset_ >= archive_size call is ignored.
-  void RequestChunk(size_t length);
+  void RequestChunk(int64_t length);
 
-  const std::string request_id_;    // The request id for which the reader was
-                                    // created.
-  const int64_t archive_size_;      // The archive size.
+  const std::string request_id_;  // The request id for which the reader was
+                                  // created.
+  const int64_t archive_size_;    // The archive size.
 
   // A requestor that makes calls to JavaScript to obtain file chunks.
   JavaScriptRequestorInterface* requestor_;
@@ -87,8 +87,8 @@ class VolumeReaderJavaScriptStream : public VolumeReader {
   pthread_cond_t available_data_cond_;
 
   int64_t offset_;  // The offset from where read should be done.
-  int64_t last_read_chunk_offset_; // The offset reached after last call to
-                                   // VolumeReaderJavaScriptStream::Read.
+  int64_t last_read_chunk_offset_;  // The offset reached after last call to
+                                    // VolumeReaderJavaScriptStream::Read.
 
   // Two buffers used to store the actual data used by libarchive and the data
   // read ahead.

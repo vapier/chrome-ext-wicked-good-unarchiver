@@ -23,11 +23,13 @@ class VolumeReader {
   // *destination_buffer, which is the address of a buffer handled by
   // VolumeReaderJavaScriptStream. *destination_buffer must be available until
   // the next VolumeReader:Read call or until VolumeReader is destructed.
+  //
   // The operation must be synchronous (libarchive requirement), so it
-  // should NOT be done on the main thread.
+  // should NOT be done on the main thread. bytes_to_read should be > 0.
+  //
   // Returns the actual number of read bytes or ARCHIVE_FATAL in case of
   // failure.
-  virtual ssize_t Read(size_t bytes_to_read,
+  virtual int64_t Read(int64_t bytes_to_read,
                        const void** destination_buffer) = 0;
 
   // Tries to skyp bytes_to_skip number of bytes. Returns the actual number of

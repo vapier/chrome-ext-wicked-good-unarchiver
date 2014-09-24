@@ -11,7 +11,7 @@ int FakeVolumeReader::Open() {
   return ARCHIVE_OK;
 }
 
-ssize_t FakeVolumeReader::Read(size_t bytes_to_read,
+int64_t FakeVolumeReader::Read(int64_t bytes_to_read,
                                const void** destination_buffer) {
   return 0;  // Not important.
 }

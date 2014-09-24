@@ -268,7 +268,7 @@ describe('On calling', function() {
     });
 
     it('with correct length', function() {
-      expect(readFileRequest[request.Key.LENGTH]).to.equal(LENGTH);
+      expect(readFileRequest[request.Key.LENGTH]).to.equal(LENGTH.toString());
     });
   });
 });

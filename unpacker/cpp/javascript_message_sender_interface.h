@@ -19,7 +19,7 @@ class JavaScriptMessageSenderInterface {
   virtual void SendFileChunkRequest(const std::string& file_system_id,
                                     const std::string& request_id,
                                     int64_t offset,
-                                    size_t bytes_to_read) = 0;
+                                    int64_t bytes_to_read) = 0;
 
   virtual void SendReadMetadataDone(const std::string& file_system_id,
                                     const std::string& request_id,

@@ -242,14 +242,14 @@ var integration_tests = function(describeMessage, moduleNmfFilePath,
   });
 };
 
-// Run the tests for the Release executables.
-integration_tests('Release unpacker extension',
-                  tests_helper.MODULE_RELEASE_NMF_FILE_PATH,
-                  tests_helper.MODULE_MIME_TYPE,
-                  'release_module');
-
 // Run the tests for the Debug executables.
 integration_tests('Debug unpacker extension',
                   tests_helper.MODULE_DEBUG_NMF_FILE_PATH,
                   tests_helper.MODULE_MIME_TYPE,
                   'debug_module');
+
+// Run the tests for the Release executables.
+integration_tests('Release unpacker extension',
+                  tests_helper.MODULE_RELEASE_NMF_FILE_PATH,
+                  tests_helper.MODULE_MIME_TYPE,
+                  'release_module');

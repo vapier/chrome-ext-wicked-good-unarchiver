@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <limits>
 
 #include "archive_entry.h"
 #include "ppapi/cpp/logging.h"
@@ -38,7 +39,7 @@ ssize_t CustomArchiveRead(archive* archive_object,
 
   // Get header data from local cache.
   if (volume_archive->header_read()) {
-    ssize_t header_size = 0;
+    int64_t header_size = 0;
     *buffer = volume_archive->header_cache()->GetHeader(
         volume_archive->reader()->GetOffset(), &header_size);
 
@@ -59,9 +60,13 @@ ssize_t CustomArchiveRead(archive* archive_object,
   // starting from the current offset, not the offset after VolumeReader::Read.
   int64_t offset = volume_archive->reader()->GetOffset();
 
-  // Read data.
-  ssize_t read_bytes = volume_archive->reader()->Read(
+  // Read data. Should not request more than SSIZE_MAX even though reader
+  // supports it. The reason is that we return ssize_t.
+  PP_DCHECK(volume_archive->reader_data_size() <=
+            static_cast<int64_t>(std::numeric_limits<ssize_t>::max()));
+  int64_t read_bytes = volume_archive->reader()->Read(
       volume_archive->reader_data_size(), buffer);
+  PP_DCHECK(read_bytes <= volume_archive->reader_data_size());
 
   if (read_bytes == ARCHIVE_FATAL) {
     SetLibarchiveErrorToVolumeReaderError(archive_object);
@@ -70,9 +75,8 @@ ssize_t CustomArchiveRead(archive* archive_object,
 
   // Save header data in HeaderCache.
   if (volume_archive->header_read() && read_bytes > 0) {
-    volume_archive->header_cache()->AddHeader(offset,
-                                              static_cast<const char*>(*buffer),
-                                              read_bytes);
+    volume_archive->header_cache()->AddHeader(
+        offset, static_cast<const char*>(*buffer), read_bytes);
   }
 
   return read_bytes;
@@ -270,6 +274,9 @@ void VolumeArchiveLibarchive::DecompressData(int64_t offset, int64_t length) {
                  volume_archive_constants::kMinimumDataChunkSize);
 
     // No need for an offset in dummy_buffer as it will be ignored anyway.
+    // archive_read_data receives size_t as length parameter, but we limit it to
+    // volume_archive_constants::kDummyBufferSize which is positive and less
+    // than size_t maximum. So conversion from int64_t to size_t is safe here.
     size =
         archive_read_data(archive_,
                           dummy_buffer_,
@@ -303,6 +310,10 @@ void VolumeArchiveLibarchive::DecompressData(int64_t offset, int64_t length) {
   // Perform the actual copy.
   int64_t bytes_read = 0;
   do {
+    // archive_read_data receives size_t as length parameter, but we limit it to
+    // volume_archive_constants::kMinimumDataChunkSize (see left_length
+    // initialization), which is positive and less than size_t maximum.
+    // So conversion from int64_t to size_t is safe here.
     size = archive_read_data(
         archive_, decompressed_data_buffer_ + bytes_read, left_length);
     if (size < 0) {  // Error.

@@ -17,6 +17,8 @@
 
 namespace {
 
+typedef std::map<std::string, Volume*>::const_iterator volume_iterator;
+
 // An internal implementation of JavaScriptMessageSenderInterface. This class
 // handles all communication from the module to the JavaScript code. Thread
 // safety is ensured only for PNaCl, not NaCl. See crbug.com/412692 and
@@ -37,35 +39,37 @@ class JavaScriptMessageSender : public JavaScriptMessageSenderInterface {
   virtual void SendFileChunkRequest(const std::string& file_system_id,
                                     const std::string& request_id,
                                     int64_t offset,
-                                    size_t bytes_to_read) {
+                                    int64_t bytes_to_read) {
+    PP_DCHECK(offset >= 0);
+    PP_DCHECK(bytes_to_read > 0);
     JavaScriptPostMessage(request::CreateReadChunkRequest(
         file_system_id, request_id, offset, bytes_to_read));
   }
 
   virtual void SendReadMetadataDone(const std::string& file_system_id,
-                            const std::string& request_id,
-                            const pp::VarDictionary& metadata) {
+                                    const std::string& request_id,
+                                    const pp::VarDictionary& metadata) {
     JavaScriptPostMessage(request::CreateReadMetadataDoneResponse(
         file_system_id, request_id, metadata));
   }
 
   virtual void SendOpenFileDone(const std::string& file_system_id,
-                        const std::string& request_id) {
+                                const std::string& request_id) {
     JavaScriptPostMessage(
         request::CreateOpenFileDoneResponse(file_system_id, request_id));
   }
 
   virtual void SendCloseFileDone(const std::string& file_system_id,
-                         const std::string& request_id,
-                         const std::string& open_request_id) {
+                                 const std::string& request_id,
+                                 const std::string& open_request_id) {
     JavaScriptPostMessage(request::CreateCloseFileDoneResponse(
         file_system_id, request_id, open_request_id));
   }
 
   virtual void SendReadFileDone(const std::string& file_system_id,
-                        const std::string& request_id,
-                        const pp::VarArrayBuffer& array_buffer,
-                        bool has_more_data) {
+                                const std::string& request_id,
+                                const pp::VarArrayBuffer& array_buffer,
+                                bool has_more_data) {
     JavaScriptPostMessage(request::CreateReadFileDoneResponse(
         file_system_id, request_id, array_buffer, has_more_data));
   }
@@ -92,7 +96,7 @@ class NaclArchiveInstance : public pp::Instance {
         message_sender_(this) {}
 
   virtual ~NaclArchiveInstance() {
-    for (std::map<std::string, Volume*>::iterator iterator = volumes_.begin();
+    for (volume_iterator iterator = volumes_.begin();
          iterator != volumes_.end();
          ++iterator) {
       delete iterator->second;
@@ -146,10 +150,9 @@ class NaclArchiveInstance : public pp::Instance {
         break;
 
       case request::CLOSE_VOLUME: {
-        std::map<std::string, Volume*>::iterator it =
-            volumes_.find(file_system_id);
-        PP_DCHECK(it != volumes_.end());
-        delete it->second;
+        volume_iterator iterator = volumes_.find(file_system_id);
+        PP_DCHECK(iterator != volumes_.end());
+        delete iterator->second;
         volumes_.erase(file_system_id);
         break;
       }
@@ -202,22 +205,22 @@ class NaclArchiveInstance : public pp::Instance {
     int64_t read_offset =
         request::GetInt64FromString(var_dict, request::key::kOffset);
 
-    std::map<std::string, Volume*>::iterator it = volumes_.find(file_system_id);
+    volume_iterator iterator = volumes_.find(file_system_id);
     // Volume was unmounted so ignore the read chunk operation.
     // Possible scenario for read ahead.
-    if (it == volumes_.end())
+    if (iterator == volumes_.end())
       return;
-    it->second->ReadChunkDone(request_id, array_buffer, read_offset);
+    iterator->second->ReadChunkDone(request_id, array_buffer, read_offset);
   }
 
   void ReadChunkError(const std::string& file_system_id,
                       const std::string& request_id) {
-    std::map<std::string, Volume*>::iterator it = volumes_.find(file_system_id);
+    volume_iterator iterator = volumes_.find(file_system_id);
     // Volume was unmounted so ignore the read chunk operation.
     // Possible scenario for read ahead.
-    if (it == volumes_.end())
+    if (iterator == volumes_.end())
       return;
-    it->second->ReadChunkError(request_id);
+    iterator->second->ReadChunkError(request_id);
   }
 
   void OpenFile(const pp::VarDictionary& var_dict,
@@ -230,10 +233,10 @@ class NaclArchiveInstance : public pp::Instance {
     int64_t archive_size =
         request::GetInt64FromString(var_dict, request::key::kArchiveSize);
 
-    std::map<std::string, Volume*>::iterator it = volumes_.find(file_system_id);
-    PP_DCHECK(it != volumes_.end());  // Should call OpenFile after
-                                      // ReadMetadata.
-    it->second->OpenFile(request_id, file_path, archive_size);
+    volume_iterator iterator = volumes_.find(file_system_id);
+    PP_DCHECK(iterator != volumes_.end());  // Should call OpenFile after
+                                            // ReadMetadata.
+    iterator->second->OpenFile(request_id, file_path, archive_size);
   }
 
   void CloseFile(const pp::VarDictionary& var_dict,
@@ -243,10 +246,11 @@ class NaclArchiveInstance : public pp::Instance {
     std::string open_request_id(
         var_dict.Get(request::key::kOpenRequestId).AsString());
 
-    std::map<std::string, Volume*>::iterator it = volumes_.find(file_system_id);
-    PP_DCHECK(it != volumes_.end());  // Should call CloseFile after OpenFile.
+    volume_iterator iterator = volumes_.find(file_system_id);
+    PP_DCHECK(iterator !=
+              volumes_.end());  // Should call CloseFile after OpenFile.
 
-    it->second->CloseFile(request_id, open_request_id);
+    iterator->second->CloseFile(request_id, open_request_id);
   }
 
   void ReadFile(const pp::VarDictionary& var_dict,
@@ -254,18 +258,16 @@ class NaclArchiveInstance : public pp::Instance {
                 const std::string& request_id) {
     PP_DCHECK(var_dict.Get(request::key::kOpenRequestId).is_string());
     PP_DCHECK(var_dict.Get(request::key::kOffset).is_string());
+    PP_DCHECK(var_dict.Get(request::key::kLength).is_string());
 
-    PP_DCHECK(var_dict.Get(request::key::kLength).is_int());
-    // TODO(cmihail): Make kLength a int64_t and add more PP_DCHECKs.
-    PP_DCHECK(var_dict.Get(request::key::kLength).AsInt() > 0);
-
-    std::map<std::string, Volume*>::iterator it = volumes_.find(file_system_id);
-    PP_DCHECK(it != volumes_.end());  // Should call ReadFile after OpenFile.
+    volume_iterator iterator = volumes_.find(file_system_id);
+    PP_DCHECK(iterator !=
+              volumes_.end());  // Should call ReadFile after OpenFile.
 
     // Passing the entire dictionary because pp::CompletionCallbackFactory
     // cannot create callbacks with more than 3 parameters. Here we need 4:
     // request_id, open_request_id, offset and length.
-    it->second->ReadFile(request_id, var_dict);
+    iterator->second->ReadFile(request_id, var_dict);
   }
 
   // A map that holds for every opened archive its instance. The key is the file

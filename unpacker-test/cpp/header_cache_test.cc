@@ -25,7 +25,7 @@ class HeaderCacheTest : public testing::Test {
 };
 
 TEST_F(HeaderCacheTest, GetHeaderForEmptyCache) {
-  ssize_t cached_buffer_size = 0;
+  int64_t cached_buffer_size = 0;
   const void* cached_buffer = header_cache->GetHeader(0, &cached_buffer_size);
   EXPECT_EQ(NULL, cached_buffer);
 }
@@ -38,7 +38,7 @@ TEST_F(HeaderCacheTest, AddOneSmallHeader) {
   int64_t offset = 0;
   header_cache->AddHeader(offset, expected_header, sizeof(expected_header));
 
-  ssize_t cached_buffer_size = 0;
+  int64_t cached_buffer_size = 0;
   const void* cached_buffer =
       header_cache->GetHeader(offset, &cached_buffer_size);
 
@@ -62,14 +62,14 @@ TEST_F(HeaderCacheTest, AddTwoSmallHeaders) {
   int64_t offset2 = 10;
   header_cache->AddHeader(offset2, expected_header2, sizeof(expected_header2));
 
-  ssize_t cached_buffer_size1 = 0;
+  int64_t cached_buffer_size1 = 0;
   const void* cached_buffer1 =
       header_cache->GetHeader(offset1, &cached_buffer_size1);
   EXPECT_EQ(sizeof(expected_header1), cached_buffer_size1);
   EXPECT_EQ(std::string(expected_header1),
             static_cast<const char*>(cached_buffer1));
 
-  ssize_t cached_buffer_size2 = 0;
+  int64_t cached_buffer_size2 = 0;
   const void* cached_buffer2 =
       header_cache->GetHeader(offset2, &cached_buffer_size2);
   EXPECT_EQ(sizeof(expected_header2), cached_buffer_size2);
@@ -78,14 +78,14 @@ TEST_F(HeaderCacheTest, AddTwoSmallHeaders) {
 }
 
 TEST_F(HeaderCacheTest, AddBigHeader) {
-  ssize_t big_size = header_cache_config::kMaximumHeaderBufferSize * 2;
+  int64_t big_size = header_cache_config::kMaximumHeaderBufferSize * 2;
   char* expected_header = new char[big_size];
   memset(expected_header, 1, big_size);
 
   int64_t offset = 0;
   header_cache->AddHeader(offset, expected_header, big_size);
 
-  ssize_t cached_buffer_size = 0;
+  int64_t cached_buffer_size = 0;
   const void* cached_buffer =
       header_cache->GetHeader(offset, &cached_buffer_size);
 

@@ -26,16 +26,23 @@ const char kArchiveReadDataErrorPrefix[] = "Error at reading data: ";
 const char kArchiveReadFreeErrorPrefix[] = "Error at archive free: ";
 
 // The size of the buffer used to skip unnecessary data.
+// Should be positive and less than size_t maximum.
 const int64_t kDummyBufferSize = 512 * 1024;  // 512 KB
 
 // The size of the buffer used by ReadInProgress to decompress data.
+// Should be positive and less than size_t maximum.
 const int64_t kDecompressBufferSize = 512 * 1024;  // 512 KB.
 
 // The archive header chunk size for VolumeReader::Read requests.
+// Should be positive.
 const int64_t kHeaderChunkSize = 1 * 1024;  // 1 KB.
+
 // The maximum data chunk size for VolumeReader::Read requests.
+// Should be positive.
 const int64_t kMaximumDataChunkSize = 512 * 1024;  // 512 KB.
+
 // The minimum data chunk size for VolumeReader::Read requests.
+// Should be positive.
 const int64_t kMinimumDataChunkSize = 16 * 1024;  // 16 KB.
 
 }  // namespace volume_archive_constants
@@ -74,7 +81,7 @@ class VolumeArchiveLibarchive : public VolumeArchive {
 
   HeaderCache* header_cache() const { return header_cache_; }
   bool header_read() const { return header_read_; }
-  size_t reader_data_size() const { return reader_data_size_; }
+  int64_t reader_data_size() const { return reader_data_size_; }
 
  private:
   // Decompress length bytes of data starting from offset.
@@ -89,7 +96,7 @@ class VolumeArchiveLibarchive : public VolumeArchive {
   bool header_read_;
 
   // The size of the requested data from VolumeReader.
-  size_t reader_data_size_;
+  int64_t reader_data_size_;
 
   // The libarchive correspondent archive object.
   archive* archive_;

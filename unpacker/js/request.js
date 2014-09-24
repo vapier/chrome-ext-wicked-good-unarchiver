@@ -27,7 +27,7 @@ var request = {
                                    // supported by pp::Var on C++.
     CHUNK_BUFFER: 'chunk_buffer',  // Should be an ArrayBuffer.
     OFFSET: 'offset',  // Should be a string. Same reason as ARCHIVE_SIZE.
-    LENGTH: 'length',  // Should be a number. No need to read chunks > 4GB.
+    LENGTH: 'length',  // Should be a string. Same reason as ARCHIVE_SIZE.
     FILE_PATH: 'file_path',  // Should be a string.
     OPEN_REQUEST_ID: 'open_request_id',  // Should be a string, just like
                                          // REQUEST_ID.
@@ -37,7 +37,8 @@ var request = {
 
   /**
    * Defines request operations. These operation should be the same as the
-   * operations on the NaCL side.
+   * operations on the NaCL side. FILE_SYSTEM_ID and REQUEST_ID are mandatory
+   * for all requests.
    * @enum {number}
    */
   Operation: {
@@ -53,8 +54,7 @@ var request = {
     CLOSE_FILE_DONE: 9,
     READ_FILE: 10,
     READ_FILE_DONE: 11,
-    FILE_SYSTEM_ERROR: -1  // Errors specific to a file system. Requires
-                           // FILE_SYSTEM_ID and REQUEST_ID.
+    FILE_SYSTEM_ERROR: -1
   },
 
   /**
@@ -178,7 +178,7 @@ var request = {
                                                fileSystemId, requestId);
     readFileRequest[request.Key.OPEN_REQUEST_ID] = openRequestId.toString();
     readFileRequest[request.Key.OFFSET] = offset.toString();
-    readFileRequest[request.Key.LENGTH] = length;
+    readFileRequest[request.Key.LENGTH] = length.toString();
     return readFileRequest;
    }
 };

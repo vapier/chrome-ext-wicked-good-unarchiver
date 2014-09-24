@@ -13,6 +13,9 @@
 
 namespace {
 
+typedef std::map<std::string, VolumeArchive*>::const_iterator
+    volume_archive_iterator;
+
 const char kPathDelimiter[] = "/";
 
 // size is int64_t and modification_time is time_t because this is how
@@ -106,7 +109,9 @@ class JavaScriptRequestor : public JavaScriptRequestorInterface {
 
   virtual void RequestFileChunk(const std::string& request_id,
                                 int64_t offset,
-                                size_t bytes_to_read) {
+                                int64_t bytes_to_read) {
+    PP_DCHECK(offset >= 0);
+    PP_DCHECK(bytes_to_read > 0);
     volume_->message_sender()->SendFileChunkRequest(
         volume_->file_system_id(), request_id, offset, bytes_to_read);
   }
@@ -193,8 +198,7 @@ Volume::Volume(const pp::InstanceHandle& instance_handle,
 Volume::~Volume() {
   worker_.Join();
 
-  typedef std::map<std::string, VolumeArchive*>::iterator iterator_type;
-  for (iterator_type iterator = worker_reads_in_progress_.begin();
+  for (volume_archive_iterator iterator = worker_reads_in_progress_.begin();
        iterator != worker_reads_in_progress_.end();
        ++iterator) {
     // No need to call CleanupVolumeArchive as it will erase elements from map.
@@ -390,7 +394,9 @@ void Volume::ReadFileCallback(int32_t /*result*/,
       dictionary.Get(request::key::kOpenRequestId).AsString());
   int64_t offset =
       request::GetInt64FromString(dictionary, request::key::kOffset);
-  int32_t length(dictionary.Get(request::key::kLength).AsInt());
+  int64_t length =
+      request::GetInt64FromString(dictionary, request::key::kLength);
+  PP_DCHECK(length > 0);  // JavaScript must not make requests with length <= 0.
 
   // Get the correspondent VolumeArchive to the opened file. Any errors
   // should be send to JavaScript using request_id, NOT open_request_id.
@@ -404,7 +410,7 @@ void Volume::ReadFileCallback(int32_t /*result*/,
 
   // Decompress data and send it to JavaScript. Sending data is done in chunks
   // depending on how many bytes VolumeArchive::ReadData returns.
-  int32_t left_length = length;
+  int64_t left_length = length;
   while (left_length > 0) {
     const char* destination_buffer = NULL;
     int64_t read_bytes =
@@ -511,10 +517,9 @@ bool Volume::CleanupVolumeArchive(VolumeArchive* volume_archive,
 // VolumeArchive and any of its members as CleanupVolumeArchive can delete it
 // in the worker_ in parallel and lead to bugs.
 VolumeArchive* Volume::GetVolumeArchive(const std::string& request_id) {
-  std::map<std::string, VolumeArchive*>::iterator it =
-      worker_reads_in_progress_.find(request_id);
+  volume_archive_iterator iterator = worker_reads_in_progress_.find(request_id);
 
-  if (it == worker_reads_in_progress_.end())
+  if (iterator == worker_reads_in_progress_.end())
     return NULL;
-  return it->second;
+  return iterator->second;
 }

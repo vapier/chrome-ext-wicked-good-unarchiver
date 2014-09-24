@@ -14,9 +14,10 @@ class JavaScriptRequestorInterface {
   virtual ~JavaScriptRequestorInterface() {}
 
   // Request a file chunk from JavaScript. The request is asynchronous.
+  // offset must be >= 0 and bytes_to_read > 0.
   virtual void RequestFileChunk(const std::string& request_id,
                                 int64_t offset,
-                                size_t bytes_to_read) = 0;
+                                int64_t bytes_to_read) = 0;
 };
 
 #endif  // JAVASCRIPT_REQUESTOR_INTERFACE_H_
