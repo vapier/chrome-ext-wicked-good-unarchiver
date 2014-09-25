@@ -283,8 +283,7 @@ var app = {
    * Loads the NaCl module.
    * @param {string} pathToConfigureFile Path to the module's configuration
    *     file, which should be a .nmf file.
-   * @param {string} mimeType The type of the NaCl executable (e.g. .nexe or
-   *     .pexe).
+   * @param {string} mimeType The mime type for the NaCl executable.
    * @param {string=} opt_moduleId The NaCl module id. Necessary for testing
    *     purposes.
    */

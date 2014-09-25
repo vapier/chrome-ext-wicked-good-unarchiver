@@ -28,9 +28,6 @@ chrome.fileSystemProvider.onCloseFileRequested.addListener(
 chrome.fileSystemProvider.onReadFileRequested.addListener(
     app.onReadFileRequested);
 
-// For NaCl use 'newlib/[Release|Debug]/module.nmf' as configuration file path
-// and 'application/x-nacl' as mime type.
-// For PNaCl use 'pnacl/[Release|Debug]/module.nmf' as configuration file path
-// and 'application/x-pnacl' as mime type.
-// TODO(cmihail): Modify to Release when extension is ready.
-app.loadNaclModule('pnacl/Debug/module.nmf', 'application/x-pnacl');
+// Load the NaCl module.
+app.loadNaclModule(buildConfig.BUILD_MODULE_PATH,
+                   buildConfig.BUILD_MODULE_TYPE);
