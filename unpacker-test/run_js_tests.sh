@@ -11,8 +11,15 @@
 export NACL_EXE_STDOUT=`pwd`/nacl.stdout
 export NACL_EXE_STDERR=`pwd`/nacl.stderr
 
-rm -r user-data-dir-karma  # user-data-dir-karma will cache extension files and
-                           # might lead to test failures when changing branches.
+# user-data-dir-karma will cache extension files and might lead to test failures
+# when changing branches, so we need to remove it before running the tests.
+# Because Karma captures any changes to the JavaScript files as long as the
+# tests run, this directory removal should not affect tests development speed.
+# But the logs inside user-data-dir-karma can contain useful information in case
+# the NaCl module crashes, so we need to keep it.
+if [ -d user-data-dir-karma ]; then
+  rm -r user-data-dir-karma
+fi
 
 cd ../unpacker/
 # Build both Release and Debug executables for integration tests.
