@@ -360,6 +360,13 @@ var app = {
         fileSystemId: fileSystemId
       };
       chrome.fileSystemProvider.unmount(options, function() {
+        if (chrome.runtime.lastError) {
+          console.error(
+              'Unmount error: ' + chrome.runtime.lastError.message + '.');
+          reject('FAILED');
+          return;
+        }
+
         // In case of forced unmount volume can be undefined due to not being
         // restored. An unmount that is not forced will be called only after
         // restoring state. In the case of forced unmount when volume is not
@@ -372,9 +379,6 @@ var app = {
 
         app.removeState_(fileSystemId);  // Remove volume from local storage.
         fulfill();
-      }, function(unmountError) {
-        console.error('Unmount error: ' + unmountError + '.');
-        reject('FAILED');
       });
     });
   },
@@ -484,7 +488,6 @@ var app = {
    */
   onLaunched: function(launchData, opt_onSuccess, opt_onError) {
     var onError = function(error) {
-      console.error(error);
       if (opt_onError)
         opt_onError(fileSystemId);
       // Cleanup volume resources in order to allow future attempts
@@ -511,12 +514,18 @@ var app = {
             chrome.fileSystemProvider.mount(
                 {fileSystemId: fileSystemId, displayName: item.entry.name},
                 function() {
+                  if (chrome.runtime.lastError) {
+                    console.error('Mount error: ' +
+                        chrome.runtime.lastError.message + '.');
+                    onError('FAILED');
+                    return;
+                  }
                   // Save state so in case of restarts we are able to correctly
                   // get the archive's metadata.
                   app.saveState_([fileSystemId]);
                   if (opt_onSuccess)
                     opt_onSuccess(fileSystemId);
-                }, onError);
+                });
           }).catch(function(error) {
             onError(error.stack || error);
             return Promise.reject(error);
