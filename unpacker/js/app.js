@@ -487,7 +487,14 @@ var app = {
    *     times, depending on how many volumes must be loaded.
    */
   onLaunched: function(launchData, opt_onSuccess, opt_onError) {
-    var onError = function(error) {
+    var onError = function(error, fileSystemId) {
+      chrome.notifications.create('' /* notificationId */, {
+        type: 'basic',
+        iconUrl: chrome.runtime.getManifest().icons[128],
+        title: chrome.i18n.getMessage('mountErrorTitle'),
+        message: chrome.i18n.getMessage(
+            error == 'EXISTS' ? 'existsErrorMessage' : 'otherErrorMessage')
+      }, function() {});
       if (opt_onError)
         opt_onError(fileSystemId);
       // Cleanup volume resources in order to allow future attempts
@@ -499,7 +506,7 @@ var app = {
       launchData.items.forEach(function(item) {
         chrome.fileSystem.getDisplayPath(item.entry, function(fileSystemId) {
           if (app.volumeLoadedPromises[fileSystemId]) {
-            console.warn('Volume is loading or already loaded.');
+            onError('EXISTS', fileSystemId);
             return;
           }
 
@@ -517,7 +524,7 @@ var app = {
                   if (chrome.runtime.lastError) {
                     console.error('Mount error: ' +
                         chrome.runtime.lastError.message + '.');
-                    onError('FAILED');
+                    onError('FAILED', fileSystemId);
                     return;
                   }
                   // Save state so in case of restarts we are able to correctly
@@ -527,7 +534,7 @@ var app = {
                     opt_onSuccess(fileSystemId);
                 });
           }).catch(function(error) {
-            onError(error.stack || error);
+            onError(error.stack || error, fileSystemId);
             return Promise.reject(error);
           });
 

@@ -30,6 +30,7 @@ mkdir $RELEASE_DIR
 make VALID_TOOLCHAINS=$TOOLCHAIN
 cp -r js $RELEASE_DIR/js
 cp -r icons $RELEASE_DIR/icons
+cp -r _locales $RELEASE_DIR/_locales
 cp manifest.json $RELEASE_DIR/
 cp $TOOLCHAIN/Release/module.nmf $RELEASE_DIR/
 
