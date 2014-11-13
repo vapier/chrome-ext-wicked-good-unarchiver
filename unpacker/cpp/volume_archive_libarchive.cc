@@ -110,7 +110,7 @@ bool VolumeArchiveLibarchive::Init() {
   // https://code.google.com/p/libarchive/issues/detail?id=262 is resolved
   // add RAR file handler to manifest.json.
   if (archive_read_support_format_rar(archive_) != ARCHIVE_OK ||
-      archive_read_support_format_zip(archive_) != ARCHIVE_OK) {
+      archive_read_support_format_zip_seekable(archive_) != ARCHIVE_OK) {
     set_error_message(ArchiveError(
         volume_archive_constants::kArchiveSupportErrorPrefix, archive_));
     return false;
