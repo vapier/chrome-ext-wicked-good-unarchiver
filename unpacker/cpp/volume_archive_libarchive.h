@@ -32,10 +32,6 @@ const int64_t kDummyBufferSize = 512 * 1024;  // 512 KB
 // Should be positive and less than size_t maximum.
 const int64_t kDecompressBufferSize = 512 * 1024;  // 512 KB.
 
-// The archive header chunk size for VolumeReader::Read requests.
-// Should be positive.
-const int64_t kHeaderChunkSize = 16 * 1024;  // 16 KB.
-
 // The maximum data chunk size for VolumeReader::Read requests.
 // Should be positive.
 const int64_t kMaximumDataChunkSize = 512 * 1024;  // 512 KB.

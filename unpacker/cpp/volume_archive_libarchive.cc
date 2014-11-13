@@ -83,9 +83,7 @@ int CustomArchiveClose(archive* archive_object, void* client_data) {
 VolumeArchiveLibarchive::VolumeArchiveLibarchive(const std::string& request_id,
                                                  VolumeReader* reader)
     : VolumeArchive(request_id, reader),
-      // Reader size is volume_archive_constants::kHeaderChunkSize
-      // because at first archive headers are read.
-      reader_data_size_(volume_archive_constants::kHeaderChunkSize),
+      reader_data_size_(volume_archive_constants::kMinimumDataChunkSize),
       archive_(NULL),
       current_archive_entry_(NULL),
       last_read_data_offset_(0),
@@ -137,9 +135,10 @@ bool VolumeArchiveLibarchive::GetNextHeader(const char** pathname,
                                             int64_t* size,
                                             bool* is_directory,
                                             time_t* modification_time) {
-  // Reset VolumeReader data size so CustomArchiveRead doesn't require big
-  // chunks for headers.
-  reader_data_size_ = volume_archive_constants::kHeaderChunkSize;
+  // Headers are being read from the central directory (in the ZIP format), so
+  // use a large block size to save on IPC calls. The headers in EOCD are
+  // grouped one by one.
+  reader_data_size_ = volume_archive_constants::kMaximumDataChunkSize;
 
   // Reset to 0 for new VolumeArchive::ReadData operation.
   last_read_data_offset_ = 0;
