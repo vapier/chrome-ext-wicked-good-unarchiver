@@ -9,7 +9,6 @@
 
 #include "archive.h"
 
-#include "header_cache.h"
 #include "volume_archive.h"
 
 // A namespace with constants used by VolumeArchiveLibarchive.
@@ -35,7 +34,7 @@ const int64_t kDecompressBufferSize = 512 * 1024;  // 512 KB.
 
 // The archive header chunk size for VolumeReader::Read requests.
 // Should be positive.
-const int64_t kHeaderChunkSize = 1 * 1024;  // 1 KB.
+const int64_t kHeaderChunkSize = 16 * 1024;  // 16 KB.
 
 // The maximum data chunk size for VolumeReader::Read requests.
 // Should be positive.
@@ -53,11 +52,7 @@ class VolumeArchiveLibarchive : public VolumeArchive {
  public:
   // VolumeReader should be allocated with new and the memory handling should be
   // done by VolumeArchiveLibarchive.
-  // HeaderCache is NOT owned by VolumeArchive. It is a shared object between
-  // all VolumeArchive objects corresponding to a Volume object.
-  VolumeArchiveLibarchive(const std::string& request_id,
-                          VolumeReader* reader,
-                          HeaderCache* header_cache);
+  VolumeArchiveLibarchive(const std::string& request_id, VolumeReader* reader);
 
   virtual ~VolumeArchiveLibarchive();
 
@@ -79,21 +74,11 @@ class VolumeArchiveLibarchive : public VolumeArchive {
   // See volume_archive_interface.h.
   virtual bool Cleanup();
 
-  HeaderCache* header_cache() const { return header_cache_; }
-  bool header_read() const { return header_read_; }
   int64_t reader_data_size() const { return reader_data_size_; }
 
  private:
   // Decompress length bytes of data starting from offset.
   void DecompressData(int64_t offset, int64_t length);
-
-  // A cache with the archive header and file headers that is shared between all
-  // instances of VolumeArchiveLibarchive created for same physical archive.
-  HeaderCache* header_cache_;
-
-  // True if libarchive is reading the archive header or a file header by using
-  // VolumeReader.
-  bool header_read_;
 
   // The size of the requested data from VolumeReader.
   int64_t reader_data_size_;

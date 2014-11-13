@@ -18,7 +18,6 @@ LIBS = ppapi_cpp ppapi pthread archive z
 
 CFLAGS = -Wall
 SOURCES = \
-  cpp/header_cache.cc \
   cpp/module.cc \
   cpp/request.cc \
   cpp/volume.cc \

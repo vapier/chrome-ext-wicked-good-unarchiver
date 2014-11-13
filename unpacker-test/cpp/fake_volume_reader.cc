@@ -24,10 +24,6 @@ int64_t FakeVolumeReader::Seek(int64_t offset, int whence) {
   return 0;  // Not important.
 }
 
-int64_t FakeVolumeReader::GetOffset() const {
-  return 0;
-}
-
 int FakeVolumeReader::Close() {
   return ARCHIVE_OK;
 }

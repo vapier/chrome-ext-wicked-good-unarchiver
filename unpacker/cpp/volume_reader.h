@@ -43,10 +43,6 @@ class VolumeReader {
   // http://www.cplusplus.com/reference/cstdio/fseek/
   virtual int64_t Seek(int64_t offset, int whence) = 0;
 
-  // Gets the offset inside the archive reached by using VolumeReader::Read,
-  // VolumeReader::Seek or VolumeReader::Skip.
-  virtual int64_t GetOffset() const = 0;
-
   // Closes the reader. Use return values like ARCHIVE_OK or ARCHIVE_FATAL
   // specific to libarchive.
   virtual int Close() = 0;

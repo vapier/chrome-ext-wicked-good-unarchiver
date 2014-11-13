@@ -37,48 +37,10 @@ ssize_t CustomArchiveRead(archive* archive_object,
   VolumeArchiveLibarchive* volume_archive =
       static_cast<VolumeArchiveLibarchive*>(client_data);
 
-  // Get header data from local cache.
-  if (volume_archive->header_read()) {
-    int64_t header_size = 0;
-    *buffer = volume_archive->header_cache()->GetHeader(
-        volume_archive->reader()->GetOffset(), &header_size);
-
-    if (*buffer) {
-      // Advance reader to be in sync with VolumeArchive.
-      if (volume_archive->reader()->Skip(header_size) != header_size) {
-        SetLibarchiveErrorToVolumeReaderError(archive_object);
-        return ARCHIVE_FATAL;
-      }
-
-      return header_size;
-    }
-  }
-
-  // Get offset for HeaderCache before calling VolumeReader::Read. After read
-  // operation, the VolumeReader offset will be changed to the current offset
-  // plus the number of read bytes, but HeaderCache should store the header data
-  // starting from the current offset, not the offset after VolumeReader::Read.
-  int64_t offset = volume_archive->reader()->GetOffset();
-
-  // Read data. Should not request more than SSIZE_MAX even though reader
-  // supports it. The reason is that we return ssize_t.
-  PP_DCHECK(volume_archive->reader_data_size() <=
-            static_cast<int64_t>(std::numeric_limits<ssize_t>::max()));
   int64_t read_bytes = volume_archive->reader()->Read(
       volume_archive->reader_data_size(), buffer);
-  PP_DCHECK(read_bytes <= volume_archive->reader_data_size());
-
-  if (read_bytes == ARCHIVE_FATAL) {
+  if (read_bytes == ARCHIVE_FATAL)
     SetLibarchiveErrorToVolumeReaderError(archive_object);
-    return ARCHIVE_FATAL;
-  }
-
-  // Save header data in HeaderCache.
-  if (volume_archive->header_read() && read_bytes > 0) {
-    volume_archive->header_cache()->AddHeader(
-        offset, static_cast<const char*>(*buffer), read_bytes);
-  }
-
   return read_bytes;
 }
 
@@ -119,11 +81,8 @@ int CustomArchiveClose(archive* archive_object, void* client_data) {
 }  // namespace
 
 VolumeArchiveLibarchive::VolumeArchiveLibarchive(const std::string& request_id,
-                                                 VolumeReader* reader,
-                                                 HeaderCache* header_cache)
+                                                 VolumeReader* reader)
     : VolumeArchive(request_id, reader),
-      header_cache_(header_cache),
-      header_read_(false),
       // Reader size is volume_archive_constants::kHeaderChunkSize
       // because at first archive headers are read.
       reader_data_size_(volume_archive_constants::kHeaderChunkSize),
@@ -159,7 +118,6 @@ bool VolumeArchiveLibarchive::Init() {
 
   // Set callbacks for processing the archive's data and open the archive.
   // The callback data is the VolumeArchive itself.
-  header_read_ = true;  // archive_read_open1 will read the archive header.
   int ok = ARCHIVE_OK;
   if (archive_read_set_read_callback(archive_, CustomArchiveRead) != ok ||
       archive_read_set_skip_callback(archive_, CustomArchiveSkip) != ok ||
@@ -179,8 +137,6 @@ bool VolumeArchiveLibarchive::GetNextHeader(const char** pathname,
                                             int64_t* size,
                                             bool* is_directory,
                                             time_t* modification_time) {
-  header_read_ = true;  // archive_read_next_header will read the file header.
-
   // Reset VolumeReader data size so CustomArchiveRead doesn't require big
   // chunks for headers.
   reader_data_size_ = volume_archive_constants::kHeaderChunkSize;
@@ -212,7 +168,6 @@ void VolumeArchiveLibarchive::DecompressData(int64_t offset, int64_t length) {
   // which avoids extra copying in case offset != last_read_data_offset_.
   // The logic will be more complicated because archive_read_data_block offset
   // will not be aligned with the offset of the read request from JavaScript.
-  header_read_ = false;  // Only headers should be cached, not data.
 
   // Request with offset smaller than last read offset.
   if (offset < last_read_data_offset_) {
