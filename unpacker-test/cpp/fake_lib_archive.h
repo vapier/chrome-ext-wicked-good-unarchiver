@@ -57,6 +57,10 @@ extern bool fail_archive_set_options;
 // By default it should be set to ARCHIVE_OK.
 extern int archive_read_next_header_return_value;
 
+// Return value for archive_read_seek_header.
+// By default it should be set to ARCHIVE_OK.
+extern int archive_read_seek_header_return_value;
+
 // Return value for archive_entry_filetype.
 // By default it should be set to regular file.
 extern mode_t archive_entry_filetype_return_value;

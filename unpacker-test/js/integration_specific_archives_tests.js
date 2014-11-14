@@ -5,46 +5,6 @@
 'use strict';
 
 /**
- * The expected metadata for small_rar.rar.
- * @type {Object}
- * @const
- */
-var SMALL_RAR_METADATA = {
-  entries: {
-    dir: {
-      entries: {
-        file3: {
-          isDirectory: false,
-          modificationTime: new Date('2014-08-13T16:57:00.000Z'),
-          name: 'file3',
-          size: 56
-        }
-      },
-      isDirectory: true,
-      modificationTime: new Date('2014-08-13T16:57:00.000Z'),
-      name: 'dir',
-      size: 0
-    },
-    file1: {
-      isDirectory: false,
-      modificationTime: new Date('2014-08-13T16:55:54.000Z'),
-      name: 'file1',
-      size: 15
-    },
-    file2: {
-      isDirectory: false,
-      modificationTime: new Date('2014-08-13T16:56:14.000Z'),
-      name: 'file2',
-      size: 33
-    }
-  },
-  isDirectory: true,
-  modificationTime: new Date('1970-01-01T00:00:00.000Z'),
-  name: '/',
-  size: 0
-};
-
-/**
  * The expected metadata for small_zip.zip. Different from above when it comes
  * to Date objects (2014-08-13<T16> vs 2014-08-13<T07>).
  * @type {Object}
@@ -55,30 +15,35 @@ var SMALL_ZIP_METADATA = {
     dir: {
       entries: {
         file3: {
+          index: 2,
           isDirectory: false,
           modificationTime: new Date('2014-08-13T07:57:00.000Z'),
           name: 'file3',
           size: 56
         }
       },
+      index: -1,
       isDirectory: true,
       modificationTime: new Date('2014-08-13T07:57:00.000Z'),
       name: 'dir',
       size: 0
     },
     file1: {
+      index: 1,
       isDirectory: false,
       modificationTime: new Date('2014-08-13T07:55:54.000Z'),
       name: 'file1',
       size: 15
     },
     file2: {
+      index: 0,
       isDirectory: false,
       modificationTime: new Date('2014-08-13T07:56:14.000Z'),
       name: 'file2',
       size: 33
     }
   },
+  index: -1,
   isDirectory: true,
   modificationTime: new Date('1970-01-01T00:00:00.000Z'),
   name: '/',
@@ -329,9 +294,13 @@ var smallArchiveCheck = function(fileSystemId, expectedMetadata, restore) {
     });
   });
 
-  testOpenReadClose(fileSystemId, expectedMetadata, '/file1', 7, 8, 5);
-  testOpenReadClose(fileSystemId, expectedMetadata, '/file2', 13, 16, 17);
-  testOpenReadClose(fileSystemId, expectedMetadata, '/dir/file3', 21, 24 , 25);
+  // In case of restoring do not test this file, as it's already opened and it's
+  // tested in later tests.
+  if (!restore) {
+    testOpenReadClose(fileSystemId, expectedMetadata, '/file1', 7, 8, 5);
+    testOpenReadClose(fileSystemId, expectedMetadata, '/file2', 13, 16, 17);
+    testOpenReadClose(fileSystemId, expectedMetadata, '/dir/file3', 21, 24, 25);
+  }
 };
 
 /**
@@ -349,13 +318,6 @@ var getOpenedFilesBeforeSuspend = function(fileSystemId) {
       create: false,
       requestId: 30,
       filePath: '/file1'
-    },
-    40: /* requestId */ {
-      fileSystemId: fileSystemId,
-      mode: 'READ',
-      create: false,
-      requestId: 40,
-      filePath: '/file2'
     }
   };
 };

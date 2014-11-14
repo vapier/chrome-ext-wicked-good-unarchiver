@@ -322,7 +322,7 @@ var tests_helper = {
   /**
    * Forces failure in tests. Should be called only from 'beforeEach',
    * 'afterEach' and 'it'. Useful to force failures in promises.
-   * @param {Object|strig} An error with stack trace or a string error that
+   * @param {Object|string} An error with stack trace or a string error that
    *     describes the failure reason.
    */
   forceFailure: function(error) {

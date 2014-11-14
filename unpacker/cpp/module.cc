@@ -230,8 +230,9 @@ class NaclArchiveInstance : public pp::Instance {
   void OpenFile(const pp::VarDictionary& var_dict,
                 const std::string& file_system_id,
                 const std::string& request_id) {
-    PP_DCHECK(var_dict.Get(request::key::kFilePath).is_string());
-    std::string file_path(var_dict.Get(request::key::kFilePath).AsString());
+    PP_DCHECK(var_dict.Get(request::key::kIndex).is_string());
+    int64_t index =
+        request::GetInt64FromString(var_dict, request::key::kIndex);
 
     PP_DCHECK(var_dict.Get(request::key::kEncoding).is_string());
     std::string encoding(var_dict.Get(request::key::kEncoding).AsString());
@@ -243,7 +244,7 @@ class NaclArchiveInstance : public pp::Instance {
     volume_iterator iterator = volumes_.find(file_system_id);
     PP_DCHECK(iterator != volumes_.end());  // Should call OpenFile after
                                             // ReadMetadata.
-    iterator->second->OpenFile(request_id, file_path, encoding, archive_size);
+    iterator->second->OpenFile(request_id, index, encoding, archive_size);
   }
 
   void CloseFile(const pp::VarDictionary& var_dict,

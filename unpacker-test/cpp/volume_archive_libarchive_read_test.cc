@@ -10,9 +10,6 @@
 
 namespace {
 
-// The request id for which the tested VolumeArchiveLibarchive is created.
-const char kRequestId[] = "1";
-
 // Fake default character encoding for the archive headers.
 const char kEncoding[] = "CP1250";
 
@@ -32,8 +29,7 @@ class VolumeArchiveLibarchiveReadTest : public testing::Test {
   virtual void SetUp() {
     fake_lib_archive_config::ResetVariables();
     // Pass FakeVolumeReader ownership to VolumeArchiveLibarchive.
-    volume_archive = new VolumeArchiveLibarchive(std::string(kRequestId),
-                                                 new FakeVolumeReader());
+    volume_archive = new VolumeArchiveLibarchive(new FakeVolumeReader());
 
     // Prepare for read.
     ASSERT_TRUE(volume_archive->Init(kEncoding));

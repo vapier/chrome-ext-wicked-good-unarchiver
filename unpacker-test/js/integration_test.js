@@ -22,20 +22,6 @@ var unloadExtension = function() {
 // Init helper.
 var initPromise = tests_helper.init([
   {
-    name: 'small_rar.rar',
-    afterOnLaunchTests: function() {
-      smallArchiveCheck('small_rar.rar', SMALL_RAR_METADATA, false);
-    },
-    afterSuspendTests: function() {
-      smallArchiveCheck('small_rar.rar', SMALL_RAR_METADATA, true);
-      smallArchiveCheckAfterSuspend('small_rar.rar');
-    },
-    afterRestartTests: function() {
-      smallArchiveCheck('small_rar.rar', SMALL_RAR_METADATA, true);
-      smallArchiveCheckAfterRestart('small_rar.rar');
-    }
-  },
-  {
     name: 'small_zip.zip',
     afterOnLaunchTests: function() {
       smallArchiveCheck('small_zip.zip', SMALL_ZIP_METADATA, false);
@@ -45,8 +31,8 @@ var initPromise = tests_helper.init([
       smallArchiveCheckAfterSuspend('small_zip.zip');
     },
     afterRestartTests: function() {
-      smallArchiveCheck('small_zip.zip', SMALL_ZIP_METADATA, true);
       smallArchiveCheckAfterRestart('small_zip.zip');
+      smallArchiveCheck('small_zip.zip', SMALL_ZIP_METADATA, true);
     }
   }
 ]);

@@ -56,7 +56,7 @@ bool fail_archive_read_free = false;
 bool fail_archive_set_options = false;
 
 int archive_read_next_header_return_value = ARCHIVE_OK;
-
+int archive_read_seek_header_return_value = ARCHIVE_OK;
 mode_t archive_entry_filetype_return_value = S_IFREG;  // Regular file.
 
 void ResetVariables() {
@@ -101,8 +101,8 @@ int archive_read_support_format_rar(archive* archive_object) {
 
 int archive_read_support_format_zip_seekable(archive* archive_object) {
   return fake_lib_archive_config::fail_archive_zip_seekable_support
-            ? ARCHIVE_FATAL
-            : ARCHIVE_OK;
+             ? ARCHIVE_FATAL
+             : ARCHIVE_OK;
 }
 
 int archive_read_set_read_callback(archive* archive_object,
@@ -143,6 +143,10 @@ int archive_read_open1(archive* archive_object) {
 int archive_read_next_header(archive* archive_object, archive_entry** entry) {
   *entry = &test_archive_entry;
   return fake_lib_archive_config::archive_read_next_header_return_value;
+}
+
+int archive_read_seek_header(archive* archive_object, size_t index) {
+  return fake_lib_archive_config::archive_read_seek_header_return_value;
 }
 
 const char* archive_entry_pathname(archive_entry* entry) {

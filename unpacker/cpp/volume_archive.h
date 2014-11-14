@@ -13,10 +13,7 @@
 // to be thread safe and its methods shouldn't be called in parallel.
 class VolumeArchive {
  public:
-  // VolumeReader should be allocated with new and the memory handling should be
-  // done by the implementation of VolumeArchive.
-  VolumeArchive(const std::string& request_id, VolumeReader* reader)
-      : request_id_(request_id), reader_(reader) {}
+  explicit VolumeArchive(VolumeReader* reader) : reader_(reader) {}
 
   virtual ~VolumeArchive() {}
 
@@ -35,6 +32,9 @@ class VolumeArchive {
                              int64_t* size,
                              bool* is_directory,
                              time_t* modification_time) = 0;
+
+  // Seeks to the |index|-th header.
+  virtual bool SeekHeader(int64_t index) = 0;
 
   // Gets data from offset to offset + length for the file reached with
   // VolumeArchive::GetNextHeader. The data is stored in an internal buffer
@@ -72,7 +72,6 @@ class VolumeArchive {
   // VolumeArchive::error_message().
   virtual bool Cleanup() = 0;
 
-  std::string request_id() const { return request_id_; }
   VolumeReader* reader() const { return reader_; }
   std::string error_message() const { return error_message_; }
 
@@ -89,8 +88,6 @@ class VolumeArchive {
   }
 
  private:
-  std::string request_id_;  // The request id for which the VolumeArchive was
-                            // created.
   VolumeReader* reader_;    // The reader that actually reads the archive data.
   std::string error_message_;  // An error message set in case of any errors.
 };

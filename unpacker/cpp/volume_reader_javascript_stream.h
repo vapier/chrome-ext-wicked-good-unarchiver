@@ -19,12 +19,10 @@
 // ReadErrorSignal which MUST be called from another thread.
 class VolumeReaderJavaScriptStream : public VolumeReader {
  public:
-  // request_id is used by requestor to ask for more data.
   // archive_size is used by Seek method in order to seek from volume's
   // archive end.
   // requestor is used to request more data from JavaScript.
-  VolumeReaderJavaScriptStream(const std::string& request_id,
-                               int64_t archive_size,
+  VolumeReaderJavaScriptStream(int64_t archive_size,
                                JavaScriptRequestorInterface* requestor);
 
   virtual ~VolumeReaderJavaScriptStream();
@@ -44,9 +42,6 @@ class VolumeReaderJavaScriptStream : public VolumeReader {
   // to synchronize with VolumeReaderJavaScriptStream::Read.
   void ReadErrorSignal();
 
-  // See volume_reader.h for description.
-  virtual int Open();
-
   // See volume_reader.h for description. This method blocks on
   // available_data_cond_. SetBufferAndSignal should unblock it from
   // another thread.
@@ -58,17 +53,17 @@ class VolumeReaderJavaScriptStream : public VolumeReader {
   // See volume_reader.h for description.
   virtual int64_t Seek(int64_t offset, int whence);
 
-  // See volume_reader.h for description.
-  virtual int Close();
+  // Sets the request Id to be used by the reader.
+  void SetRequestId(const std::string& request_id);
 
   int64_t offset() const { return offset_; }
 
  private:
   // Request a chunk of length number of bytes from JavaScript starting from
-  // offset_ member. In case offset_ >= archive_size call is ignored.
+  // offset_ member. Should be run within a lock.
   void RequestChunk(int64_t length);
 
-  const std::string request_id_;  // The request id for which the reader was
+  std::string request_id_;  // The request id for which the reader was
                                   // created.
   const int64_t archive_size_;    // The archive size.
 
@@ -81,8 +76,9 @@ class VolumeReaderJavaScriptStream : public VolumeReader {
   // Must use POSIX mutexes instead of pp::Lock because there is no pp::Cond.
   // pp::Lock uses POSIX mutexes anyway on Linux, but pp::Lock can also pe used
   // on other operating systems as Windows. For now this is not an issue as this
-  // extension is used only on Chromebooks.
-  pthread_mutex_t available_data_lock_;
+  // extension is used only on Chromebooks. The shared_state_lock_ is used to
+  // protect members which are accessed by more than one thread.
+  pthread_mutex_t shared_state_lock_;
   pthread_cond_t available_data_cond_;
 
   int64_t offset_;  // The offset from where read should be done.

@@ -24,9 +24,8 @@ class VolumeArchiveFactoryInterface {
  public:
   virtual ~VolumeArchiveFactoryInterface() {}
 
-  // Creates a new VolumeArchive. Returns NULL if failed.
-  virtual VolumeArchive* Create(const std::string& request_id,
-                                VolumeReader* reader) = 0;
+  // Creates a new VolumeArchive.
+  virtual VolumeArchive* Create(VolumeReader* reader) = 0;
 };
 
 // A factory that creates VolumeReader(s). Useful for testing.
@@ -37,8 +36,7 @@ class VolumeReaderFactoryInterface {
   // Creates a new VolumeReader. Returns NULL if failed.
   // Passes VolumeReader ownership to the implementation of
   // VolumeArchiveInterfaceInterface.
-  virtual VolumeReader* Create(const std::string& request_id,
-                               int64_t archive_size) = 0;
+  virtual VolumeReader* Create(int64_t archive_size) = 0;
 };
 
 // Handles all operations like reading metadata and reading files from a single
@@ -70,16 +68,16 @@ class Volume {
 
   // Processes a successful archive chunk read from JavaScript. Read offset
   // represents the offset from where the data contained in array_buffer starts.
-  void ReadChunkDone(const std::string& request_id,
+  void ReadChunkDone(const std::string& nacl_request_id,
                      const pp::VarArrayBuffer& array_buffer,
                      int64_t read_offset);
 
   // Processes an invalid archive chunk read from JavaScript.
-  void ReadChunkError(const std::string& request_id);
+  void ReadChunkError(const std::string& nacl_request_id);
 
   // Opens a file.
   void OpenFile(const std::string& request_id,
-                const std::string& file_path,
+                int64_t index,
                 const std::string& encoding,
                 int64_t archive_size);
 
@@ -130,20 +128,11 @@ class Volume {
                                      const std::string& encoding,
                                      int64_t archive_size);
 
-  // Cleanups any data related to a volume archive. Return value should be
-  // checked only if post_cleanup_error is true. post_cleanup_error should be
-  // false in case an error message was already sent to JavaScript.
-  // Must be called in the worker_.
-  bool CleanupVolumeArchive(VolumeArchive* volume_archive,
-                            bool post_cleanup_error);
+  // Clears job.
+  void ClearJob();
 
-  // Gets the VolumeArchive from worker_reads_in_progress_ map based on
-  // request_id. In case there is no key with request_id in the map then returns
-  // NULL. Can be called from both worker_ and the main thread. Operations with
-  // volume_archive that don't execute in worker_ must be guarded by acquiring
-  // worker_reads_in_progress_lock_ before calling GetVolumeArchive and
-  // releasing it only after not using the VolumeArchive anymore.
-  VolumeArchive* GetVolumeArchive(const std::string& request_id);
+  // Libarchive wrapper instance per volume, shared across all operations.
+  VolumeArchive* volume_archive_;
 
   // The file system id for this volume.
   std::string file_system_id_;
@@ -175,13 +164,10 @@ class Volume {
   // JavaScript side (this means no Callbacks in progress).
   pp::CompletionCallbackFactory<Volume> callback_factory_;
 
-  // A map containing all reads in progress. First argument is a unique key per
-  // reader and the second is the reader itself. The map must be guarded as
-  // Volume::ReadChunkDone / Volume::ReadChunkError can be called after removing
-  // their correspondent VolumeArchive from the map due to receiving the
-  // response to read ahead from JavaScript after a CloseFile event.
-  std::map<std::string, VolumeArchive*> worker_reads_in_progress_;
-  pp::Lock worker_reads_in_progress_lock_;  // A lock for guarding above map.
+  // Request ID of the current reader instance.
+  std::string reader_request_id_;
+
+  pp::Lock job_lock_;  // A lock for guarding members related to jobs.
 
   // A requestor for making calls to JavaScript.
   JavaScriptRequestorInterface* requestor_;

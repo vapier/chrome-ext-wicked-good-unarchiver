@@ -48,10 +48,10 @@ describe('On calling', function() {
   var CLOSE_VOLUME_REQUEST_ID = '-1';
 
   /**
-   * @type {string}
+   * @type {number}
    * @const
    */
-  var FILE_PATH = '/path/to/file';
+  var INDEX = 123;
 
   /**
    * @type {number}
@@ -189,7 +189,7 @@ describe('On calling', function() {
     var openFileRequest;
     beforeEach(function() {
       openFileRequest = request.createOpenFileRequest(
-          FILE_SYSTEM_ID, REQUEST_ID, FILE_PATH, ENCODING, ARCHIVE_SIZE);
+          FILE_SYSTEM_ID, REQUEST_ID, INDEX, ENCODING, ARCHIVE_SIZE);
     });
 
     it('with OPEN_FILE as operation', function() {
@@ -208,7 +208,7 @@ describe('On calling', function() {
     });
 
     it('with correct file path', function() {
-      expect(openFileRequest[request.Key.FILE_PATH]).to.equal(FILE_PATH);
+      expect(openFileRequest[request.Key.INDEX]).to.equal(INDEX.toString());
     });
 
     it('with correct encoding', function() {

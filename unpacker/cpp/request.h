@@ -29,8 +29,10 @@ const char kArchiveSize[] =
 const char kChunkBuffer[] = "chunk_buffer";  // Should be a pp::VarArrayBuffer.
 const char kOffset[] = "offset";       // Should be a string as int64_t is not
                                        // supported by pp::Var.
-const char kLength[] = "length";       // Should be an int.
-const char kFilePath[] = "file_path";  // Should be a string.
+const char kLength[] = "length";       // Should be a string as int64_t is not
+                                       // supported by pp::Var.
+const char kIndex[] = "index";         // Should be a string as int64_t is not
+                                       // supported by pp::Var.
 const char kEncoding[] = "encoding";   // Should be a string.
 const char kOpenRequestId[] = "open_request_id";  // Should be a string, just
                                                   // like kRequestId.

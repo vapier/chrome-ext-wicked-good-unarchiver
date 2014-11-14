@@ -69,20 +69,13 @@ int64_t CustomArchiveSeek(archive* archive_object,
 }
 
 int CustomArchiveClose(archive* archive_object, void* client_data) {
-  VolumeArchiveLibarchive* volume_archive =
-      static_cast<VolumeArchiveLibarchive*>(client_data);
-
-  int result = volume_archive->reader()->Close();
-  if (result == ARCHIVE_FATAL)
-    SetLibarchiveErrorToVolumeReaderError(archive_object);
-  return result;
+  return ARCHIVE_OK;
 }
 
 }  // namespace
 
-VolumeArchiveLibarchive::VolumeArchiveLibarchive(const std::string& request_id,
-                                                 VolumeReader* reader)
-    : VolumeArchive(request_id, reader),
+VolumeArchiveLibarchive::VolumeArchiveLibarchive(VolumeReader* reader)
+    : VolumeArchive(reader),
       reader_data_size_(volume_archive_constants::kMinimumDataChunkSize),
       archive_(NULL),
       current_archive_entry_(NULL),
@@ -152,6 +145,7 @@ bool VolumeArchiveLibarchive::GetNextHeader(const char** pathname,
 
   // Reset to 0 for new VolumeArchive::ReadData operation.
   last_read_data_offset_ = 0;
+  decompressed_data_size_ = 0;
 
   // Archive data is skipped automatically by next call to
   // archive_read_next_header.
@@ -170,6 +164,20 @@ bool VolumeArchiveLibarchive::GetNextHeader(const char** pathname,
           volume_archive_constants::kArchiveNextHeaderErrorPrefix, archive_));
       return false;
   }
+}
+
+bool VolumeArchiveLibarchive::SeekHeader(int64_t index) {
+  // Reset to 0 for new VolumeArchive::ReadData operation.
+  last_read_data_offset_ = 0;
+  decompressed_data_size_ = 0;
+
+  if (archive_read_seek_header(archive_, index) != ARCHIVE_OK) {
+    set_error_message(ArchiveError(
+        volume_archive_constants::kArchiveNextHeaderErrorPrefix, archive_));
+    return false;
+  }
+
+  return true;
 }
 
 void VolumeArchiveLibarchive::DecompressData(int64_t offset, int64_t length) {

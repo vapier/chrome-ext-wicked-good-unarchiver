@@ -93,7 +93,11 @@ var app = {
     console.assert(!isNaN(requestId), 'No NaCl request id.');
 
     var volume = app.volumes[fileSystemId];
-    console.assert(volume, 'No volume for: ' + fileSystemId + '.');
+    if (!volume) {
+      // The volume is gone, which can happen.
+      console.info('No volume for: ' + fileSystemId + '.');
+      return;
+    }
 
     volume.decompressor.processMessage(message.data, operation,
                                        Number(requestId));
@@ -198,19 +202,19 @@ var app = {
       // File is a Blob object, so it's ok to construct the Decompressor
       // directly with it.
       var decompressor = new Decompressor(app.naclModule, fileSystemId, file);
-      var volume = new Volume(decompressor, entry, opt_openedFiles);
+      var volume = new Volume(decompressor, entry);
 
       var onLoadVolumeSuccess = function() {
-        opt_openedFiles = opt_openedFiles ? opt_openedFiles : {};
-        if (Object.keys(opt_openedFiles).length == 0) {
+        var openedFiles = opt_openedFiles ? opt_openedFiles : {};
+        if (Object.keys(openedFiles).length == 0) {
           fulfillVolumeLoad();
           return;
         }
 
         // Restore opened files on NaCl side.
         var openFilePromises = [];
-        for (var openRequestId in opt_openedFiles) {
-          var options = opt_openedFiles[openRequestId];
+        for (var openRequestId in openedFiles) {
+          var options = openedFiles[openRequestId]
           openFilePromises.push(new Promise(function(resolve, reject) {
             volume.onOpenFileRequested(options, resolve, reject);
           }));
@@ -218,8 +222,8 @@ var app = {
 
         Promise.all(openFilePromises).then(fulfillVolumeLoad, rejectVolumeLoad);
       };
-      volume.initialize(onLoadVolumeSuccess, rejectVolumeLoad);
       app.volumes[fileSystemId] = volume;
+      volume.initialize(onLoadVolumeSuccess, rejectVolumeLoad);
     });
   },
 

@@ -11,11 +11,9 @@
 #include "ppapi/cpp/logging.h"
 
 VolumeReaderJavaScriptStream::VolumeReaderJavaScriptStream(
-    const std::string& request_id,
     int64_t archive_size,
     JavaScriptRequestorInterface* requestor)
-    : request_id_(request_id),
-      archive_size_(archive_size),
+    : archive_size_(archive_size),
       requestor_(requestor),
       available_data_(false),
       read_error_(false),
@@ -24,7 +22,7 @@ VolumeReaderJavaScriptStream::VolumeReaderJavaScriptStream(
                                      request from JavaScript as offset
                                      parameter is 0. */,
       read_ahead_array_buffer_ptr_(&first_array_buffer_) {
-  pthread_mutex_init(&available_data_lock_, NULL);
+  pthread_mutex_init(&shared_state_lock_, NULL);
   pthread_cond_init(&available_data_cond_, NULL);
 
   // Dummy Map the second buffer as first buffer is used for read ahead by
@@ -34,7 +32,7 @@ VolumeReaderJavaScriptStream::VolumeReaderJavaScriptStream(
 }
 
 VolumeReaderJavaScriptStream::~VolumeReaderJavaScriptStream() {
-  pthread_mutex_destroy(&available_data_lock_);
+  pthread_mutex_destroy(&shared_state_lock_);
   pthread_cond_destroy(&available_data_cond_);
 
   // Unmap last mapped buffer. This is the other buffer to
@@ -61,75 +59,67 @@ void VolumeReaderJavaScriptStream::SetBufferAndSignal(
   // not valid anymore, but in case they are equal and available_data_ is set to
   // true then the second read ahead data is the same as the first read ahead
   // data so we can just ignore it.
-  // This is safe to be done outside of the guarding zone only as long as
-  // SetBufferAndSignal will be called from the same thread. For now
-  // SetBufferAndSignal is called only from the main thread so no need to lock.
-  if (read_offset != offset_ || available_data_ || read_error_)
-    return;
 
-  // Signal VolumeReaderJavaScriptStream::Read to continue execution. Copies
-  // buffer locally so libarchive has the buffer in memory when working with it.
-  // Though we acquire a lock here this call is blocking only for a few
-  // moments as VolumeReaderJavaScriptStream::Read will release the lock with
-  // pthread_cond_wait. So we cannot arrive at a deadlock that will block the
-  // main thread.
-  pthread_mutex_lock(&available_data_lock_);
+  // TODO(mtomasz): We don't need to discard everything. Sometimes part of the
+  // buffer can still be used. In such case we should use it. That can greatly
+  // improve traversing headers for archives with small files!
 
-  *read_ahead_array_buffer_ptr_ = array_buffer;  // Copy operation.
-  available_data_ = true;
+  pthread_mutex_lock(&shared_state_lock_);
+  if (read_offset == offset_ && !available_data_ && !read_error_) {
+    // Signal VolumeReaderJavaScriptStream::Read to continue execution. Copies
+    // buffer locally so libarchive has the buffer in memory when working with
+    // it. Though we acquire a lock here this call is blocking only for a few
+    // moments as VolumeReaderJavaScriptStream::Read will release the lock with
+    // pthread_cond_wait. So we cannot arrive at a deadlock that will block the
+    // main thread.
 
-  pthread_cond_signal(&available_data_cond_);
-  pthread_mutex_unlock(&available_data_lock_);
+    *read_ahead_array_buffer_ptr_ = array_buffer;  // Copy operation.
+    available_data_ = true;
+
+    pthread_cond_signal(&available_data_cond_);
+  }
+  pthread_mutex_unlock(&shared_state_lock_);
 }
 
 void VolumeReaderJavaScriptStream::ReadErrorSignal() {
-  // Signal VolumeReaderJavaScriptStream::Read to continue execution. Not
-  // blocking for the same reasons as
-  // VolumeReaderJavaScriptStream::SetBufferAndSignal.
-  pthread_mutex_lock(&available_data_lock_);
+  pthread_mutex_lock(&shared_state_lock_);
   read_error_ = true;  // Read error from JavaScript.
   pthread_cond_signal(&available_data_cond_);
-  pthread_mutex_unlock(&available_data_lock_);
-}
-
-// Nothing to do here as file is handled on JavaScript side.
-int VolumeReaderJavaScriptStream::Open() {
-  return ARCHIVE_OK;
+  pthread_mutex_unlock(&shared_state_lock_);
 }
 
 int64_t VolumeReaderJavaScriptStream::Read(int64_t bytes_to_read,
                                            const void** destination_buffer) {
   PP_DCHECK(bytes_to_read > 0);
 
+  pthread_mutex_lock(&shared_state_lock_);
+
   // No more data, so signal end of reading.
-  if (offset_ >= archive_size_)
+  if (offset_ >= archive_size_) {
+    pthread_mutex_unlock(&shared_state_lock_);
     return 0;
+  }
 
   // Call in case of first read or read after Seek and Skip.
   if (last_read_chunk_offset_ != offset_)
     RequestChunk(bytes_to_read);
 
-  // Lock only if no available data. Though available data can be set from true
-  // to false when calling RequestChunk, this is safe because RequestChunk is
-  // always called from the same thread as Read, Seek and Skip are called only
-  // by libarchive that works in its own worker_. If libarchive would be handled
-  // in multiple threads than this is not safe anymore and must be updated.
   if (!available_data_) {
     // Wait for data from JavaScript.
-    pthread_mutex_lock(&available_data_lock_);
     while (!available_data_) {  // Check again available data as first call
                                 // was done outside guarded zone.
       if (read_error_) {
-        pthread_mutex_unlock(&available_data_lock_);
+        pthread_mutex_unlock(&shared_state_lock_);
         return ARCHIVE_FATAL;
       }
-      pthread_cond_wait(&available_data_cond_, &available_data_lock_);
+      pthread_cond_wait(&available_data_cond_, &shared_state_lock_);
     }
-    pthread_mutex_unlock(&available_data_lock_);
   }
 
-  if (read_error_)  // Read ahead failed.
+  if (read_error_) {  // Read ahead failed.
+    pthread_mutex_unlock(&shared_state_lock_);
     return ARCHIVE_FATAL;
+  }
 
   // Make data available for libarchive custom read. No need to lock this part.
   // The reason is that VolumeReaderJavaScriptStream::RequestChunk is the only
@@ -168,11 +158,14 @@ int64_t VolumeReaderJavaScriptStream::Read(int64_t bytes_to_read,
 
   // Read ahead next chunk with a length similar to current read.
   RequestChunk(bytes_to_read);
+  pthread_mutex_unlock(&shared_state_lock_);
 
   return bytes_read;
 }
 
 int64_t VolumeReaderJavaScriptStream::Seek(int64_t offset, int whence) {
+  pthread_mutex_lock(&shared_state_lock_);
+
   int64_t new_offset = offset_;
   switch (whence) {
     case SEEK_SET:
@@ -186,31 +179,42 @@ int64_t VolumeReaderJavaScriptStream::Seek(int64_t offset, int whence) {
       break;
     default:
       PP_NOTREACHED();
+      pthread_mutex_unlock(&shared_state_lock_);
       return ARCHIVE_FATAL;
   }
-  if (new_offset < 0 || new_offset > archive_size_)
+
+  if (new_offset < 0 || new_offset > archive_size_) {
+    pthread_mutex_unlock(&shared_state_lock_);
     return ARCHIVE_FATAL;
+  }
 
   offset_ = new_offset;
-  return offset_;
+  pthread_mutex_unlock(&shared_state_lock_);
+
+  return new_offset;
 }
 
 int64_t VolumeReaderJavaScriptStream::Skip(int64_t bytes_to_skip) {
+  pthread_mutex_lock(&shared_state_lock_);
   // Invalid bytes_to_skip. This "if" can be triggered for corrupted archives.
   // We return 0 instead of ARCHIVE_FATAL in order for libarchive to use normal
   // Read and return the correct error. In case we return ARCHIVE_FATAL here
   // then libarchive just stops without telling us why it wasn't able to
   // process the archive.
-  if (archive_size_ - offset_ < bytes_to_skip || bytes_to_skip < 0)
+  if (archive_size_ - offset_ < bytes_to_skip || bytes_to_skip < 0) {
+    pthread_mutex_unlock(&shared_state_lock_);
     return 0;
+  }
 
   offset_ += bytes_to_skip;
+  pthread_mutex_unlock(&shared_state_lock_);
+
   return bytes_to_skip;
 }
 
-// Nothing to do here as file is handled on JavaScript side.
-int VolumeReaderJavaScriptStream::Close() {
-  return ARCHIVE_OK;
+void VolumeReaderJavaScriptStream::SetRequestId(const std::string& request_id) {
+  // No lock necessary, as request_id is used by one thread only.
+  request_id_ = request_id;
 }
 
 void VolumeReaderJavaScriptStream::RequestChunk(int64_t length) {
@@ -220,7 +224,7 @@ void VolumeReaderJavaScriptStream::RequestChunk(int64_t length) {
 
   int64_t bytes_to_read =
       std::min(length, archive_size_ - offset_ /* Positive check above. */);
-
   available_data_ = false;
+
   requestor_->RequestFileChunk(request_id_, offset_, bytes_to_read);
 }

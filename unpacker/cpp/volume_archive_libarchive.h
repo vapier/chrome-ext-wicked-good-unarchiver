@@ -38,7 +38,7 @@ const int64_t kMaximumDataChunkSize = 512 * 1024;  // 512 KB.
 
 // The minimum data chunk size for VolumeReader::Read requests.
 // Should be positive.
-const int64_t kMinimumDataChunkSize = 16 * 1024;  // 16 KB.
+const int64_t kMinimumDataChunkSize = 32 * 1024;  // 16 KB.
 
 }  // namespace volume_archive_constants
 
@@ -46,9 +46,7 @@ const int64_t kMinimumDataChunkSize = 16 * 1024;  // 16 KB.
 // operations.
 class VolumeArchiveLibarchive : public VolumeArchive {
  public:
-  // VolumeReader should be allocated with new and the memory handling should be
-  // done by VolumeArchiveLibarchive.
-  VolumeArchiveLibarchive(const std::string& request_id, VolumeReader* reader);
+  explicit VolumeArchiveLibarchive(VolumeReader* reader);
 
   virtual ~VolumeArchiveLibarchive();
 
@@ -62,7 +60,12 @@ class VolumeArchiveLibarchive : public VolumeArchive {
                              time_t* modification_time);
 
   // See volume_archive_interface.h.
-  virtual int64_t ReadData(int64_t offset, int64_t length, const char** buffer);
+  virtual bool SeekHeader(int64_t index);
+
+  // See volume_archive_interface.h.
+  virtual int64_t ReadData(int64_t offset,
+                           int64_t length,
+                           const char** buffer);
 
   // See volume_archive_interface.h.
   virtual void MaybeDecompressAhead();

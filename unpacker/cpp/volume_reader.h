@@ -15,10 +15,6 @@ class VolumeReader {
  public:
   virtual ~VolumeReader() {}
 
-  // Opens the reader. Use return values like ARCHIVE_OK or ARCHIVE_FATAL
-  // specific to libarchive.
-  virtual int Open() = 0;
-
   // Tries to read bytes_to_read from the archive. The result will be stored at
   // *destination_buffer, which is the address of a buffer handled by
   // VolumeReaderJavaScriptStream. *destination_buffer must be available until
@@ -32,7 +28,7 @@ class VolumeReader {
   virtual int64_t Read(int64_t bytes_to_read,
                        const void** destination_buffer) = 0;
 
-  // Tries to skyp bytes_to_skip number of bytes. Returns the actual number of
+  // Tries to skip bytes_to_skip number of bytes. Returns the actual number of
   // skipped bytes or 0 if none were skipped. In case of failure
   // VolumeReader::Skip returns 0 bytes and VolumeReader::Read can be used
   // to skip those bytes by discarding them.
@@ -42,10 +38,6 @@ class VolumeReader {
   // or ARCHIVE_FATAL in case of errors. Similar to
   // http://www.cplusplus.com/reference/cstdio/fseek/
   virtual int64_t Seek(int64_t offset, int whence) = 0;
-
-  // Closes the reader. Use return values like ARCHIVE_OK or ARCHIVE_FATAL
-  // specific to libarchive.
-  virtual int Close() = 0;
 };
 
 #endif  // VOLUME_READER_H_

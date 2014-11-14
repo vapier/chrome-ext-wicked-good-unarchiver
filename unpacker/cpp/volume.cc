@@ -20,11 +20,16 @@ const char kPathDelimiter[] = "/";
 
 // size is int64_t and modification_time is time_t because this is how
 // libarchive is going to pass them to us.
-pp::VarDictionary CreateEntry(const std::string& name,
+pp::VarDictionary CreateEntry(int64_t index,
+                              const std::string& name,
                               bool is_directory,
                               int64_t size,
                               time_t modification_time) {
   pp::VarDictionary entry_metadata;
+  // index is int64_t, unsupported by pp::Var
+  std::stringstream ss_index;
+  ss_index << index;
+  entry_metadata.Set("index", ss_index.str());
   entry_metadata.Set("isDirectory", is_directory);
   entry_metadata.Set("name", name);
   // size is int64_t, unsupported by pp::Var
@@ -42,7 +47,8 @@ pp::VarDictionary CreateEntry(const std::string& name,
   return entry_metadata;
 }
 
-void ConstructMetadata(const std::string& entry_path,
+void ConstructMetadata(int64_t index,
+                       const std::string& entry_path,
                        int64_t size,
                        bool is_directory,
                        time_t modification_time,
@@ -60,7 +66,7 @@ void ConstructMetadata(const std::string& entry_path,
   if (position == std::string::npos) {  // The entry itself.
     entry_name = entry_path;
     entry_metadata =
-        CreateEntry(entry_name, is_directory, size, modification_time);
+        CreateEntry(index, entry_name, is_directory, size, modification_time);
 
     // Update directory information. Required as sometimes the directory itself
     // is returned after the files inside it.
@@ -79,7 +85,7 @@ void ConstructMetadata(const std::string& entry_path,
     // information is returned later than the files inside it.
     pp::Var entry_metadata_var = parent_entries.Get(entry_name);
     if (entry_metadata_var.is_undefined())
-      entry_metadata = CreateEntry(entry_name, true, 0, modification_time);
+      entry_metadata = CreateEntry(-1, entry_name, true, 0, modification_time);
     else
       entry_metadata = pp::VarDictionary(parent_entries.Get(entry_name));
 
@@ -88,7 +94,8 @@ void ConstructMetadata(const std::string& entry_path,
     std::string entry_path_without_next_parent = entry_path.substr(
         position + sizeof(kPathDelimiter) - 1 /* Last char is '\0'. */);
 
-    ConstructMetadata(entry_path_without_next_parent,
+    ConstructMetadata(index,
+                      entry_path_without_next_parent,
                       size,
                       is_directory,
                       modification_time,
@@ -105,28 +112,29 @@ void ConstructMetadata(const std::string& entry_path,
 class JavaScriptRequestor : public JavaScriptRequestorInterface {
  public:
   // JavaScriptRequestor does not own the volume pointer.
-  explicit JavaScriptRequestor(Volume* volume) : volume_(volume) {}
+  explicit JavaScriptRequestor(Volume* volume) : volume_(volume), total_read_(0) {}
 
   virtual void RequestFileChunk(const std::string& request_id,
                                 int64_t offset,
                                 int64_t bytes_to_read) {
     PP_DCHECK(offset >= 0);
     PP_DCHECK(bytes_to_read > 0);
+    total_read_ += bytes_to_read;
     volume_->message_sender()->SendFileChunkRequest(
         volume_->file_system_id(), request_id, offset, bytes_to_read);
   }
 
  private:
   Volume* volume_;
+  int64_t total_read_;
 };
 
 // An internal implementation of VolumeArchiveFactoryInterface for default
 // Volume constructor.
 class VolumeArchiveFactory : public VolumeArchiveFactoryInterface {
  public:
-  virtual VolumeArchive* Create(const std::string& request_id,
-                                VolumeReader* reader) {
-    return new VolumeArchiveLibarchive(request_id, reader);
+  virtual VolumeArchive* Create(VolumeReader* reader) {
+    return new VolumeArchiveLibarchive(reader);
   }
 };
 
@@ -137,22 +145,8 @@ class VolumeReaderFactory : public VolumeReaderFactoryInterface {
   // VolumeReaderFactory does not own the volume pointer.
   explicit VolumeReaderFactory(Volume* volume) : volume_(volume) {}
 
-  virtual VolumeReader* Create(const std::string& request_id,
-                               int64_t archive_size) {
-    VolumeReader* reader = new VolumeReaderJavaScriptStream(
-        request_id, archive_size, volume_->requestor());
-    if (reader->Open() != ARCHIVE_OK) {
-      // TODO(cmihail): In case we have another VolumeReader implementation we
-      // could use that as a backup. e.g.: If we have both FileIO and
-      // VolumeReaderJavaScriptStream, one of them can be the backup used here.
-      volume_->message_sender()->SendFileSystemError(
-          volume_->file_system_id(),
-          request_id,
-          "Couldn't open volume reader.");
-      delete reader;
-      return NULL;
-    }
-    return reader;
+  virtual VolumeReader* Create(int64_t archive_size) {
+    return new VolumeReaderJavaScriptStream(archive_size, volume_->requestor());
   }
 
  private:
@@ -163,22 +157,23 @@ class VolumeReaderFactory : public VolumeReaderFactoryInterface {
 
 struct Volume::OpenFileArgs {
   OpenFileArgs(const std::string& request_id,
-               const std::string& file_path,
+               int64_t index,
                const std::string& encoding,
                int64_t archive_size) : request_id(request_id),
-                                       file_path(file_path),
+                                       index(index),
                                        encoding(encoding),
                                        archive_size(archive_size) {}
   const std::string request_id;
-  const std::string file_path;
+  const int64_t index;
   const std::string encoding;
-  int64_t archive_size;
+  const int64_t archive_size;
 };
 
 Volume::Volume(const pp::InstanceHandle& instance_handle,
                const std::string& file_system_id,
                JavaScriptMessageSenderInterface* message_sender)
-    : file_system_id_(file_system_id),
+    : volume_archive_(NULL),
+      file_system_id_(file_system_id),
       message_sender_(message_sender),
       worker_(instance_handle),
       callback_factory_(this) {
@@ -193,7 +188,8 @@ Volume::Volume(const pp::InstanceHandle& instance_handle,
                JavaScriptMessageSenderInterface* message_sender,
                VolumeArchiveFactoryInterface* volume_archive_factory,
                VolumeReaderFactoryInterface* volume_reader_factory)
-    : file_system_id_(file_system_id),
+    : volume_archive_(NULL),
+      file_system_id_(file_system_id),
       message_sender_(message_sender),
       worker_(instance_handle),
       callback_factory_(this),
@@ -205,13 +201,9 @@ Volume::Volume(const pp::InstanceHandle& instance_handle,
 Volume::~Volume() {
   worker_.Join();
 
-  for (volume_archive_iterator iterator = worker_reads_in_progress_.begin();
-       iterator != worker_reads_in_progress_.end();
-       ++iterator) {
-    // No need to call CleanupVolumeArchive as it will erase elements from map.
-    // The map will be freed anyway because Volume is deconstructed.
-    iterator->second->Cleanup();
-    delete iterator->second;
+  if (volume_archive_) {
+    volume_archive_->Cleanup();
+    delete volume_archive_;
   }
 
   delete requestor_;
@@ -231,11 +223,11 @@ void Volume::ReadMetadata(const std::string& request_id,
 }
 
 void Volume::OpenFile(const std::string& request_id,
-                      const std::string& file_path,
+                      int64_t index,
                       const std::string& encoding,
                       int64_t archive_size) {
   worker_.message_loop().PostWork(callback_factory_.NewCallback(
-      &Volume::OpenFileCallback, OpenFileArgs(request_id, file_path, encoding,
+      &Volume::OpenFileCallback, OpenFileArgs(request_id, index, encoding,
       archive_size)));
 }
 
@@ -261,78 +253,82 @@ void Volume::ReadChunkDone(const std::string& request_id,
   // received after a CloseFile event. This is a common scenario for archives
   // in archives where VolumeReaderJavaScriptStream makes ReadAhead calls that
   // might not be used.
-  worker_reads_in_progress_lock_.Acquire();
-  VolumeArchive* volume_archive = GetVolumeArchive(request_id);
-  if (!volume_archive) {
-    worker_reads_in_progress_lock_.Release();
-    return;
+  PP_DCHECK(volume_archive_);
+
+  job_lock_.Acquire();
+  if (request_id == reader_request_id_) {
+    static_cast<VolumeReaderJavaScriptStream*>(volume_archive_->reader())->
+        SetBufferAndSignal(array_buffer, read_offset);
   }
-
-  // ReadChunkDone should be called only for VolumeReaderJavaScriptStream.
-  VolumeReaderJavaScriptStream* volume_reader =
-      static_cast<VolumeReaderJavaScriptStream*>(volume_archive->reader());
-
-  volume_reader->SetBufferAndSignal(array_buffer, read_offset);
-  worker_reads_in_progress_lock_.Release();
+  job_lock_.Release();
 }
 
 void Volume::ReadChunkError(const std::string& request_id) {
-  worker_reads_in_progress_lock_.Acquire();
-  VolumeArchive* volume_archive = GetVolumeArchive(request_id);
-  if (!volume_archive) {
-    worker_reads_in_progress_lock_.Release();
-    return;
+  PP_DCHECK(volume_archive_);
+  job_lock_.Acquire();
+  if (request_id == reader_request_id_) {
+    static_cast<VolumeReaderJavaScriptStream*>(volume_archive_->reader())->
+        ReadErrorSignal();
   }
-
-  // ReadChunkError should be called only for VolumeReaderJavaScriptStream.
-  VolumeReaderJavaScriptStream* volume_reader =
-      static_cast<VolumeReaderJavaScriptStream*>(volume_archive->reader());
-
-  volume_reader->ReadErrorSignal();
-  // Resource cleanup will be done by the blocked thread as the error will
-  // be forward to libarchive once that thread unblocks. Due to how libarchive
-  // works, both the JavaScript read error and libarchive errors will be
-  // processed similarly, so it's better to leave the error handle to the
-  // other thread.
-  worker_reads_in_progress_lock_.Release();
+  job_lock_.Release();
 }
 
 void Volume::ReadMetadataCallback(int32_t /*result*/,
                                   const std::string& request_id,
                                   const std::string& encoding,
                                   int64_t archive_size) {
-  VolumeArchive* volume_archive = CreateVolumeArchive(
-      request_id, encoding, archive_size);
-  if (!volume_archive)
+  if (volume_archive_) {
+     message_sender_->SendFileSystemError(
+         file_system_id_, request_id, "ALREADY_OPENED");
+  }
+
+  job_lock_.Acquire();
+  volume_archive_ = volume_archive_factory_->Create(
+      volume_reader_factory_->Create(archive_size));
+  static_cast<VolumeReaderJavaScriptStream*>(volume_archive_->reader())->
+      SetRequestId(request_id);
+  reader_request_id_ = request_id;
+  job_lock_.Release();
+
+  if (!volume_archive_->Init(encoding)) {
+    message_sender_->SendFileSystemError(
+        file_system_id_, request_id, volume_archive_->error_message());
+    ClearJob();
+    delete volume_archive_;
+    volume_archive_ = NULL;
     return;
+  }
 
   // Read and construct metadata.
-  pp::VarDictionary root_metadata = CreateEntry(kPathDelimiter, true, 0, 0);
+  pp::VarDictionary root_metadata = CreateEntry(-1, kPathDelimiter, true, 0, 0);
 
   const char* path_name = NULL;
   int64_t size = 0;
   bool is_directory = false;
   time_t modification_time = 0;
+  int64_t index = 0;
+
   for (;;) {
-    if (!volume_archive->GetNextHeader(
+    if (!volume_archive_->GetNextHeader(
             &path_name, &size, &is_directory, &modification_time)) {
       message_sender_->SendFileSystemError(
-          file_system_id_, request_id, volume_archive->error_message());
-      CleanupVolumeArchive(volume_archive, false);
+          file_system_id_, request_id, volume_archive_->error_message());
+      ClearJob();
+      delete volume_archive_;
+      volume_archive_ = NULL;
       return;
     }
 
     if (!path_name)  // End of archive.
       break;
 
-    ConstructMetadata(
-        path_name, size, is_directory, modification_time, &root_metadata);
+    ConstructMetadata(index, path_name, size, is_directory, modification_time,
+        &root_metadata);
+
+    ++index;
   }
 
-  // Free resources. In case of an error post a message, as this would be the
-  // first error message to post.
-  if (!CleanupVolumeArchive(volume_archive, true))
-    return;
+  ClearJob();
 
   // Send metadata back to JavaScript.
   message_sender_->SendReadMetadataDone(
@@ -341,35 +337,44 @@ void Volume::ReadMetadataCallback(int32_t /*result*/,
 
 void Volume::OpenFileCallback(int32_t /*result*/,
                               const OpenFileArgs& args) {
-  VolumeArchive* volume_archive = CreateVolumeArchive(
-      args.request_id, args.encoding, args.archive_size);
-  if (!volume_archive)
+  if (!volume_archive_) {
+     message_sender_->SendFileSystemError(
+         file_system_id_, args.request_id, "NOT_OPENED");
+     return;
+  }
+
+  job_lock_.Acquire();
+  if (!reader_request_id_.empty()) {
+    // It is illegal to open a file while another operation is in progress or
+    // another file is opened.
+    message_sender_->SendFileSystemError(
+        file_system_id_, args.request_id, "ILLEGAL");
+    job_lock_.Release();
     return;
+  }
+  static_cast<VolumeReaderJavaScriptStream*>(volume_archive_->reader())->
+      SetRequestId(args.request_id);
+  reader_request_id_ = args.request_id;
+  job_lock_.Release();
 
   const char* path_name = NULL;
   int64_t size = 0;
   bool is_directory = false;
   time_t modification_time = 0;
-  for (;;) {
-    if (!volume_archive->GetNextHeader(
-            &path_name, &size, &is_directory, &modification_time)) {
-      message_sender_->SendFileSystemError(
-          file_system_id_, args.request_id, volume_archive->error_message());
-      CleanupVolumeArchive(volume_archive, false);
-      return;
-    }
 
-    if (!path_name) {
-      message_sender_->SendFileSystemError(
-          file_system_id_,
-          args.request_id,
-          "File not found in archive: " + args.file_path + ".");
-      return;
-    }
+  if (!volume_archive_->SeekHeader(args.index)) {
+    message_sender_->SendFileSystemError(
+        file_system_id_, args.request_id, volume_archive_->error_message());
+    ClearJob();
+    return;
+  }
 
-    if (args.file_path.compare(std::string(kPathDelimiter) + path_name) == 0)
-      break;  // File reached. Data should be obtained by calling
-              // VolumeArchive::ReadData.
+  if (!volume_archive_->GetNextHeader(
+          &path_name, &size, &is_directory, &modification_time)) {
+    message_sender_->SendFileSystemError(
+        file_system_id_, args.request_id, volume_archive_->error_message());
+    ClearJob();
+    return;
   }
 
   // Send successful opened file response to NaCl.
@@ -379,21 +384,9 @@ void Volume::OpenFileCallback(int32_t /*result*/,
 void Volume::CloseFileCallback(int32_t /*result*/,
                                const std::string& request_id,
                                const std::string& open_request_id) {
-  // Obtain the VolumeArchive for the opened file using open_request_id.
-  // The volume should have been created using Volume::OpenFile.
-  // No need for guarding the call as this is done on the same thread as the one
-  // allowed to call CleanupVolumeArchive.
-  VolumeArchive* volume_archive = GetVolumeArchive(open_request_id);
-  PP_DCHECK(volume_archive);  // Close file should be called only for
-                              // opened files that have a corresponding
-                              // VolumeArchive.
-
-  if (!CleanupVolumeArchive(volume_archive, false)) {
-    // Error send using request_id, not open_request_id.
-    message_sender_->SendFileSystemError(
-        file_system_id_, request_id, volume_archive->error_message());
-    return;
-  }
+  job_lock_.Acquire();
+  reader_request_id_ = "";
+  job_lock_.Release();
 
   message_sender_->SendCloseFileDone(
       file_system_id_, request_id, open_request_id);
@@ -402,6 +395,12 @@ void Volume::CloseFileCallback(int32_t /*result*/,
 void Volume::ReadFileCallback(int32_t /*result*/,
                               const std::string& request_id,
                               const pp::VarDictionary& dictionary) {
+  if (!volume_archive_) {
+     message_sender_->SendFileSystemError(
+         file_system_id_, request_id, "NOT_OPENED");
+     return;
+  }
+
   std::string open_request_id(
       dictionary.Get(request::key::kOpenRequestId).AsString());
   int64_t offset =
@@ -410,30 +409,30 @@ void Volume::ReadFileCallback(int32_t /*result*/,
       request::GetInt64FromString(dictionary, request::key::kLength);
   PP_DCHECK(length > 0);  // JavaScript must not make requests with length <= 0.
 
-  // Get the correspondent VolumeArchive to the opened file. Any errors
-  // should be send to JavaScript using request_id, NOT open_request_id.
-  // No need for guarding the call as this is done on the same thread as the one
-  // allowed to call CleanupVolumeArchive.
-  VolumeArchive* volume_archive =
-      GetVolumeArchive(open_request_id /* The opened file request id. */);
-  PP_DCHECK(volume_archive);  // Read file should be called only for
-                              // opened files that have a corresponding
-                              // VolumeArchive.
+  job_lock_.Acquire();
+  if (open_request_id != reader_request_id_) {
+    // The file is not opened.
+    message_sender_->SendFileSystemError(
+        file_system_id_, request_id, "FILE_NOT_OPENED");
+    job_lock_.Release();
+    return;
+  }
+  job_lock_.Release();
 
   // Decompress data and send it to JavaScript. Sending data is done in chunks
   // depending on how many bytes VolumeArchive::ReadData returns.
   int64_t left_length = length;
   while (left_length > 0) {
     const char* destination_buffer = NULL;
-    int64_t read_bytes =
-        volume_archive->ReadData(offset, left_length, &destination_buffer);
+    int64_t read_bytes = volume_archive_->ReadData(
+        offset, left_length, &destination_buffer);
 
     if (read_bytes < 0) {
       // Error messages should be sent to the read request (request_id), not
       // open request (open_request_id), as the last one has finished and this
       // is a read file.
       message_sender_->SendFileSystemError(
-          file_system_id_, request_id, volume_archive->error_message());
+          file_system_id_, request_id, volume_archive_->error_message());
 
       // Should not cleanup VolumeArchive as Volume::CloseFile will be called in
       // case of failure.
@@ -457,82 +456,13 @@ void Volume::ReadFileCallback(int32_t /*result*/,
 
     left_length -= read_bytes;
     offset += read_bytes;
-
-    volume_archive->MaybeDecompressAhead();
   }
+  volume_archive_->MaybeDecompressAhead();
 }
 
-VolumeArchive* Volume::CreateVolumeArchive(const std::string& request_id,
-                                           const std::string& encoding,
-                                           int64_t archive_size) {
-  VolumeReader* reader =
-      volume_reader_factory_->Create(request_id, archive_size);
-  if (!reader)
-    return NULL;
 
-  // Pass VolumeReader ownership to VolumeArchive.
-  VolumeArchive* volume_archive =
-      volume_archive_factory_->Create(request_id, reader);
-  if (!volume_archive)
-    return NULL;
-
-  worker_reads_in_progress_lock_.Acquire();
-
-  // Requests ids should be unique per every request. In case there is a
-  // read in progress with the same request id as the parameter we received at
-  // creating the VolumeArchive then JavaScript has sent an invalid request.
-  PP_DCHECK(worker_reads_in_progress_.find(request_id) ==
-            worker_reads_in_progress_.end());
-
-  // VolumeArchive::Init will call READ_CHUNK for getting archive headers,
-  // which means that worker_reads_in_progress_ should have the VolumeArchive
-  // entry inside before calling VolumeArchive::Init.
-  worker_reads_in_progress_.insert(
-      std::pair<std::string, VolumeArchive*>(request_id, volume_archive));
-
-  worker_reads_in_progress_lock_.Release();
-
-  if (!volume_archive->Init(encoding)) {
-    message_sender_->SendFileSystemError(
-        file_system_id_, request_id, volume_archive->error_message());
-    CleanupVolumeArchive(volume_archive, false);
-    return NULL;
-  }
-  return volume_archive;
-}
-
-bool Volume::CleanupVolumeArchive(VolumeArchive* volume_archive,
-                                  bool post_cleanup_error) {
-  bool returnValue = true;
-
-  worker_reads_in_progress_lock_.Acquire();
-  // Erase sould be called only for a VolumeArchive that has a corresponding
-  // valid request id.
-  PP_DCHECK(worker_reads_in_progress_.find(volume_archive->request_id()) !=
-            worker_reads_in_progress_.end());
-  worker_reads_in_progress_.erase(volume_archive->request_id());
-  worker_reads_in_progress_lock_.Release();
-
-  if (!volume_archive->Cleanup() && post_cleanup_error) {
-    message_sender_->SendFileSystemError(file_system_id_,
-                                         volume_archive->request_id(),
-                                         volume_archive->error_message());
-    returnValue = false;
-  }
-
-  delete volume_archive;
-
-  return returnValue;
-}
-
-// If not executing in worker_ thread, before calling GetVolumeArchive, acquire
-// worker_reads_in_progress_lock_. Release the lock only after finishing using
-// VolumeArchive and any of its members as CleanupVolumeArchive can delete it
-// in the worker_ in parallel and lead to bugs.
-VolumeArchive* Volume::GetVolumeArchive(const std::string& request_id) {
-  volume_archive_iterator iterator = worker_reads_in_progress_.find(request_id);
-
-  if (iterator == worker_reads_in_progress_.end())
-    return NULL;
-  return iterator->second;
+void Volume::ClearJob() {
+  job_lock_.Acquire();
+  reader_request_id_ = "";
+  job_lock_.Release();
 }

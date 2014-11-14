@@ -4,25 +4,44 @@
 
 'use strict';
 
+// Force to show stack trace for assertions.
+chai.config.includeStack = true;
+
 describe('Volume', function() {
   /**
    * Fake metadata used to test volume's methods.
    * @type {Object.<string, Object>}
    */
   var METADATA = {
+    index: -1,
     name: '/',
     size: 0,
     isDirectory: true,
     modificationTime: 3000 /* In seconds. */,
     entries: {
-      'file': {name: 'file1', size: 50, isDirectory: false,
-               modificationTime: 20000 /* In seconds. */},
-      'dir': {name: 'dir', size: 0, isDirectory: true,
-              modificationTime: 12000 /* In seconds. */,
-              entries: {
-                'insideFile': {name: 'insideFile', size: 45, isDirectory: false,
-                               modificationTime: 200 /* In seconds. */}
-              }}
+      'file': {
+        index: 0,
+        name: 'file1',
+        size: 50,
+        isDirectory: false,
+        modificationTime: 20000 /* In seconds. */
+      },
+      'dir': {
+        index: -1,
+        name: 'dir',
+        size: 0,
+        isDirectory: true,
+        modificationTime: 12000 /* In seconds. */,
+        entries: {
+          'insideFile': {
+             index: 1,
+             name: 'insideFile',
+             size: 45,
+             isDirectory: false,
+             modificationTime: 200 /* In seconds. */
+          }
+        }
+      }
     }
   };
 
@@ -61,7 +80,13 @@ describe('Volume', function() {
    * @type {string}
    * @const
    */
-  var ENCODING = 'CP1250';
+  var ENCODING = 'CP932';
+
+  /**
+   * @type {number}
+   * @const
+   */
+  var INDEX = 0;
 
   var volume;
   var decompressor;
@@ -385,7 +410,7 @@ describe('Volume', function() {
             filePath: '/file'
           };
           decompressor.openFile.withArgs(
-              options.requestId, options.filePath).callsArg(3);
+              options.requestId, INDEX, ENCODING).callsArg(3);
 
           expect(volume.openedFiles[options.requestId]).to.be.undefined;
           volume.onOpenFileRequested(options, onSuccessSpy, onErrorSpy);

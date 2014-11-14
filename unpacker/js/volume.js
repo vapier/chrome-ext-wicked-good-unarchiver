@@ -19,6 +19,7 @@ function DateFromTimeT(timestamp) {
  * @param {Object} entryMetadata The metadata to correct.
  */
 function correctMetadata(entryMetadata) {
+  entryMetadata.index = parseInt(entryMetadata.index);
   entryMetadata.size = parseInt(entryMetadata.size);
   entryMetadata.modificationTime =
       DateFromTimeT(entryMetadata.modificationTime);
@@ -38,10 +39,8 @@ function correctMetadata(entryMetadata) {
  * @param {Decompressor} decompressor The decompressor used to obtain data from
  *     archives.
  * @param {Entry} entry The entry corresponding to the volume's archive.
- * @param {Object.<number, string>=} opt_openedFiles Previously opened files
- *     before suspend or restart.
  */
-function Volume(decompressor, entry, opt_openedFiles) {
+function Volume(decompressor, entry) {
   /**
    * Used for restoring the opened file entry after resuming the event page.
    * @type {Entry}
@@ -67,13 +66,27 @@ function Volume(decompressor, entry, opt_openedFiles) {
    * openFileRequested event and the value is the open file options.
    * @type {Object.<number, fileSystemProvider.OpenFileRequestedOptions>}
    */
-  this.openedFiles = opt_openedFiles ? opt_openedFiles : {};
+  this.openedFiles = {};
 
   /**
    * Default encoding set for this archive. If empty, then not known.
    * @type {string}
    */
   this.encoding = Volume.ENCODING_TABLE[chrome.i18n.getUILanguage()] || '';
+
+  /**
+   * Queue of pending open file requests, as only one at the same time is
+   * allowed.
+   * @type {Array.<Object>}
+   */
+  this.pendingOpenFileRequests = [];
+
+  /**
+   * The default read metadata request id. -1 is ok as the request ids used by
+   * flleSystemProvider are greater than 0.
+   * @type {number}
+   */
+  this.DEFAULT_READ_METADATA_REQUEST_ID = -1;
 }
 
 /**
@@ -215,6 +228,28 @@ Volume.prototype.onReadDirectoryRequested = function(options, onSuccess,
   onSuccess(entries, false /* Last call. */);
 };
 
+Volume.prototype.runNextPendingOpenFileRequest_ = function() {
+  console.assert(Object.keys(this.openedFiles) == 0);
+  if (!this.pendingOpenFileRequests.length)
+    return;
+
+  var pendingRequest = this.pendingOpenFileRequests.shift();
+  this.openedFiles[pendingRequest.options.requestId] = pendingRequest.options;
+
+  this.decompressor.openFile(
+      pendingRequest.options.requestId,
+      pendingRequest.index,
+      this.encoding,
+      function() {
+        pendingRequest.onSuccess();
+      },
+      function(error) {
+        delete this.openedFiles[pendingRequest.options.requestId];
+        pendingRequest.onError('FAILED');
+        this.runNextPendingOpenFileRequest_();
+      }.bind(this));
+};
+
 /**
  * Opens a file for read or write.
  * @param {fileSystemProvider.OpenFileRequestedOptions} options Options for
@@ -229,16 +264,33 @@ Volume.prototype.onOpenFileRequested = function(options, onSuccess, onError) {
     return;
   }
 
-  if (!this.getEntryMetadata_(options.filePath)) {
+  var metadata = this.getEntryMetadata_(options.filePath);
+  if (!metadata) {
     onError('NOT_FOUND');
     return;
   }
 
-  this.decompressor.openFile(options.requestId, options.filePath,
-      this.encoding, function() {
-        this.openedFiles[options.requestId] = options;
+  // Already some opened files. Enqueue.
+  if (Object.keys(this.openedFiles).length) {
+    this.pendingOpenFileRequests.push({
+        options: options,
+        index: metadata.index,
+        onSuccess: onSuccess,
+        onError: onError
+    });
+    return;
+  }
+
+  this.openedFiles[options.requestId] = options;
+
+  this.decompressor.openFile(
+      options.requestId, metadata.index, this.encoding, function() {
         onSuccess();
-      }.bind(this), onError);
+      }.bind(this), function(error) {
+        delete this.openedFiles[options.requestId];
+        onError('FAILED');
+        this.runNextPendingOpenFileRequest_();
+      }.bind(this));
 };
 
 /**
@@ -260,6 +312,7 @@ Volume.prototype.onCloseFileRequested = function(options, onSuccess, onError) {
   this.decompressor.closeFile(options.requestId, openRequestId, function() {
     delete this.openedFiles[openRequestId];
     onSuccess();
+    this.runNextPendingOpenFileRequest_();
   }.bind(this), onError);
 };
 

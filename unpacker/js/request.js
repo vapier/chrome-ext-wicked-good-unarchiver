@@ -28,7 +28,7 @@ var request = {
     CHUNK_BUFFER: 'chunk_buffer',  // Should be an ArrayBuffer.
     OFFSET: 'offset',  // Should be a string. Same reason as ARCHIVE_SIZE.
     LENGTH: 'length',  // Should be a string. Same reason as ARCHIVE_SIZE.
-    FILE_PATH: 'file_path',  // Should be a string.
+    INDEX: 'index',    // Should be a string. Same reason as ARCHIVE_SIZE.
     ENCODING: 'encoding',    // Should be a string.
     OPEN_REQUEST_ID: 'open_request_id',  // Should be a string, just like
                                          // REQUEST_ID.
@@ -139,17 +139,16 @@ var request = {
   /**
    * Creates an open file request.
    * @param {string} fileSystemId The file system id.
-   * @param {number} requestId The request id.
-   * @param {string} filePath The path to the file for which read is done.
+   * @param {number} index The index of the file in the header list.
    * @param {string} encoding Default encoding for the archive.
    * @param {string} archiveSize The size of the volume's archive.
    * @return {Object} An open file request.
    */
-  createOpenFileRequest: function(fileSystemId, requestId, filePath, encoding,
+  createOpenFileRequest: function(fileSystemId, requestId, index, encoding,
                                   archiveSize) {
     var openFileRequest = request.createBasic_(request.Operation.OPEN_FILE,
                                                fileSystemId, requestId);
-    openFileRequest[request.Key.FILE_PATH] = filePath;
+    openFileRequest[request.Key.INDEX] = index.toString();
     openFileRequest[request.Key.ENCODING] = encoding;
     openFileRequest[request.Key.ARCHIVE_SIZE] = archiveSize.toString();
     return openFileRequest;

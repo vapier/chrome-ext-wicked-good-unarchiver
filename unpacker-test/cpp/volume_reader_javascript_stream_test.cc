@@ -13,13 +13,6 @@
 #include "ppapi/utility/completion_callback_factory.h"
 #include "ppapi_simple/ps_main.h"
 
-namespace {
-
-// The request id for which the VolumeReaderJavaScriptStream is created.
-const char kRequestId[] = "1";
-
-}  // namespace
-
 // Fake JavaScriptRequestor that responds to
 // VolumeReaderJavaScriptStream::Read.
 class FakeJavaScriptRequestor : public JavaScriptRequestorInterface {
@@ -113,7 +106,7 @@ class VolumeReaderJavaScriptStreamTest : public testing::Test {
     ASSERT_TRUE(fake_javascript_requestor->Init());
 
     volume_reader = new VolumeReaderJavaScriptStream(
-        std::string(kRequestId), kArchiveSize, fake_javascript_requestor);
+        kArchiveSize, fake_javascript_requestor);
     fake_javascript_requestor->SetVolumeReader(volume_reader);
     ASSERT_EQ(0, volume_reader->offset());
   }
@@ -131,10 +124,6 @@ class VolumeReaderJavaScriptStreamTest : public testing::Test {
   VolumeReaderJavaScriptStream* volume_reader;
   pp::InstanceHandle instance_handle;
 };
-
-TEST_F(VolumeReaderJavaScriptStreamTest, Open) {
-  EXPECT_EQ(ARCHIVE_OK, volume_reader->Open());
-}
 
 TEST_F(VolumeReaderJavaScriptStreamTest, SmallSkip) {
   // Skip with value smaller than int32_t.
@@ -320,8 +309,4 @@ TEST_F(VolumeReaderJavaScriptStreamTest, InvalidRead) {
       fake_javascript_requestor->array_buffer().ByteLength();
   const void* buffer = NULL;
   EXPECT_EQ(ARCHIVE_FATAL, volume_reader->Read(bytes_to_read, &buffer));
-}
-
-TEST_F(VolumeReaderJavaScriptStreamTest, Close) {
-  EXPECT_EQ(ARCHIVE_OK, volume_reader->Close());
 }

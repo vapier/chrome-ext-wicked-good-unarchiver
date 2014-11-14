@@ -17,11 +17,9 @@ class FakeVolumeReader : public VolumeReader {
   FakeVolumeReader();
   virtual ~FakeVolumeReader();
 
-  int Open();
   int64_t Read(int64_t bytes_to_read, const void** destination_buffer);
   int64_t Skip(int64_t bytes_to_skip);
   int64_t Seek(int64_t offset, int whence);
-  int Close();
 };
 
 #endif  // FAKE_VOLUME_READER_H_
