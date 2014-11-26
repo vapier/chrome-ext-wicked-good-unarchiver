@@ -12,7 +12,7 @@
     "description": "Title of a notification with a mounting error message."
   },
   "existsErrorMessage": {
-    "message": "The achive is already mounted.",
+    "message": "The archive is already mounted.",
     "description": "Error message when the archive is already mounted."
   },
   "otherErrorMessage": {
