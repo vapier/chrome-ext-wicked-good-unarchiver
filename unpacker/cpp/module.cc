@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <clocale>
 #include <sstream>
 
 #include "ppapi/cpp/instance.h"
@@ -306,6 +307,7 @@ namespace pp {
 // is one instance per <embed> tag on the page.  This is the main binding
 // point for your NaCl module with the browser.
 Module* CreateModule() {
+  std::setlocale(LC_ALL, "en_US.UTF-8");
   return new NaclArchiveModule();
 }
 
