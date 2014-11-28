@@ -28,7 +28,7 @@ class VolumeReaderJavaScriptStream : public VolumeReader {
   virtual ~VolumeReaderJavaScriptStream();
 
   // Sets the internal array buffer used for reads and signal the blocked
-  // VolumeReaderJavaScriptStream::Read to continue execution. SHOULD be done in
+  // VolumeReaderJavaScriptStream::Read to continue execution. Must be done in
   // a different thread from VolumeReaderJavaScriptStream::Read method.
   // read_offset represents the offset from which VolumeReaderJavaScriptStream
   // requested a chunk read from JavaScriptRequestorInterface. May block for a
@@ -37,14 +37,26 @@ class VolumeReaderJavaScriptStream : public VolumeReader {
                           int64_t read_offset);
 
   // Signal the blocked VolumeReaderJavaScriptStream::Read to continue execution
-  // and return an error code. SHOULD be called from a different thread than
+  // and return an error code. Must be called from a different thread than
   // VolumeReaderJavaScriptStream::Read. May block for a few cycles in order
   // to synchronize with VolumeReaderJavaScriptStream::Read.
   void ReadErrorSignal();
 
+  // Sets the passphrase and signals the blocked Passphrase() to continue
+  // execution. Must be done in a different thread from Passphrase() method.
+  // Reporting an error is not supported. Returning an empty string indicates
+  // an error.
+  void SetPassphraseAndSignal(const std::string& passphrase);
+
+  // Signal the blocked VolumeReaderJavaScriptStream::Passphrase to continue
+  // execution and return an error code. Must be called from a different thread
+  // than VolumeReaderJavaScriptStream::Passphrase. May block for a few cycles
+  // in order to synchronize with VolumeReaderJavaScriptStream::Passphrase.
+  void PassphraseErrorSignal();
+
   // See volume_reader.h for description. This method blocks on
-  // available_data_cond_. SetBufferAndSignal should unblock it from
-  // another thread.
+  // available_data_cond_. SetBufferAndSignal should unblock it from another
+  // thread.
   virtual int64_t Read(int64_t bytes_to_read, const void** destination_buffer);
 
   // See volume_reader.h for description.
@@ -55,6 +67,11 @@ class VolumeReaderJavaScriptStream : public VolumeReader {
 
   // Sets the request Id to be used by the reader.
   void SetRequestId(const std::string& request_id);
+
+  // See volume_reader.h for description. The method blocks on
+  // available_passphrase_cond_. SetPassphraseAndSignal should unblock it from
+  // another thread.
+  virtual const char* Passphrase();
 
   int64_t offset() const { return offset_; }
 
@@ -70,8 +87,11 @@ class VolumeReaderJavaScriptStream : public VolumeReader {
   // A requestor that makes calls to JavaScript to obtain file chunks.
   JavaScriptRequestorInterface* requestor_;
 
-  bool available_data_;  // Used by mutex / cond to synchronize with JavaScript.
-  bool read_error_;  // Used to mark a read error from JavaScript and unblock.
+  bool available_data_;  // Indicates whether any data is available.
+  bool read_error_;      // Marks an error in reading from JavaScript.
+
+  std::string available_passphrase_;  // Stores a passphrase from JavaScript.
+  bool passphrase_error_;  // Marks an error in getting the passphrase.
 
   // Must use POSIX mutexes instead of pp::Lock because there is no pp::Cond.
   // pp::Lock uses POSIX mutexes anyway on Linux, but pp::Lock can also pe used
@@ -80,6 +100,7 @@ class VolumeReaderJavaScriptStream : public VolumeReader {
   // protect members which are accessed by more than one thread.
   pthread_mutex_t shared_state_lock_;
   pthread_cond_t available_data_cond_;
+  pthread_cond_t available_passphrase_cond_;
 
   int64_t offset_;  // The offset from where read should be done.
   int64_t last_read_chunk_offset_;  // The offset reached after last call to

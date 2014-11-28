@@ -7,7 +7,12 @@ project. Note that you cannot use libarchive nor libarchive-dev packages from
 naclports at this moment, as not all patches in the fork are upstreamed.
 
 > cd third-party
->  NACLPORTS_PATH=[path-to-your-naclports] make
+> NACLPORTS_PATH=[path-to-your-naclports] make libarchive-fork
+
+Polymer is used for UI. In order to fetch it, in the same directory type:
+> NACLPORTS_PATH=[path-to-your-naclports] make polymer
+
+Note, that you'll need npm and bower installed in the system.
 
 Build the (P)NaCl module. To use NaCl by default for "make" see unpacker/Makefile
 for instructions.
@@ -21,6 +26,12 @@ In order to use Release / Debug or NaCl / PNaCl see js/background for
 instructions.
 
 ### Steps for obtaining the extention code for releasing on Chrome store:
+Note, that you need vulcanizer to be installed:
+
+> npm install vulcanize
+
+Then you can create the package with:
+
 > cd unpacker
 > ./release.sh [newlib|pnacl]  # First argument is optional and is either newlib
                                # or pnacl. Defaults to pnacl.

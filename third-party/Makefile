@@ -9,14 +9,18 @@ ifndef NACLPORTS_PATH
   $(error NACLPORTS_PATH is not set. Install naclports and set NACLPORTS_PATH)
 endif
 
-.PHONY: uninstall
-uninstall:
-	$(NACLPORTS_PATH)/src/bin/naclports uninstall libarchive-fork
+.PHONY: libarchive-fork
+libarchive-fork:
+	$(NACLPORTS_PATH)/src/bin/naclports -f install libarchive-fork
+
+.PHONY: polymer
+polymer:
+	cd polymer; bower update
 
 .PHONY: clean
 clean:
 	$(NACLPORTS_PATH)/src/bin/naclports clean libarchive-fork
+	rm -rf polymer/bower_components
 
-.PHONY: install
-install:
-	$(NACLPORTS_PATH)/src/bin/naclports -f install libarchive-fork
+.PHONY: all
+all: libarchive-fork polymer

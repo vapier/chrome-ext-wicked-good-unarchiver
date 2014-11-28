@@ -50,6 +50,7 @@ bool fail_archive_set_read_callback = false;
 bool fail_archive_set_skip_callback = false;
 bool fail_archive_set_seek_callback = false;
 bool fail_archive_set_close_callback = false;
+bool fail_archive_set_passphrase_callback = false;
 bool fail_archive_set_callback_data = false;
 bool fail_archive_read_open = false;
 bool fail_archive_read_free = false;
@@ -70,6 +71,7 @@ void ResetVariables() {
   fail_archive_set_skip_callback = false;
   fail_archive_set_seek_callback = false;
   fail_archive_set_close_callback = false;
+  fail_archive_set_passphrase_callback = false;
   fail_archive_set_callback_data = false;
   fail_archive_read_open = false;
   fail_archive_read_free = false;
@@ -126,6 +128,15 @@ int archive_read_set_seek_callback(archive* archive_object,
 int archive_read_set_close_callback(archive* archive_object,
                                     archive_close_callback* client_closer) {
   return fake_lib_archive_config::fail_archive_set_close_callback
+             ? ARCHIVE_FATAL
+             : ARCHIVE_OK;
+}
+
+int archive_read_set_passphrase_callback(
+    archive* archive_object,
+    void* client_data,
+    archive_passphrase_callback* client_passphraser) {
+  return fake_lib_archive_config::fail_archive_set_passphrase_callback
              ? ARCHIVE_FATAL
              : ARCHIVE_OK;
 }

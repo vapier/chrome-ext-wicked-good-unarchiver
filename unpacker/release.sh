@@ -30,9 +30,17 @@ mkdir $RELEASE_DIR
 make VALID_TOOLCHAINS=$TOOLCHAIN
 cp -r js $RELEASE_DIR/js
 cp -r icons $RELEASE_DIR/icons
+cp -r html $RELEASE_DIR/html
+cp -r css $RELEASE_DIR/css
 cp -r _locales $RELEASE_DIR/_locales
 cp manifest.json $RELEASE_DIR/
 cp $TOOLCHAIN/Release/module.nmf $RELEASE_DIR/
+
+# Vulcanize all used Polymer files, as inlined scripts are not allowed in
+# Chrome apps.
+mkdir $RELEASE_DIR/third-party
+vulcanize third-party/polymer.html --inline --csp -o \
+    $RELEASE_DIR/third-party/polymer.html
 
 # Copy either the PNaCl binary to $RELEASE_DIR or the NaCl binaries.
 if [ $TOOLCHAIN == "pnacl" ]; then

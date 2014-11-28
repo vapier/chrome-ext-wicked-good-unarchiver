@@ -1,6 +1,6 @@
 {
   "name": "__MSG_name__",
-  "version": "0.60",
+  "version": "0.70",
   "manifest_version": 2,
   "minimum_chrome_version": "40.0.2212.0",
   "description": "__MSG_description__",
@@ -10,7 +10,8 @@
     "fileSystemProvider",
     {"fileSystem": ["retainEntries"]},
     "notifications",
-    "storage"
+    "storage",
+    "alwaysOnTopWindows"
   ],
   "file_handlers": {
     "zip": {

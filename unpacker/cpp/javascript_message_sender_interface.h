@@ -21,6 +21,9 @@ class JavaScriptMessageSenderInterface {
                                     int64_t offset,
                                     int64_t bytes_to_read) = 0;
 
+  virtual void SendPassphraseRequest(const std::string& file_system_id,
+                                     const std::string& request_id) = 0;
+
   virtual void SendReadMetadataDone(const std::string& file_system_id,
                                     const std::string& request_id,
                                     const pp::VarDictionary& metadata) = 0;

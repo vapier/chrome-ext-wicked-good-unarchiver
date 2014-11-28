@@ -41,6 +41,11 @@ class FakeJavaScriptRequestor : public JavaScriptRequestorInterface {
         bytes_to_read));
   }
 
+  void RequestPassphrase(const std::string& request_id) {
+    worker_.message_loop().PostWork(callback_factory_.NewCallback(
+        &FakeJavaScriptRequestor::RequestPassphraseCallback));
+  }
+
   void SetVolumeReader(VolumeReaderJavaScriptStream* volume_reader) {
     volume_reader_ = volume_reader;
   }
@@ -76,6 +81,16 @@ class FakeJavaScriptRequestor : public JavaScriptRequestorInterface {
 
       volume_reader_->SetBufferAndSignal(buffer_to_set, offset);
     }
+  }
+
+  void RequestPassphraseCallback(int32_t /*result*/) {
+    if (force_failure_) {
+      volume_reader_->PassphraseErrorSignal();
+      return;
+    }
+
+    // TODO(mtomasz): Improve test coverage for passphrases.
+    volume_reader_->SetPassphraseAndSignal("");
   }
 
   VolumeReaderJavaScriptStream* volume_reader_;

@@ -33,7 +33,8 @@ var request = {
     OPEN_REQUEST_ID: 'open_request_id',  // Should be a string, just like
                                          // REQUEST_ID.
     READ_FILE_DATA: 'read_file_data',  // Should be an ArrayBuffer.
-    HAS_MORE_DATA: 'has_more_data'  // Should be a boolean.
+    HAS_MORE_DATA: 'has_more_data',  // Should be a boolean.
+    PASSPHRASE: 'passphrase',        // Should be a string.
   },
 
   /**
@@ -48,13 +49,16 @@ var request = {
     READ_CHUNK: 2,
     READ_CHUNK_DONE: 3,
     READ_CHUNK_ERROR: 4,
-    CLOSE_VOLUME: 5,
-    OPEN_FILE: 6,
-    OPEN_FILE_DONE: 7,
-    CLOSE_FILE: 8,
-    CLOSE_FILE_DONE: 9,
-    READ_FILE: 10,
-    READ_FILE_DONE: 11,
+    READ_PASSPHRASE: 5,
+    READ_PASSPHRASE_DONE: 6,
+    READ_PASSPHRASE_ERROR: 7,
+    CLOSE_VOLUME: 8,
+    OPEN_FILE: 9,
+    OPEN_FILE_DONE: 10,
+    CLOSE_FILE: 11,
+    CLOSE_FILE_DONE: 12,
+    READ_FILE: 13,
+    READ_FILE_DONE: 14,
     FILE_SYSTEM_ERROR: -1
   },
 
@@ -122,6 +126,35 @@ var request = {
    */
   createReadChunkErrorResponse: function(fileSystemId, requestId) {
     return request.createBasic_(request.Operation.READ_CHUNK_ERROR,
+                                fileSystemId, requestId);
+  },
+
+  /**
+   * Creates a read passphrase done response. This is a response to a
+   * READ_PASSPHRASE request from NaCl.
+   * @param {string} fileSystemId The file system id.
+   * @param {number} requestId The response key.
+   * @param {string} passphrase The passphrase.
+   * @return {!Object} A read passphrase done response.
+   */
+  createReadPassphraseDoneResponse: function(
+      fileSystemId, requestId, passphrase) {
+    var response = request.createBasic_(request.Operation.READ_PASSPHRASE_DONE,
+                                        fileSystemId, requestId);
+    response[request.Key.PASSPHRASE] = passphrase;
+    return response;
+  },
+
+  /**
+   * Creates a read passphrase error response. This is a response to a
+   * READ_PASSPHRASE request from NaCl in case of any errors in order for NaCl
+   * to cleanup resources.
+   * @param {string} fileSystemId The file system id.
+   * @param {number} requestId The response key.
+   * @return {!Object} A read passphrase error response.
+   */
+  createReadPassphraseErrorResponse: function(fileSystemId, requestId) {
+    return request.createBasic_(request.Operation.READ_PASSPHRASE_ERROR,
                                 fileSystemId, requestId);
   },
 

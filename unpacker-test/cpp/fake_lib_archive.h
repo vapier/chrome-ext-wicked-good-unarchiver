@@ -48,6 +48,7 @@ extern bool fail_archive_set_read_callback;
 extern bool fail_archive_set_skip_callback;
 extern bool fail_archive_set_seek_callback;
 extern bool fail_archive_set_close_callback;
+extern bool fail_archive_set_passphrase_callback;
 extern bool fail_archive_set_callback_data;
 extern bool fail_archive_read_open;
 extern bool fail_archive_read_free;

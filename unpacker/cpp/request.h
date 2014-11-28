@@ -39,6 +39,7 @@ const char kOpenRequestId[] = "open_request_id";  // Should be a string, just
 const char kReadFileData[] = "read_file_data";    // Should be a
                                                   // pp::VarArrayBuffer.
 const char kHasMoreData[] = "has_more_data";      // Should be a bool.
+const char kPassphrase[] = "passphrase";          // Should be a string.
 
 }  // namespace key
 
@@ -50,13 +51,16 @@ enum Operation {
   READ_CHUNK = 2,
   READ_CHUNK_DONE = 3,
   READ_CHUNK_ERROR = 4,
-  CLOSE_VOLUME = 5,
-  OPEN_FILE = 6,
-  OPEN_FILE_DONE = 7,
-  CLOSE_FILE = 8,
-  CLOSE_FILE_DONE = 9,
-  READ_FILE = 10,
-  READ_FILE_DONE = 11,
+  READ_PASSPHRASE = 5,
+  READ_PASSPHRASE_DONE = 6,
+  READ_PASSPHRASE_ERROR = 7,
+  CLOSE_VOLUME = 8,
+  OPEN_FILE = 9,
+  OPEN_FILE_DONE = 10,
+  CLOSE_FILE = 11,
+  CLOSE_FILE_DONE = 12,
+  READ_FILE = 13,
+  READ_FILE_DONE = 14,
   FILE_SYSTEM_ERROR = -1,  // Errors specific to a file system.
 };
 
@@ -71,6 +75,10 @@ pp::VarDictionary CreateReadChunkRequest(const std::string& file_system_id,
                                          const std::string& request_id,
                                          int64_t offset,
                                          int64_t length);
+
+// Creates a request for a passphrase for a file from JavaScript.
+pp::VarDictionary CreateReadPassphraseRequest(const std::string& file_system_id,
+                                              const std::string& request_id);
 
 // Creates a response to OPEN_FILE request.
 pp::VarDictionary CreateOpenFileDoneResponse(const std::string& file_system_id,

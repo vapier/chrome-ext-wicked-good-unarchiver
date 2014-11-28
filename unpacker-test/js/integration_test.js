@@ -24,15 +24,34 @@ var initPromise = tests_helper.init([
   {
     name: 'small_zip.zip',
     afterOnLaunchTests: function() {
-      smallArchiveCheck('small_zip.zip', SMALL_ZIP_METADATA, false);
+      smallArchiveCheck('small_zip.zip', SMALL_ZIP_METADATA, false, null);
     },
     afterSuspendTests: function() {
-      smallArchiveCheck('small_zip.zip', SMALL_ZIP_METADATA, true);
+      smallArchiveCheck('small_zip.zip', SMALL_ZIP_METADATA, true, null);
       smallArchiveCheckAfterSuspend('small_zip.zip');
     },
     afterRestartTests: function() {
       smallArchiveCheckAfterRestart('small_zip.zip');
-      smallArchiveCheck('small_zip.zip', SMALL_ZIP_METADATA, true);
+      smallArchiveCheck('small_zip.zip', SMALL_ZIP_METADATA, true, null);
+    }
+  },
+  {
+    name: 'encrypted.zip',
+    afterOnLaunchTests: function() {
+      // TODO(mtomasz): Add tests for clicking the Cancel button in the
+      // passphrase dialog.
+      smallArchiveCheck(
+          'encrypted.zip', SMALL_ZIP_METADATA, false, ENCRYPTED_ZIP_PASSPHRASE);
+    },
+    afterSuspendTests: function() {
+      smallArchiveCheck(
+          'encrypted.zip', SMALL_ZIP_METADATA, true, ENCRYPTED_ZIP_PASSPHRASE);
+      smallArchiveCheckAfterSuspend('encrypted.zip');
+    },
+    afterRestartTests: function() {
+      smallArchiveCheckAfterRestart('encrypted.zip');
+      smallArchiveCheck(
+          'encrypted.zip', SMALL_ZIP_METADATA, true, ENCRYPTED_ZIP_PASSPHRASE);
     }
   }
 ]);

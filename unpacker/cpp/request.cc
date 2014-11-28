@@ -49,6 +49,14 @@ pp::VarDictionary request::CreateReadChunkRequest(
   return request;
 }
 
+pp::VarDictionary request::CreateReadPassphraseRequest(
+    const std::string& file_system_id,
+    const std::string& request_id) {
+  pp::VarDictionary request =
+      CreateBasicRequest(READ_PASSPHRASE, file_system_id, request_id);
+  return request;
+}
+
 pp::VarDictionary request::CreateOpenFileDoneResponse(
     const std::string& file_system_id,
     const std::string& request_id) {

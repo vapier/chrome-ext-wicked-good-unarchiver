@@ -47,6 +47,12 @@ class JavaScriptMessageSender : public JavaScriptMessageSenderInterface {
         file_system_id, request_id, offset, bytes_to_read));
   }
 
+  virtual void SendPassphraseRequest(const std::string& file_system_id,
+                                     const std::string& request_id) {
+    JavaScriptPostMessage(request::CreateReadPassphraseRequest(
+        file_system_id, request_id));
+  }
+
   virtual void SendReadMetadataDone(const std::string& file_system_id,
                                     const std::string& request_id,
                                     const pp::VarDictionary& metadata) {
@@ -127,15 +133,19 @@ class NaclArchiveInstance : public pp::Instance {
       }
 
       case request::READ_CHUNK_DONE:
-        // No need to initialize volume as this is a response to READ_CHUNK
-        // sent from NaCl.
         ReadChunkDone(var_dict, file_system_id, request_id);
         break;
 
       case request::READ_CHUNK_ERROR:
-        // No need to initialize volume as this is a response to READ_CHUNK
-        // sent from NaCl.
         ReadChunkError(file_system_id, request_id);
+        break;
+
+      case request::READ_PASSPHRASE_DONE:
+        ReadPassphraseDone(var_dict, file_system_id, request_id);
+        break;
+
+      case request::READ_PASSPHRASE_ERROR:
+        ReadPassphraseError(file_system_id, request_id);
         break;
 
       case request::OPEN_FILE:
@@ -225,6 +235,28 @@ class NaclArchiveInstance : public pp::Instance {
     if (iterator == volumes_.end())
       return;
     iterator->second->ReadChunkError(request_id);
+  }
+
+  void ReadPassphraseDone(const pp::VarDictionary& var_dict,
+                          const std::string& file_system_id,
+                          const std::string& request_id) {
+    PP_DCHECK(var_dict.Get(request::key::kPassphrase).is_string());
+    std::string passphrase(var_dict.Get(request::key::kPassphrase).AsString());
+
+    volume_iterator iterator = volumes_.find(file_system_id);
+    // Volume was unmounted so ignore the read passphrase operation.
+    if (iterator == volumes_.end())
+      return;
+    iterator->second->ReadPassphraseDone(request_id, passphrase);
+  }
+
+  void ReadPassphraseError(const std::string& file_system_id,
+                           const std::string& request_id) {
+    volume_iterator iterator = volumes_.find(file_system_id);
+    // Volume was unmounted so ignore the read chunk operation.
+    if (iterator == volumes_.end())
+      return;
+    iterator->second->ReadPassphraseError(request_id);
   }
 
   void OpenFile(const pp::VarDictionary& var_dict,

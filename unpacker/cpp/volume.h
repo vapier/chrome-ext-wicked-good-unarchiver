@@ -75,6 +75,13 @@ class Volume {
   // Processes an invalid archive chunk read from JavaScript.
   void ReadChunkError(const std::string& nacl_request_id);
 
+  // Processes a successful passphrase read from JavaScript.
+  void ReadPassphraseDone(const std::string& nacl_request_id,
+                          const std::string& passphrase);
+
+  // Processes an error when requesting a passphrase from JavaScript.
+  void ReadPassphraseError(const std::string& nacl_request_id);
+
   // Opens a file.
   void OpenFile(const std::string& request_id,
                 int64_t index,

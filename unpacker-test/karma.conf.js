@@ -56,7 +56,8 @@ module.exports = function(config) {
      * @type {Array.<string>}
      */
     exclude: [
-      'js/background.js'  // Contains direct calls to Chrome API.
+      'js/background.js',  // Contains direct calls to Chrome API.
+      'js/passphrase-dialog.js',  // The password dialog is mocked out.
     ],
 
     /**

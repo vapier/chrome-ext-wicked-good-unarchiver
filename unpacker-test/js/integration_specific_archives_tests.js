@@ -15,7 +15,7 @@ var SMALL_ZIP_METADATA = {
     dir: {
       entries: {
         file3: {
-          index: 2,
+          index: 1,
           isDirectory: false,
           modificationTime: new Date('2014-08-13T07:57:00.000Z'),
           name: 'file3',
@@ -29,14 +29,14 @@ var SMALL_ZIP_METADATA = {
       size: 0
     },
     file1: {
-      index: 1,
+      index: 2,
       isDirectory: false,
       modificationTime: new Date('2014-08-13T07:55:54.000Z'),
       name: 'file1',
       size: 15
     },
     file2: {
-      index: 0,
+      index: 3,
       isDirectory: false,
       modificationTime: new Date('2014-08-13T07:56:14.000Z'),
       name: 'file2',
@@ -58,6 +58,54 @@ var SMALL_ZIP_METADATA = {
  * @const
  */
 var SMALL_ARCHIVE_PATH_PREFIX = 'small_archive';
+
+/**
+ * Passphrase used to compress the encrypted.zip archive.
+ * @type {string}
+ * @const
+ */
+var ENCRYPTED_ZIP_PASSPHRASE = 'test123';
+
+/**
+ * Factory class for fake app windows.
+ * @param {!Array.<string>} passphrases Passphrases to be typed. If null, then
+ *     pressing the cancel button will be simulated.
+ * @constructor
+ * @struct
+ */
+var PassphraseAppWindowFactory = function(passphrases) {
+  this.passphrases_ = passphrases;
+};
+
+/**
+ * Creates a fake passphrase window with a specific response.
+ * @param {string} url URL of the website to be opened.
+ * @param {CreateWindowOptions} options Options for the window.
+ * @param {function(AppWindow)} callback Callback with the created window.
+ */
+PassphraseAppWindowFactory.prototype.create = function(url, options, callback) {
+  var passphrase = this.passphrases_.shift();
+  expect(url).to.equal('../html/passphrase.html');
+  var closeCallbacks = [];
+  var appWindow = {
+    contentWindow: {},
+    onClosed: {
+      addListener: function(callback) {
+        closeCallbacks.push(callback);
+      }
+    }
+  };
+
+  callback(appWindow);
+
+  if (passphrase !== null) {
+    appWindow.contentWindow.onPassphraseSuccess(passphrase);
+  } else {
+    closeCallbacks.forEach(function(closeCallback) {
+      closeCallback();
+    });
+  }
+};
 
 /**
  * Tests if metadata is the same as expectedEntryMetadata. The function tests
@@ -210,14 +258,25 @@ var testOpenReadClose = function(fileSystemId, expectedMetadata, filePath,
  * @param {string} fileSystemId The file system id.
  * @param {Object} expectedMetadata The volume's expected metadata.
  * @param {boolean} restore True if this is a request after restoring state.
+ * @param {?string} passphrase Passphrase for encrypted archives. NULL
+ *     otherwise.
  */
-var smallArchiveCheck = function(fileSystemId, expectedMetadata, restore) {
+var smallArchiveCheck = function(
+    fileSystemId, expectedMetadata, restore, passphrase) {
   var suffix = 'for <' + fileSystemId + '>';
 
   beforeEach(function() {
     // In case of restore the volume object shouldn't be in memory.
     if (restore)
       expect(app.volumes[fileSystemId]).to.be.undefined;
+    if (passphrase !== null) {
+      // Simulate entering a wrong password twice until the correct one.
+      var factory = new PassphraseAppWindowFactory(
+          ['wrong-password', '', passphrase]);
+      tests_helper.createAppWindow = factory.create.bind(factory);
+    } else {
+      tests_helper.createAppWindow = null;
+    }
   });
 
   // Test onGetMetatadaRequested.

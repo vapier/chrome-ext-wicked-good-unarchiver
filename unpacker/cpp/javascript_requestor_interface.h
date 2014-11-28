@@ -18,6 +18,9 @@ class JavaScriptRequestorInterface {
   virtual void RequestFileChunk(const std::string& request_id,
                                 int64_t offset,
                                 int64_t bytes_to_read) = 0;
+
+  // Request a passphrase from JavaScript. The request is asynchronous.
+  virtual void RequestPassphrase(const std::string& request_id) = 0;
 };
 
 #endif  // JAVASCRIPT_REQUESTOR_INTERFACE_H_

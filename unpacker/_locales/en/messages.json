@@ -22,5 +22,21 @@
   "mountingMessage": {
     "message": "Please wait, the archive is being scanned...",
     "description": "Message shown when opening an archive takes long time."
+  },
+  "passphraseInputLabel": {
+    "message": "Passphrase",
+    "description": "Label of the passphrase input field."
+  },
+  "passphraseAccept": {
+    "message": "Accept",
+    "description": "Short name of the passphrase accept button."
+  },
+  "passphraseCancel": {
+    "message": "Cancel",
+    "description": "Short name of the passphrase cancel button."
+  },
+  "passphraseRemember": {
+    "message": "Remember",
+    "description": "Short text of a checkbox whether the password should be remembered"
   }
 }

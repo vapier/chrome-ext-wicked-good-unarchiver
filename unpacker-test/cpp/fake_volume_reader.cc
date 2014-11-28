@@ -19,3 +19,7 @@ int64_t FakeVolumeReader::Skip(int64_t bytes_to_skip) {
 int64_t FakeVolumeReader::Seek(int64_t offset, int whence) {
   return 0;  // Not important.
 }
+
+const char* FakeVolumeReader::Passphrase() {
+  return NULL;  // Not important.
+}

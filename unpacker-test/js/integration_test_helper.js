@@ -65,6 +65,13 @@ var tests_helper = {
   fileBlobCache_: {},
 
   /**
+   * An app window factory for chrome.app.window.create(). May be changed during
+   * tests to create specific fake windows.
+   * @type {?function(string, CreateWindowOptions, function(AppWindow))}
+   */
+  createAppWindow: null,
+
+  /**
    * Downloads a file in order to use it inside the tests. The download
    * operation is required in order to obtain a Blob object for the file,
    * object that is needed by the Decompressor to read the archive's file data
@@ -120,7 +127,6 @@ var tests_helper = {
       });
     });
   },
-
 
   /**
    * Initializes Chrome APIs.
@@ -213,6 +219,11 @@ var tests_helper = {
       getMessage: sinon.stub(),
       getUILanguage: sinon.stub().returns('ja')
     };
+
+    // Chrome app window API. Used for the passphrase dialog only.
+    chrome.app.window = {
+      create: tests_helper.createAppWindow
+    }
   },
 
   /**

@@ -112,21 +112,24 @@ void ConstructMetadata(int64_t index,
 class JavaScriptRequestor : public JavaScriptRequestorInterface {
  public:
   // JavaScriptRequestor does not own the volume pointer.
-  explicit JavaScriptRequestor(Volume* volume) : volume_(volume), total_read_(0) {}
+  explicit JavaScriptRequestor(Volume* volume) : volume_(volume) {}
 
   virtual void RequestFileChunk(const std::string& request_id,
                                 int64_t offset,
                                 int64_t bytes_to_read) {
     PP_DCHECK(offset >= 0);
     PP_DCHECK(bytes_to_read > 0);
-    total_read_ += bytes_to_read;
     volume_->message_sender()->SendFileChunkRequest(
         volume_->file_system_id(), request_id, offset, bytes_to_read);
   }
 
+  virtual void RequestPassphrase(const std::string& request_id) {
+    volume_->message_sender()->SendPassphraseRequest(
+        volume_->file_system_id(), request_id);
+  }
+
  private:
   Volume* volume_;
-  int64_t total_read_;
 };
 
 // An internal implementation of VolumeArchiveFactoryInterface for default
@@ -248,11 +251,6 @@ void Volume::ReadFile(const std::string& request_id,
 void Volume::ReadChunkDone(const std::string& request_id,
                            const pp::VarArrayBuffer& array_buffer,
                            int64_t read_offset) {
-  // It is possible that the corresponing VolumeArchive was removed from map
-  // before receiving the chunk. This can happen for ReadAhead responses
-  // received after a CloseFile event. This is a common scenario for archives
-  // in archives where VolumeReaderJavaScriptStream makes ReadAhead calls that
-  // might not be used.
   PP_DCHECK(volume_archive_);
 
   job_lock_.Acquire();
@@ -269,6 +267,29 @@ void Volume::ReadChunkError(const std::string& request_id) {
   if (request_id == reader_request_id_) {
     static_cast<VolumeReaderJavaScriptStream*>(volume_archive_->reader())->
         ReadErrorSignal();
+  }
+  job_lock_.Release();
+}
+
+void Volume::ReadPassphraseDone(const std::string& request_id,
+                                const std::string& passphrase) {
+  PP_DCHECK(volume_archive_);
+
+  job_lock_.Acquire();
+  if (request_id == reader_request_id_) {
+    static_cast<VolumeReaderJavaScriptStream*>(volume_archive_->reader())->
+        SetPassphraseAndSignal(passphrase);
+  }
+  job_lock_.Release();
+}
+
+void Volume::ReadPassphraseError(const std::string& request_id) {
+  PP_DCHECK(volume_archive_);
+
+  job_lock_.Acquire();
+  if (request_id == reader_request_id_) {
+    static_cast<VolumeReaderJavaScriptStream*>(volume_archive_->reader())->
+        PassphraseErrorSignal();
   }
   job_lock_.Release();
 }

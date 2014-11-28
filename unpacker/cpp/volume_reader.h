@@ -38,6 +38,10 @@ class VolumeReader {
   // or ARCHIVE_FATAL in case of errors. Similar to
   // http://www.cplusplus.com/reference/cstdio/fseek/
   virtual int64_t Seek(int64_t offset, int whence) = 0;
+
+  // Fetches a passphrase for reading. If the passphrase is not available it
+  // returns NULL.
+  virtual const char* Passphrase() = 0;
 };
 
 #endif  // VOLUME_READER_H_

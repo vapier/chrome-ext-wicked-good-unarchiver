@@ -167,6 +167,12 @@ Decompressor.prototype.processMessage = function(data, operation, requestId) {
       // can still make READ_CHUNK requests.
       return;
 
+    case request.Operation.READ_PASSPHRASE:
+      this.readPassphrase_(data, requestId);
+      // this.requestsInProgress_[requestId] should be valid as long as NaCL
+      // can still make READ_PASSPHRASE requests.
+      return;
+
     case request.Operation.OPEN_FILE_DONE:
       requestInProgress.onSuccess();
       // this.requestsInProgress_[requestId] should be valid until closing the
@@ -249,4 +255,47 @@ Decompressor.prototype.readChunk_ = function(data, requestId) {
   };
 
   fileReader.readAsArrayBuffer(blob);
+};
+
+/**
+ * Reads a passphrase from user input for READ_PASSPHRASE operation.
+ * @param {!Object} data The data received from the NaCl module.
+ * @param {number} requestId The request id, which should be unique per every
+ *     volume.
+ * @private
+ */
+Decompressor.prototype.readPassphrase_ = function(data, requestId) {
+  chrome.app.window.create(
+      '../html/passphrase.html',
+      {
+        innerBounds: {width: 320, height: 160},
+        alwaysOnTop: true,
+        resizable: false,
+        frame: 'none',
+        hidden: true
+      },
+      function(passphraseWindow) {
+        var passphraseSucceeded = false;
+
+        passphraseWindow.onClosed.addListener(function() {
+          if (passphraseSucceeded)
+            return;
+          this.naclModule_.postMessage(
+              request.createReadPassphraseErrorResponse(
+                  this.fileSystemId_,
+                  requestId));
+          // TODO(mtomasz): Cancelling should unmount.
+        }.bind(this));
+
+        passphraseWindow.contentWindow.onPassphraseSuccess =
+            function(passphrase) {
+              passphraseSucceeded = true;
+              // TODO(mtomasz): Remember the password if users chooses.
+              this.naclModule_.postMessage(
+                  request.createReadPassphraseDoneResponse(
+                      this.fileSystemId_,
+                      requestId,
+                      passphrase));
+             }.bind(this);
+      }.bind(this));
 };

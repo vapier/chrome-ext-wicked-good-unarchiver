@@ -26,6 +26,9 @@ class FakeJavaScriptMessageSender : public JavaScriptMessageSenderInterface {
                                     int64_t offset,
                                     int64_t bytes_to_read) {}
 
+  virtual void SendPassphraseRequest(const std::string& file_system_id,
+                                     const std::string& request_id) {}
+
   virtual void SendReadMetadataDone(const std::string& file_system_id,
                                     const std::string& request_id,
                                     const pp::VarDictionary& metadata) {}

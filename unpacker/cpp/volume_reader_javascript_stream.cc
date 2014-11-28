@@ -17,6 +17,7 @@ VolumeReaderJavaScriptStream::VolumeReaderJavaScriptStream(
       requestor_(requestor),
       available_data_(false),
       read_error_(false),
+      passphrase_error_(false),
       offset_(0),
       last_read_chunk_offset_(-1) /* For first call -1 will force a chunk
                                      request from JavaScript as offset
@@ -24,6 +25,7 @@ VolumeReaderJavaScriptStream::VolumeReaderJavaScriptStream(
       read_ahead_array_buffer_ptr_(&first_array_buffer_) {
   pthread_mutex_init(&shared_state_lock_, NULL);
   pthread_cond_init(&available_data_cond_, NULL);
+  pthread_cond_init(&available_passphrase_cond_, NULL);
 
   // Dummy Map the second buffer as first buffer is used for read ahead by
   // read_ahead_array_buffer_ptr_. This operation is required in order for Unmap
@@ -34,6 +36,7 @@ VolumeReaderJavaScriptStream::VolumeReaderJavaScriptStream(
 VolumeReaderJavaScriptStream::~VolumeReaderJavaScriptStream() {
   pthread_mutex_destroy(&shared_state_lock_);
   pthread_cond_destroy(&available_data_cond_);
+  pthread_cond_destroy(&available_passphrase_cond_);
 
   // Unmap last mapped buffer. This is the other buffer to
   // read_ahead_array_buffer_ptr_ as read_ahead_array_buffer_ptr_ must be
@@ -85,6 +88,22 @@ void VolumeReaderJavaScriptStream::ReadErrorSignal() {
   pthread_mutex_lock(&shared_state_lock_);
   read_error_ = true;  // Read error from JavaScript.
   pthread_cond_signal(&available_data_cond_);
+  pthread_mutex_unlock(&shared_state_lock_);
+}
+
+void VolumeReaderJavaScriptStream::SetPassphraseAndSignal(
+    const std::string& passphrase) {
+  pthread_mutex_lock(&shared_state_lock_);
+  // Signal VolumeReaderJavaScriptStream::Passphrase to continue execution.
+  available_passphrase_ = passphrase;
+  pthread_cond_signal(&available_passphrase_cond_);
+  pthread_mutex_unlock(&shared_state_lock_);
+}
+
+void VolumeReaderJavaScriptStream::PassphraseErrorSignal() {
+  pthread_mutex_lock(&shared_state_lock_);
+  passphrase_error_ = true;  // Passphrase error from JavaScript.
+  pthread_cond_signal(&available_passphrase_cond_);
   pthread_mutex_unlock(&shared_state_lock_);
 }
 
@@ -215,6 +234,31 @@ int64_t VolumeReaderJavaScriptStream::Skip(int64_t bytes_to_skip) {
 void VolumeReaderJavaScriptStream::SetRequestId(const std::string& request_id) {
   // No lock necessary, as request_id is used by one thread only.
   request_id_ = request_id;
+}
+
+const char* VolumeReaderJavaScriptStream::Passphrase() {
+  // The error is not recoverable. Once passphrase fails to be provided, it is
+  // never asked again. Note, that still users are able to retry entering the
+  // password, unless they click Cancel.
+  pthread_mutex_lock(&shared_state_lock_);
+  if (passphrase_error_) {
+    pthread_mutex_unlock(&shared_state_lock_);
+    return NULL;
+  }
+  pthread_mutex_unlock(&shared_state_lock_);
+
+  // Request the passphrase outside of the lock.
+  requestor_->RequestPassphrase(request_id_);
+
+  pthread_mutex_lock(&shared_state_lock_);
+  // Wait for the passphrase from JavaScript.
+  pthread_cond_wait(&available_passphrase_cond_, &shared_state_lock_);
+  const char* result = NULL;
+  if (!passphrase_error_)
+    result = strdup(available_passphrase_.c_str());
+  pthread_mutex_unlock(&shared_state_lock_);
+
+  return result;
 }
 
 void VolumeReaderJavaScriptStream::RequestChunk(int64_t length) {

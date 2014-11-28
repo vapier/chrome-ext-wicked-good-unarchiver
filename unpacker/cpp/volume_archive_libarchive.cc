@@ -72,6 +72,14 @@ int CustomArchiveClose(archive* archive_object, void* client_data) {
   return ARCHIVE_OK;
 }
 
+const char* CustomArchivePassphrase(
+    archive* archive_object, void* client_data) {
+  VolumeArchiveLibarchive* volume_archive =
+      static_cast<VolumeArchiveLibarchive*>(client_data);
+
+  return volume_archive->reader()->Passphrase();
+}
+
 }  // namespace
 
 VolumeArchiveLibarchive::VolumeArchiveLibarchive(VolumeReader* reader)
@@ -124,6 +132,8 @@ bool VolumeArchiveLibarchive::Init(const std::string& encoding) {
       archive_read_set_skip_callback(archive_, CustomArchiveSkip) != ok ||
       archive_read_set_seek_callback(archive_, CustomArchiveSeek) != ok ||
       archive_read_set_close_callback(archive_, CustomArchiveClose) != ok ||
+      archive_read_set_passphrase_callback(
+          archive_, this, CustomArchivePassphrase) != ok ||
       archive_read_set_callback_data(archive_, this) != ok ||
       archive_read_open1(archive_) != ok) {
     set_error_message(ArchiveError(
