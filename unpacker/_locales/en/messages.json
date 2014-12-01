@@ -18,5 +18,9 @@
   "otherErrorMessage": {
     "message": "The archive format is not supported, or the file is broken.",
     "description": "Error message when opening an archive fails because of an unknown reason."
+  },
+  "mountingMessage": {
+    "message": "Please wait, the archive is being scanned...",
+    "description": "Message shown when opening an archive takes long time."
   }
 }
