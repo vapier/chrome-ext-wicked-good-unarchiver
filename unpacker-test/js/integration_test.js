@@ -115,7 +115,8 @@ var integration_tests = function(describeMessage, moduleNmfFilePath,
         if (successfulVolumeLoads == tests_helper.volumesInformation.length)
           done();
       }, function(fileSystemId) {
-        forceFailure('Could not load volume <' + fileSystemId + '>.');
+        tests_helper.forceFailure(
+            'Could not load volume <' + fileSystemId + '>.');
       });
     });
 

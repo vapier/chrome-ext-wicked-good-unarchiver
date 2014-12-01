@@ -22,8 +22,10 @@ class VolumeArchive {
 
   // Initializes VolumeArchive. Should be called only once.
   // In case of any errors call VolumeArchive::Cleanup and the error message can
-  // be obtained with VolumeArchive::error_message().
-  virtual bool Init() = 0;
+  // be obtained with VolumeArchive::error_message(). Encoding is the default
+  // encoding. Note, that other encoding may be used if specified in the
+  // archive file.
+  virtual bool Init(const std::string& encoding) = 0;
 
   // Gets the next header. If path_name is set to NULL, then there are no more
   // available headers. Returns true if reading next header was successful.

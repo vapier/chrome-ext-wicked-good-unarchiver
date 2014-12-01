@@ -53,7 +53,7 @@ class VolumeArchiveLibarchive : public VolumeArchive {
   virtual ~VolumeArchiveLibarchive();
 
   // See volume_archive_interface.h.
-  virtual bool Init();
+  virtual bool Init(const std::string& encoding);
 
   // See volume_archive_interface.h.
   virtual bool GetNextHeader(const char** path_name,

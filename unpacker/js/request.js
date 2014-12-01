@@ -29,6 +29,7 @@ var request = {
     OFFSET: 'offset',  // Should be a string. Same reason as ARCHIVE_SIZE.
     LENGTH: 'length',  // Should be a string. Same reason as ARCHIVE_SIZE.
     FILE_PATH: 'file_path',  // Should be a string.
+    ENCODING: 'encoding',    // Should be a string.
     OPEN_REQUEST_ID: 'open_request_id',  // Should be a string, just like
                                          // REQUEST_ID.
     READ_FILE_DATA: 'read_file_data',  // Should be an ArrayBuffer.
@@ -78,12 +79,15 @@ var request = {
    * Creates a read metadata request.
    * @param {string} fileSystemId The file system id.
    * @param {number} requestId The request id.
-   * @param {number} ArchiveSize The size of the archive for fileSystemId.
+   * @param {string} encoding Default encoding for the archive.
+   * @param {number} archiveSize The size of the archive for fileSystemId.
    * @return {Object} A read metadata request.
    */
-  createReadMetadataRequest: function(fileSystemId, requestId, archiveSize) {
+  createReadMetadataRequest: function(fileSystemId, requestId, encoding,
+                                      archiveSize) {
     var readMetadataRequest = request.createBasic_(
         request.Operation.READ_METADATA, fileSystemId, requestId);
+    readMetadataRequest[request.Key.ENCODING] = encoding;
     readMetadataRequest[request.Key.ARCHIVE_SIZE] = archiveSize.toString();
     return readMetadataRequest;
   },
@@ -137,14 +141,16 @@ var request = {
    * @param {string} fileSystemId The file system id.
    * @param {number} requestId The request id.
    * @param {string} filePath The path to the file for which read is done.
+   * @param {string} encoding Default encoding for the archive.
    * @param {string} archiveSize The size of the volume's archive.
    * @return {Object} An open file request.
    */
-  createOpenFileRequest: function(fileSystemId, requestId, filePath,
+  createOpenFileRequest: function(fileSystemId, requestId, filePath, encoding,
                                   archiveSize) {
     var openFileRequest = request.createBasic_(request.Operation.OPEN_FILE,
                                                fileSystemId, requestId);
     openFileRequest[request.Key.FILE_PATH] = filePath;
+    openFileRequest[request.Key.ENCODING] = encoding;
     openFileRequest[request.Key.ARCHIVE_SIZE] = archiveSize.toString();
     return openFileRequest;
   },

@@ -70,12 +70,71 @@ function Volume(decompressor, entry, opt_openedFiles) {
   this.openedFiles = opt_openedFiles ? opt_openedFiles : {};
 
   /**
-   * The default read metadata request id. -1 is ok as the request ids used by
-   * flleSystemProvider are greater than 0.
-   * @type {number}
+   * Default encoding set for this archive. If empty, then not known.
+   * @type {string}
    */
-  this.DEFAULT_READ_METADATA_REQUEST_ID = -1;
+  this.encoding = Volume.ENCODING_TABLE[chrome.i18n.getUILanguage()] || '';
 }
+
+/**
+ * The default read metadata request id. -1 is ok as the request ids used by
+ * flleSystemProvider are greater than 0.
+ * @type {number}
+ * @const
+ */
+Volume.DEFAULT_READ_METADATA_REQUEST_ID = -1;
+
+/**
+ * Map from language codes to default charset encodings.
+ * @type {Object.<string, string>}
+ * @const
+ */
+Volume.ENCODING_TABLE = {
+  ar: 'CP1256',
+  bg: 'CP1251',
+  ca: 'CP1252',
+  cs: 'CP1250',
+  da: 'CP1252',
+  de: 'CP1252',
+  el: 'CP1253',
+  en: 'CP1250',
+  en_GB: 'CP1250',
+  es: 'CP1252',
+  es_419: 'CP1252',
+  et: 'CP1257',
+  fa: 'CP1256',
+  fi: 'CP1252',
+  fil: 'CP1252',
+  fr: 'CP1252',
+  he: 'CP1255',
+  hi: 'UTF-8',  // Another one may be better.
+  hr: 'CP1250',
+  hu: 'CP1250',
+  id: 'CP1252',
+  it: 'CP1252',
+  ja: 'CP932',  // Alternatively SHIFT-JIS.
+  ko: 'CP949',  // Alternatively EUC-KR.
+  lt: 'CP1257',
+  lv: 'CP1257',
+  ms: 'CP1252',
+  nl: 'CP1252',
+  no: 'CP1252',
+  pl: 'CP1250',
+  pt_BR: 'CP1252',
+  pt_PT: 'CP1252',
+  ro: 'CP1250',
+  ru: 'CP1251',
+  sk: 'CP1250',
+  sl: 'CP1250',
+  sr: 'CP1251',
+  sv: 'CP1252',
+  th: 'CP874', // Confirm!
+  tr: 'CP1254',
+  uk: 'CP1251',
+  vi: 'CP1258',
+  zh_CN: 'CP936',
+  zh_TW: 'CP950'
+};
 
 /**
  * @return {boolean} True if volume is ready to be used.
@@ -98,8 +157,8 @@ Volume.prototype.inUse = function() {
  * @param {function(ProviderError)} onError Callback to execute on error.
  */
 Volume.prototype.initialize = function(onSuccess, onError) {
-  var requestId = this.DEFAULT_READ_METADATA_REQUEST_ID;
-  this.decompressor.readMetadata(requestId, function(metadata) {
+  var requestId = Volume.DEFAULT_READ_METADATA_REQUEST_ID;
+  this.decompressor.readMetadata(requestId, this.encoding, function(metadata) {
     // Make a deep copy of metadata.
     this.metadata = JSON.parse(JSON.stringify(metadata));
     correctMetadata(this.metadata);
@@ -175,10 +234,11 @@ Volume.prototype.onOpenFileRequested = function(options, onSuccess, onError) {
     return;
   }
 
-  this.decompressor.openFile(options.requestId, options.filePath, function() {
-    this.openedFiles[options.requestId] = options;
-    onSuccess();
-  }.bind(this), onError);
+  this.decompressor.openFile(options.requestId, options.filePath,
+      this.encoding, function() {
+        this.openedFiles[options.requestId] = options;
+        onSuccess();
+      }.bind(this), onError);
 };
 
 /**

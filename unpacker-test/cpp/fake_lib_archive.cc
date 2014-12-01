@@ -53,6 +53,7 @@ bool fail_archive_set_close_callback = false;
 bool fail_archive_set_callback_data = false;
 bool fail_archive_read_open = false;
 bool fail_archive_read_free = false;
+bool fail_archive_set_options = false;
 
 int archive_read_next_header_return_value = ARCHIVE_OK;
 
@@ -72,6 +73,7 @@ void ResetVariables() {
   fail_archive_set_callback_data = false;
   fail_archive_read_open = false;
   fail_archive_read_free = false;
+  fail_archive_set_options = false;
 
   archive_read_next_header_return_value = ARCHIVE_OK;
   archive_entry_filetype_return_value = S_IFREG;
@@ -162,6 +164,11 @@ mode_t archive_entry_filetype(archive_entry* entry) {
 int archive_read_free(archive* archive_object) {
   return fake_lib_archive_config::fail_archive_read_free ? ARCHIVE_FATAL
                                                          : ARCHIVE_OK;
+}
+
+int archive_read_set_options(archive* archive_object, const char* options) {
+  return fake_lib_archive_config::fail_archive_set_options ? ARCHIVE_FATAL
+                                                           : ARCHIVE_OK;
 }
 
 ssize_t archive_read_data(archive* archive_object,

@@ -54,6 +54,12 @@ describe('Decompressor', function() {
   var LENGTH = 200;
 
   /**
+   * @type {string}
+   * @const
+   */
+  var ENCODING = 'CP1250';
+
+  /**
    * @type {Blob}
    * @const
    */
@@ -89,7 +95,8 @@ describe('Decompressor', function() {
   // Test readMetadata.
   describe('that reads metadata', function() {
     beforeEach(function() {
-      decompressor.readMetadata(METADATA_REQUEST_ID, onSuccessSpy, onErrorSpy);
+      decompressor.readMetadata(
+          METADATA_REQUEST_ID, ENCODING, onSuccessSpy, onErrorSpy);
     });
 
     it('should add a new request in progress', function() {
@@ -104,7 +111,7 @@ describe('Decompressor', function() {
     it('should call naclModule.postMessage with read metadata request',
         function() {
       var readMetadataRequest = request.createReadMetadataRequest(
-          FILE_SYSTEM_ID, METADATA_REQUEST_ID, BLOB.size);
+          FILE_SYSTEM_ID, METADATA_REQUEST_ID, ENCODING, BLOB.size);
       expect(naclModule.postMessage.calledWith(readMetadataRequest)).to.be.true;
     });
 
@@ -121,6 +128,7 @@ describe('Decompressor', function() {
 
       it('should call onSuccess with the metadata', function() {
         expect(onSuccessSpy.calledWith(data[request.Key.METADATA])).to.be.true;
+        expect(onSuccessSpy.calledOnce).to.be.true;
       });
 
       it('should not call onError', function() {
@@ -201,7 +209,7 @@ describe('Decompressor', function() {
   // Test openFile.
   describe('that opens a file', function() {
     beforeEach(function() {
-      decompressor.openFile(OPEN_REQUEST_ID, FILE_PATH, onSuccessSpy,
+      decompressor.openFile(OPEN_REQUEST_ID, FILE_PATH, ENCODING, onSuccessSpy,
                             onErrorSpy);
     });
 
@@ -217,7 +225,7 @@ describe('Decompressor', function() {
     it('should call naclModule.postMessage with open file request',
         function() {
       var openFileRequest = request.createOpenFileRequest(
-          FILE_SYSTEM_ID, OPEN_REQUEST_ID, FILE_PATH, BLOB.size);
+          FILE_SYSTEM_ID, OPEN_REQUEST_ID, FILE_PATH, ENCODING, BLOB.size);
       expect(naclModule.postMessage.calledWith(openFileRequest)).to.be.true;
     });
 

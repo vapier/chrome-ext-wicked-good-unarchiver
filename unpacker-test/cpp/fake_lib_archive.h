@@ -51,6 +51,7 @@ extern bool fail_archive_set_close_callback;
 extern bool fail_archive_set_callback_data;
 extern bool fail_archive_read_open;
 extern bool fail_archive_read_free;
+extern bool fail_archive_set_options;
 
 // Return value for archive_read_next_header.
 // By default it should be set to ARCHIVE_OK.

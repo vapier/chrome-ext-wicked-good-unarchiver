@@ -13,6 +13,9 @@ namespace {
 // The request id for which the tested VolumeArchiveLibarchive is created.
 const char kRequestId[] = "1";
 
+// Fake default character encoding for the archive headers.
+const char kEncoding[] = "CP1250";
+
 }  // namespace
 
 // Class used by TEST_F macro to initialize the environment for testing
@@ -44,7 +47,7 @@ TEST_F(VolumeArchiveLibarchiveTest, Constructor) {
 TEST_F(VolumeArchiveLibarchiveTest, InitArchiveNewFailure) {
   // Test archive_read_new failure.
   fake_lib_archive_config::fail_archive_read_new = true;
-  EXPECT_FALSE(volume_archive->Init());
+  EXPECT_FALSE(volume_archive->Init(kEncoding));
   EXPECT_EQ(volume_archive_constants::kArchiveReadNewError,
             volume_archive->error_message());
 }
@@ -52,7 +55,7 @@ TEST_F(VolumeArchiveLibarchiveTest, InitArchiveNewFailure) {
 TEST_F(VolumeArchiveLibarchiveTest, InitArchiveSupportFailures) {
   // Test rar support failure.
   fake_lib_archive_config::fail_archive_rar_support = true;
-  EXPECT_FALSE(volume_archive->Init());
+  EXPECT_FALSE(volume_archive->Init(kEncoding));
 
   std::string support_error =
       std::string(volume_archive_constants::kArchiveSupportErrorPrefix) +
@@ -62,14 +65,14 @@ TEST_F(VolumeArchiveLibarchiveTest, InitArchiveSupportFailures) {
   // Test zip support failure.
   fake_lib_archive_config::fail_archive_rar_support = false;
   fake_lib_archive_config::fail_archive_zip_seekable_support = true;
-  EXPECT_FALSE(volume_archive->Init());
+  EXPECT_FALSE(volume_archive->Init(kEncoding));
   EXPECT_EQ(support_error, volume_archive->error_message());
 }
 
 TEST_F(VolumeArchiveLibarchiveTest, InitOpenFailures) {
   // Test set read callback failure.
   fake_lib_archive_config::fail_archive_set_read_callback = true;
-  EXPECT_FALSE(volume_archive->Init());
+  EXPECT_FALSE(volume_archive->Init(kEncoding));
 
   std::string open_error =
       std::string(volume_archive_constants::kArchiveOpenErrorPrefix) +
@@ -79,37 +82,53 @@ TEST_F(VolumeArchiveLibarchiveTest, InitOpenFailures) {
   // Test set skip callback failure.
   fake_lib_archive_config::fail_archive_set_read_callback = false;
   fake_lib_archive_config::fail_archive_set_skip_callback = true;
-  EXPECT_FALSE(volume_archive->Init());
+  EXPECT_FALSE(volume_archive->Init(kEncoding));
   EXPECT_EQ(open_error, volume_archive->error_message());
 
   // Test set seek callback failure.
   fake_lib_archive_config::fail_archive_set_skip_callback = false;
   fake_lib_archive_config::fail_archive_set_seek_callback = true;
-  EXPECT_FALSE(volume_archive->Init());
+  EXPECT_FALSE(volume_archive->Init(kEncoding));
   EXPECT_EQ(open_error, volume_archive->error_message());
 
   // Test set close callback failure.
   fake_lib_archive_config::fail_archive_set_seek_callback = false;
   fake_lib_archive_config::fail_archive_set_close_callback = true;
-  EXPECT_FALSE(volume_archive->Init());
+  EXPECT_FALSE(volume_archive->Init(kEncoding));
   EXPECT_EQ(open_error, volume_archive->error_message());
 
   // Test set callback data failure.
   fake_lib_archive_config::fail_archive_set_close_callback = false;
   fake_lib_archive_config::fail_archive_set_callback_data = true;
-  EXPECT_FALSE(volume_archive->Init());
+  EXPECT_FALSE(volume_archive->Init(kEncoding));
   EXPECT_EQ(open_error, volume_archive->error_message());
 
   // Test archive open failure.
   fake_lib_archive_config::fail_archive_set_callback_data = false;
   fake_lib_archive_config::fail_archive_read_open = true;
-  EXPECT_FALSE(volume_archive->Init());
+  EXPECT_FALSE(volume_archive->Init(kEncoding));
   EXPECT_EQ(open_error, volume_archive->error_message());
+
+  // Test set options callback failure.
+  std::string support_error =
+      std::string(volume_archive_constants::kArchiveSupportErrorPrefix) +
+      fake_lib_archive_config::kArchiveError;
+
+  fake_lib_archive_config::fail_archive_read_open = false;
+  fake_lib_archive_config::fail_archive_set_options = true;
+  EXPECT_FALSE(volume_archive->Init(kEncoding));
+  EXPECT_EQ(support_error, volume_archive->error_message());
 }
 
 TEST_F(VolumeArchiveLibarchiveTest, InitSuccess) {
-  // Test successful init.
-  EXPECT_TRUE(volume_archive->Init());
+  EXPECT_TRUE(volume_archive->Init(kEncoding));
+}
+
+TEST_F(VolumeArchiveLibarchiveTest, InitWithEmptyEncoding) {
+  // Make sure that archive_set_options is not called by making it return an
+  // error.
+  fake_lib_archive_config::fail_archive_set_options = true;
+  EXPECT_TRUE(volume_archive->Init(""));
 }
 
 TEST_F(VolumeArchiveLibarchiveTest, GetNextHeaderSuccess) {
@@ -145,7 +164,7 @@ TEST_F(VolumeArchiveLibarchiveTest, GetNextHeaderSuccess) {
 }
 
 TEST_F(VolumeArchiveLibarchiveTest, GetNextHeaderEndOfArchive) {
-  EXPECT_TRUE(volume_archive->Init());
+  EXPECT_TRUE(volume_archive->Init(kEncoding));
 
   // Test GetNextHeader when at the end of archive.
   fake_lib_archive_config::archive_read_next_header_return_value = ARCHIVE_EOF;
@@ -160,7 +179,7 @@ TEST_F(VolumeArchiveLibarchiveTest, GetNextHeaderEndOfArchive) {
 }
 
 TEST_F(VolumeArchiveLibarchiveTest, GetNextHeaderFailure) {
-  EXPECT_TRUE(volume_archive->Init());
+  EXPECT_TRUE(volume_archive->Init(kEncoding));
 
   // Test failure GetNextHeader.
   fake_lib_archive_config::archive_read_next_header_return_value =
@@ -181,7 +200,7 @@ TEST_F(VolumeArchiveLibarchiveTest, GetNextHeaderFailure) {
 
 TEST_F(VolumeArchiveLibarchiveTest, CleanupSuccess) {
   EXPECT_TRUE(volume_archive->reader() != NULL);
-  EXPECT_TRUE(volume_archive->Init());
+  EXPECT_TRUE(volume_archive->Init(kEncoding));
 
   // Test successful Cleanup after successful Init.
   EXPECT_TRUE(volume_archive->Cleanup());
@@ -190,7 +209,7 @@ TEST_F(VolumeArchiveLibarchiveTest, CleanupSuccess) {
 
 TEST_F(VolumeArchiveLibarchiveTest, CleanupFailure) {
   EXPECT_TRUE(volume_archive->reader() != NULL);
-  EXPECT_TRUE(volume_archive->Init());
+  EXPECT_TRUE(volume_archive->Init(kEncoding));
 
   // Test failure Cleanup after successful Init.
   fake_lib_archive_config::fail_archive_read_free = true;
@@ -205,7 +224,7 @@ TEST_F(VolumeArchiveLibarchiveTest, CleanupFailure) {
 
 TEST_F(VolumeArchiveLibarchiveTest, CleanupAfterCleanup) {
   EXPECT_TRUE(volume_archive->reader() != NULL);
-  EXPECT_TRUE(volume_archive->Init());
+  EXPECT_TRUE(volume_archive->Init(kEncoding));
 
   // Test Cleanup after Cleanup.
   EXPECT_TRUE(volume_archive->Cleanup());
@@ -225,7 +244,7 @@ TEST_F(VolumeArchiveLibarchiveTest, CleanupAfterInitFailure) {
   EXPECT_TRUE(volume_archive->reader() != NULL);
 
   fake_lib_archive_config::fail_archive_read_open = true;
-  EXPECT_TRUE(!volume_archive->Init());
+  EXPECT_TRUE(!volume_archive->Init(kEncoding));
 
   // Test Cleanup after Init failure.
   EXPECT_TRUE(volume_archive->Cleanup());

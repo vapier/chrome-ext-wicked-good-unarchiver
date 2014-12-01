@@ -18,6 +18,12 @@ describe('On calling', function() {
   var REQUEST_ID = 10;
 
   /**
+   * @type {string}
+   * @const
+   */
+  var ENCODING = "CP1250";
+
+  /**
    * @type {number}
    * @const
    */
@@ -70,7 +76,7 @@ describe('On calling', function() {
     var readMetadataRequest;
     beforeEach(function() {
       readMetadataRequest = request.createReadMetadataRequest(
-          FILE_SYSTEM_ID, REQUEST_ID, ARCHIVE_SIZE);
+          FILE_SYSTEM_ID, REQUEST_ID, ENCODING, ARCHIVE_SIZE);
     });
 
     it('with READ_METADATA as operation', function() {
@@ -86,6 +92,10 @@ describe('On calling', function() {
     it('with correct request id', function() {
       expect(readMetadataRequest[request.Key.REQUEST_ID])
           .to.equal(REQUEST_ID.toString());
+    });
+
+    it('with correct encoding', function() {
+      expect(readMetadataRequest[request.Key.ENCODING]).to.equal(ENCODING);
     });
 
     it('with correct archive size', function() {
@@ -179,7 +189,7 @@ describe('On calling', function() {
     var openFileRequest;
     beforeEach(function() {
       openFileRequest = request.createOpenFileRequest(
-          FILE_SYSTEM_ID, REQUEST_ID, FILE_PATH, ARCHIVE_SIZE);
+          FILE_SYSTEM_ID, REQUEST_ID, FILE_PATH, ENCODING, ARCHIVE_SIZE);
     });
 
     it('with OPEN_FILE as operation', function() {
@@ -199,6 +209,10 @@ describe('On calling', function() {
 
     it('with correct file path', function() {
       expect(openFileRequest[request.Key.FILE_PATH]).to.equal(FILE_PATH);
+    });
+
+    it('with correct encoding', function() {
+      expect(openFileRequest[request.Key.ENCODING]).to.equal(ENCODING);
     });
 
     it('with correct archive size', function() {

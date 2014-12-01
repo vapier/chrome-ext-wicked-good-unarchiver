@@ -161,6 +161,20 @@ class VolumeReaderFactory : public VolumeReaderFactoryInterface {
 
 }  // namespace
 
+struct Volume::OpenFileArgs {
+  OpenFileArgs(const std::string& request_id,
+               const std::string& file_path,
+               const std::string& encoding,
+               int64_t archive_size) : request_id(request_id),
+                                       file_path(file_path),
+                                       encoding(encoding),
+                                       archive_size(archive_size) {}
+  const std::string request_id;
+  const std::string file_path;
+  const std::string encoding;
+  int64_t archive_size;
+};
+
 Volume::Volume(const pp::InstanceHandle& instance_handle,
                const std::string& file_system_id,
                JavaScriptMessageSenderInterface* message_sender)
@@ -209,16 +223,20 @@ bool Volume::Init() {
   return worker_.Start();
 }
 
-void Volume::ReadMetadata(const std::string& request_id, int64_t archive_size) {
+void Volume::ReadMetadata(const std::string& request_id,
+                          const std::string& encoding,
+                          int64_t archive_size) {
   worker_.message_loop().PostWork(callback_factory_.NewCallback(
-      &Volume::ReadMetadataCallback, request_id, archive_size));
+      &Volume::ReadMetadataCallback, request_id, encoding, archive_size));
 }
 
 void Volume::OpenFile(const std::string& request_id,
                       const std::string& file_path,
+                      const std::string& encoding,
                       int64_t archive_size) {
   worker_.message_loop().PostWork(callback_factory_.NewCallback(
-      &Volume::OpenFileCallback, request_id, file_path, archive_size));
+      &Volume::OpenFileCallback, OpenFileArgs(request_id, file_path, encoding,
+      archive_size)));
 }
 
 void Volume::CloseFile(const std::string& request_id,
@@ -281,8 +299,10 @@ void Volume::ReadChunkError(const std::string& request_id) {
 
 void Volume::ReadMetadataCallback(int32_t /*result*/,
                                   const std::string& request_id,
+                                  const std::string& encoding,
                                   int64_t archive_size) {
-  VolumeArchive* volume_archive = CreateVolumeArchive(request_id, archive_size);
+  VolumeArchive* volume_archive = CreateVolumeArchive(
+      request_id, encoding, archive_size);
   if (!volume_archive)
     return;
 
@@ -320,10 +340,9 @@ void Volume::ReadMetadataCallback(int32_t /*result*/,
 }
 
 void Volume::OpenFileCallback(int32_t /*result*/,
-                              const std::string& request_id,
-                              const std::string& file_path,
-                              int64_t archive_size) {
-  VolumeArchive* volume_archive = CreateVolumeArchive(request_id, archive_size);
+                              const OpenFileArgs& args) {
+  VolumeArchive* volume_archive = CreateVolumeArchive(
+      args.request_id, args.encoding, args.archive_size);
   if (!volume_archive)
     return;
 
@@ -335,7 +354,7 @@ void Volume::OpenFileCallback(int32_t /*result*/,
     if (!volume_archive->GetNextHeader(
             &path_name, &size, &is_directory, &modification_time)) {
       message_sender_->SendFileSystemError(
-          file_system_id_, request_id, volume_archive->error_message());
+          file_system_id_, args.request_id, volume_archive->error_message());
       CleanupVolumeArchive(volume_archive, false);
       return;
     }
@@ -343,18 +362,18 @@ void Volume::OpenFileCallback(int32_t /*result*/,
     if (!path_name) {
       message_sender_->SendFileSystemError(
           file_system_id_,
-          request_id,
-          "File not found in archive: " + file_path + ".");
+          args.request_id,
+          "File not found in archive: " + args.file_path + ".");
       return;
     }
 
-    if (file_path.compare(std::string(kPathDelimiter) + path_name) == 0)
+    if (args.file_path.compare(std::string(kPathDelimiter) + path_name) == 0)
       break;  // File reached. Data should be obtained by calling
               // VolumeArchive::ReadData.
   }
 
   // Send successful opened file response to NaCl.
-  message_sender_->SendOpenFileDone(file_system_id_, request_id);
+  message_sender_->SendOpenFileDone(file_system_id_, args.request_id);
 }
 
 void Volume::CloseFileCallback(int32_t /*result*/,
@@ -444,6 +463,7 @@ void Volume::ReadFileCallback(int32_t /*result*/,
 }
 
 VolumeArchive* Volume::CreateVolumeArchive(const std::string& request_id,
+                                           const std::string& encoding,
                                            int64_t archive_size) {
   VolumeReader* reader =
       volume_reader_factory_->Create(request_id, archive_size);
@@ -472,7 +492,7 @@ VolumeArchive* Volume::CreateVolumeArchive(const std::string& request_id,
 
   worker_reads_in_progress_lock_.Release();
 
-  if (!volume_archive->Init()) {
+  if (!volume_archive->Init(encoding)) {
     message_sender_->SendFileSystemError(
         file_system_id_, request_id, volume_archive->error_message());
     CleanupVolumeArchive(volume_archive, false);

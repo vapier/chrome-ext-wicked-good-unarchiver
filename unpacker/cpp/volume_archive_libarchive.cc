@@ -97,7 +97,7 @@ VolumeArchiveLibarchive::~VolumeArchiveLibarchive() {
   Cleanup();
 }
 
-bool VolumeArchiveLibarchive::Init() {
+bool VolumeArchiveLibarchive::Init(const std::string& encoding) {
   archive_ = archive_read_new();
   if (!archive_) {
     set_error_message(volume_archive_constants::kArchiveReadNewError);
@@ -109,6 +109,16 @@ bool VolumeArchiveLibarchive::Init() {
   // add RAR file handler to manifest.json.
   if (archive_read_support_format_rar(archive_) != ARCHIVE_OK ||
       archive_read_support_format_zip_seekable(archive_) != ARCHIVE_OK) {
+    set_error_message(ArchiveError(
+        volume_archive_constants::kArchiveSupportErrorPrefix, archive_));
+    return false;
+  }
+
+  // Default encoding for file names in headers. Note, that another one may be
+  // used if specified in the archive.
+  std::string options = std::string("hdrcharset=") + encoding;
+  if (!encoding.empty() &&
+      archive_read_set_options(archive_, options.c_str()) != ARCHIVE_OK) {
     set_error_message(ArchiveError(
         volume_archive_constants::kArchiveSupportErrorPrefix, archive_));
     return false;
@@ -168,48 +178,13 @@ void VolumeArchiveLibarchive::DecompressData(int64_t offset, int64_t length) {
   // The logic will be more complicated because archive_read_data_block offset
   // will not be aligned with the offset of the read request from JavaScript.
 
-  // Request with offset smaller than last read offset.
+  // Requests with offset smaller than last read offset are not supported.
   if (offset < last_read_data_offset_) {
-    std::string file_path_name(archive_entry_pathname(current_archive_entry_));
-
-    // Cleanup old archive. Don't delete VolumeReader as it will be reused.
-    if (archive_read_free(archive_) != ARCHIVE_OK) {
-      set_error_message(ArchiveError(
-          volume_archive_constants::kArchiveReadDataErrorPrefix, archive_));
-      decompressed_error_ = true;
-      return;
-    }
-    reader()->Seek(0, SEEK_SET);  // Reset reader.
-
-    // Reinitialize archive.
-    if (!Init()) {
-      decompressed_error_ = true;
-      return;
-    }
-
-    // Reach file data by iterating through
-    // VolumeArchiveLibarchive::GetNextHeader.
-    const char* path_name = NULL;
-    int64_t file_size = 0;
-    bool is_directory = false;
-    time_t modification_time = 0;
-    for (;;) {
-      if (!GetNextHeader(
-              &path_name, &file_size, &is_directory, &modification_time)) {
-        decompressed_error_ = true;
-        return;
-      }
-      if (!path_name) {
-        set_error_message(volume_archive_constants::kFileNotFound);
-        decompressed_error_ = true;
-        return;
-      }
-
-      if (file_path_name == std::string(path_name))
-        break;  // File reached.
-    }
-    // Data offset was already reset to 0 by
-    // VolumeArchiveLibarchive::GetNextHeader.
+    set_error_message(
+        std::string(volume_archive_constants::kArchiveReadDataErrorPrefix) +
+        "Reading backwards is not supported.");
+    decompressed_error_ = true;
+    return;
   }
 
   // Request with offset greater than last read offset. Skip not needed bytes.

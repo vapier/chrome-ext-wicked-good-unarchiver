@@ -205,12 +205,13 @@ var tests_helper = {
     // Chrome notifications API.
     chrome.notifications = {
       create: sinon.stub(),
-      clear: sinon.stub(),
+      clear: sinon.stub()
     };
 
     // Chrome i18n API.
     chrome.i18n = {
-      getMessage: sinon.stub()
+      getMessage: sinon.stub(),
+      getUILanguage: sinon.stub().returns('ja')
     };
   },
 

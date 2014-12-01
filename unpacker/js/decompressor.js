@@ -76,16 +76,19 @@ Decompressor.prototype.addRequest_ = function(requestId, onSuccess, onError,
  * Creates a request for reading metadata.
  * @param {number} requestId The request id, which should be unique per every
  *     volume.
+ * @param {?string} encoding Default encoding for the archive's headers.
  * @param {function(Object.<string, Object>)} onSuccess Callback to execute once
  *     the metadata is obtained from NaCl. It has one parameter, which is the
  *     metadata itself. The metadata has as key the full path to an entry and as
  *     value information about the entry.
  * @param {function(ProviderError)} onError Callback to execute on error.
  */
-Decompressor.prototype.readMetadata = function(requestId, onSuccess, onError) {
+Decompressor.prototype.readMetadata = function(
+    requestId, encoding, onSuccess, onError) {
   this.addRequest_(requestId, onSuccess, onError,
                    request.createReadMetadataRequest(this.fileSystemId_,
                                                      requestId,
+                                                     encoding,
                                                      this.blob_.size));
 };
 
@@ -93,13 +96,14 @@ Decompressor.prototype.readMetadata = function(requestId, onSuccess, onError) {
  * Sends an open file request to NaCl.
  * @param {number} requestId The request id of the open file operation.
  * @param {string} filePath The path to the file to open.
+ * @param {?string} encoding Default encoding for the archive's headers.
  * @param {function()} onSuccess Callback to execute on successful open.
  * @param {function(ProviderError)} onError Callback to execute on error.
  */
-Decompressor.prototype.openFile = function(requestId, filePath, onSuccess,
-                                           onError) {
+Decompressor.prototype.openFile = function(requestId, filePath, encoding,
+                                           onSuccess, onError) {
   this.addRequest_(requestId, onSuccess, onError, request.createOpenFileRequest(
-      this.fileSystemId_, requestId, filePath, this.blob_.size));
+      this.fileSystemId_, requestId, filePath, encoding, this.blob_.size));
 };
 
 /**

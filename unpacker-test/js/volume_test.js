@@ -57,6 +57,12 @@ describe('Volume', function() {
    */
   var CLOSE_REQUEST_ID = 4;
 
+  /**
+   * @type {string}
+   * @const
+   */
+  var ENCODING = 'CP1250';
+
   var volume;
   var decompressor;
   var onInitializeSuccessSpy;
@@ -92,7 +98,7 @@ describe('Volume', function() {
   // Test volume that fails to initialize.
   describe('that fails to initialize', function() {
     beforeEach(function() {
-      decompressor.readMetadata.callsArg(2);
+      decompressor.readMetadata.callsArg(3);
       volume.initialize(onInitializeSuccessSpy, onInitializeErrorSpy);
     });
 
@@ -108,7 +114,7 @@ describe('Volume', function() {
   // Test volume that initializes correctly.
   describe('that correctly initializes', function() {
     beforeEach(function() {
-      decompressor.readMetadata.callsArgWith(1, METADATA);
+      decompressor.readMetadata.callsArgWith(2, METADATA);
       volume.initialize(onInitializeSuccessSpy, onInitializeErrorSpy);
     });
 
@@ -379,7 +385,7 @@ describe('Volume', function() {
             filePath: '/file'
           };
           decompressor.openFile.withArgs(
-              options.requestId, options.filePath).callsArg(2);
+              options.requestId, options.filePath).callsArg(3);
 
           expect(volume.openedFiles[options.requestId]).to.be.undefined;
           volume.onOpenFileRequested(options, onSuccessSpy, onErrorSpy);

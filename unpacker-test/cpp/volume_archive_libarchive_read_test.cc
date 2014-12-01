@@ -13,6 +13,9 @@ namespace {
 // The request id for which the tested VolumeArchiveLibarchive is created.
 const char kRequestId[] = "1";
 
+// Fake default character encoding for the archive headers.
+const char kEncoding[] = "CP1250";
+
 // Fake archive data used for testing.
 const char kArchiveData[] =
     "Fake data contained by the archive. Content is "
@@ -33,13 +36,13 @@ class VolumeArchiveLibarchiveReadTest : public testing::Test {
                                                  new FakeVolumeReader());
 
     // Prepare for read.
-    volume_archive->Init();
+    ASSERT_TRUE(volume_archive->Init(kEncoding));
     const char* path_name = NULL;
     int64_t size = 0;
     bool is_directory = false;
     time_t modification_time = 0;
-    volume_archive->GetNextHeader(
-        &path_name, &size, &is_directory, &modification_time);
+    ASSERT_TRUE(volume_archive->GetNextHeader(
+        &path_name, &size, &is_directory, &modification_time));
   }
 
   virtual void TearDown() {
@@ -51,31 +54,28 @@ class VolumeArchiveLibarchiveReadTest : public testing::Test {
   VolumeArchiveLibarchive* volume_archive;
 };
 
+// Test successful ReadData with length equal to data size.
+TEST_F(VolumeArchiveLibarchiveReadTest, ReadSuccessAllData) {
+  fake_lib_archive_config::archive_data = kArchiveData;
+  fake_lib_archive_config::archive_data_size = sizeof(kArchiveData);
+  int64_t archive_data_size = fake_lib_archive_config::archive_data_size;
+
+  int64_t length = archive_data_size;
+  const char* buffer = NULL;
+  int64_t read_bytes = volume_archive->ReadData(0, length, &buffer);
+  EXPECT_LT(0, read_bytes);
+  EXPECT_GE(length, read_bytes);
+  EXPECT_EQ(0, memcmp(buffer, kArchiveData, read_bytes));
+}
+
 // This test is used to test VolumeArchive::ReadData for correct reads with
 // different offsets, lengths and a buffer that has different characters inside.
-// The idea of the test is to make consecutive calls to VolumeArchive::ReadData
-// in order to coverage all special cases that can appear:
-//     - read data from offset 0 with length equal to archive data
-//     - make 2 small consecutive reads with first starting from offset 0 and
-//     second starting with offset as the length of the first read
-//     - read data with offset different from 0 but less than the length of the
-//     previous read
 // Tests lengths < volume_archive_constants::kMininumDataChunkSize.
 // VolumeArchive::ReadData should not be affected by this constant.
 TEST_F(VolumeArchiveLibarchiveReadTest, ReadSuccessForSmallLengths) {
   fake_lib_archive_config::archive_data = kArchiveData;
   fake_lib_archive_config::archive_data_size = sizeof(kArchiveData);
   int64_t archive_data_size = fake_lib_archive_config::archive_data_size;
-
-  // Test successful ReadData with length equal to data size.
-  {
-    int64_t length = archive_data_size;
-    const char* buffer = NULL;
-    int64_t read_bytes = volume_archive->ReadData(0, length, &buffer);
-    EXPECT_LT(0, read_bytes);
-    EXPECT_GE(length, read_bytes);
-    EXPECT_EQ(0, memcmp(buffer, kArchiveData, read_bytes));
-  }
 
   // Test successful read with offset less than VolumeArchiveLibarchive current
   // offset (due to last read) and length equal to 1/3 of the data size.
@@ -102,17 +102,6 @@ TEST_F(VolumeArchiveLibarchiveReadTest, ReadSuccessForSmallLengths) {
   // Test successful read for the last 1/3 chunk.
   {
     int64_t offset = archive_data_size / 3 * 2;
-    int64_t length = archive_data_size - offset;
-    const char* buffer = NULL;
-    int64_t read_bytes = volume_archive->ReadData(offset, length, &buffer);
-    EXPECT_LT(0, read_bytes);
-    EXPECT_GE(length, read_bytes);
-    EXPECT_EQ(0, memcmp(buffer, kArchiveData + offset, read_bytes));
-  }
-
-  // Test successful read with offset less than last read but greater than 0.
-  {
-    int64_t offset = archive_data_size / 4;
     int64_t length = archive_data_size - offset;
     const char* buffer = NULL;
     int64_t read_bytes = volume_archive->ReadData(offset, length, &buffer);
@@ -130,17 +119,6 @@ TEST_F(VolumeArchiveLibarchiveReadTest, ReadSuccessForSmallLengthsWithConsume) {
   fake_lib_archive_config::archive_data_size = sizeof(kArchiveData);
   int64_t archive_data_size = fake_lib_archive_config::archive_data_size;
 
-  // Test successful ReadData with length equal to data size.
-  {
-    int64_t length = archive_data_size;
-    const char* buffer = NULL;
-    int64_t read_bytes = volume_archive->ReadData(0, length, &buffer);
-    EXPECT_LT(0, read_bytes);
-    EXPECT_GE(length, read_bytes);
-    EXPECT_EQ(0, memcmp(buffer, kArchiveData, read_bytes));
-    volume_archive->MaybeDecompressAhead();
-  }
-
   // Test successful read with offset less than VolumeArchiveLibarchive current
   // offset (due to last read) and length equal to 1/3 of the data size.
   {
@@ -168,19 +146,6 @@ TEST_F(VolumeArchiveLibarchiveReadTest, ReadSuccessForSmallLengthsWithConsume) {
   // Test successful read for the last 1/3 chunk.
   {
     int64_t offset = archive_data_size / 3 * 2;
-    int64_t length = archive_data_size - offset;
-    const char* buffer = NULL;
-    int64_t read_bytes = volume_archive->ReadData(offset, length, &buffer);
-    EXPECT_LT(0, read_bytes);
-    EXPECT_GE(length, read_bytes);
-    EXPECT_EQ(0, memcmp(buffer, kArchiveData + offset, read_bytes));
-    volume_archive->MaybeDecompressAhead();
-  }
-
-  // Test successful read with offset less than last read but greater than 0.
-  // This should trigger the execution of all the code inside ReadData.
-  {
-    int64_t offset = archive_data_size / 4;
     int64_t length = archive_data_size - offset;
     const char* buffer = NULL;
     int64_t read_bytes = volume_archive->ReadData(offset, length, &buffer);

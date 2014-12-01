@@ -14,7 +14,7 @@ NACL_SDK_ROOT ?= $(abspath $(CURDIR)/../..)
 include $(NACL_SDK_ROOT)/tools/common.mk
 
 TARGET = module
-LIBS = ppapi_cpp ppapi pthread archive z
+LIBS = ppapi_cpp ppapi pthread archive z iconv
 
 CFLAGS = -Wall
 SOURCES = \

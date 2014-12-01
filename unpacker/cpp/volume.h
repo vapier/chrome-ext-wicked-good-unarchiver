@@ -64,7 +64,9 @@ class Volume {
   bool Init();
 
   // Reads archive metadata using libarchive.
-  void ReadMetadata(const std::string& request_id, int64_t archive_size);
+  void ReadMetadata(const std::string& request_id,
+                    const std::string& encoding,
+                    int64_t archive_size);
 
   // Processes a successful archive chunk read from JavaScript. Read offset
   // represents the offset from where the data contained in array_buffer starts.
@@ -78,6 +80,7 @@ class Volume {
   // Opens a file.
   void OpenFile(const std::string& request_id,
                 const std::string& file_path,
+                const std::string& encoding,
                 int64_t archive_size);
 
   // Closes a file.
@@ -98,16 +101,19 @@ class Volume {
   std::string file_system_id() { return file_system_id_; }
 
  private:
+  // Encapsulates arguments to OpenFileCallback, as NewCallback supports binding
+  // up to three arguments, while here we have four.
+  struct OpenFileArgs;
+
   // A callback helper for ReadMetadata.
   void ReadMetadataCallback(int32_t result,
                             const std::string& request_id,
+                            const std::string& encoding,
                             int64_t archive_size);
 
   // A calback helper for OpenFile.
   void OpenFileCallback(int32_t result,
-                        const std::string& request_id,
-                        const std::string& file_path,
-                        int64_t archive_size);
+                        const OpenFileArgs& args);
 
   // A callback helper for CloseFile.
   void CloseFileCallback(int32_t result,
@@ -121,6 +127,7 @@ class Volume {
 
   // Creates a new archive object for this volume.
   VolumeArchive* CreateVolumeArchive(const std::string& request_id,
+                                     const std::string& encoding,
                                      int64_t archive_size);
 
   // Cleanups any data related to a volume archive. Return value should be
