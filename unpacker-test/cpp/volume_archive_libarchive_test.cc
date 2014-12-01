@@ -61,7 +61,7 @@ TEST_F(VolumeArchiveLibarchiveTest, InitArchiveSupportFailures) {
 
   // Test zip support failure.
   fake_lib_archive_config::fail_archive_rar_support = false;
-  fake_lib_archive_config::fail_archive_zip_support = true;
+  fake_lib_archive_config::fail_archive_zip_seekable_support = true;
   EXPECT_FALSE(volume_archive->Init());
   EXPECT_EQ(support_error, volume_archive->error_message());
 }

@@ -43,7 +43,7 @@ extern int64_t archive_data_size;
 // By default all should be set to false.
 extern bool fail_archive_read_new;
 extern bool fail_archive_rar_support;
-extern bool fail_archive_zip_support;
+extern bool fail_archive_zip_seekable_support;
 extern bool fail_archive_set_read_callback;
 extern bool fail_archive_set_skip_callback;
 extern bool fail_archive_set_seek_callback;

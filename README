@@ -1,8 +1,8 @@
 ### Build steps:
-Build libarchive from naclports (https://code.google.com/p/naclports/).
+Build libarchive-dev from naclports (https://code.google.com/p/naclports/).
 See https://code.google.com/p/naclports/wiki/HowTo_Checkout?tm=4
 > cd src  # In naclports repository.
-> ./make_all.sh libarchive
+> ./make_all.sh libarchive-dev
 
 Build the NaCl module. To use NaCl by default for "make" see unpacker/Makefile
 for instructions.

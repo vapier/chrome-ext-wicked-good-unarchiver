@@ -45,7 +45,7 @@ int64_t archive_data_size = 0;
 // By default libarchive API functions will return success.
 bool fail_archive_read_new = false;
 bool fail_archive_rar_support = false;
-bool fail_archive_zip_support = false;
+bool fail_archive_zip_seekable_support = false;
 bool fail_archive_set_read_callback = false;
 bool fail_archive_set_skip_callback = false;
 bool fail_archive_set_seek_callback = false;
@@ -64,7 +64,7 @@ void ResetVariables() {
 
   fail_archive_read_new = false;
   fail_archive_rar_support = false;
-  fail_archive_zip_support = false;
+  fail_archive_zip_seekable_support = false;
   fail_archive_set_read_callback = false;
   fail_archive_set_skip_callback = false;
   fail_archive_set_seek_callback = false;
@@ -97,9 +97,10 @@ int archive_read_support_format_rar(archive* archive_object) {
                                                            : ARCHIVE_OK;
 }
 
-int archive_read_support_format_zip(archive* archive_object) {
-  return fake_lib_archive_config::fail_archive_zip_support ? ARCHIVE_FATAL
-                                                           : ARCHIVE_OK;
+int archive_read_support_format_zip_seekable(archive* archive_object) {
+  return fake_lib_archive_config::fail_archive_zip_seekable_support
+            ? ARCHIVE_FATAL
+            : ARCHIVE_OK;
 }
 
 int archive_read_set_read_callback(archive* archive_object,

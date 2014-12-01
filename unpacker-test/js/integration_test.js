@@ -72,7 +72,7 @@ var integration_tests = function(describeMessage, moduleNmfFilePath,
       // next loads will be faster due to caching in user-data-dir.
       // Timeout is set per every before, beforeEach, it, afterEach, so there is
       // no need to restore it.
-      this.timeout(5000 /* milliseconds */);
+      this.timeout(15000 /* milliseconds */);
 
       // Cannot use 'after' because 'after' gets executed after all 'before'
       // even though 'before' is in another 'describe'. But 'before' gets
