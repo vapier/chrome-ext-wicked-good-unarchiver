@@ -23,6 +23,13 @@ var app = {
   DEFAULT_MODULE_ID: 'nacl_module',
 
   /**
+   * Time in milliseconds before the notification about mounting is shown.
+   * @type {number}
+   * @const
+   */
+  MOUNTING_NOTIFICATION_DELAY: 1000,
+
+  /**
    * Multiple volumes can be opened at the same time. The key is the
    * fileSystemId and the value is a Volume object.
    * @type {Object.<string, Volume>}
@@ -487,59 +494,78 @@ var app = {
    *     times, depending on how many volumes must be loaded.
    */
   onLaunched: function(launchData, opt_onSuccess, opt_onError) {
-    var onError = function(error, fileSystemId) {
-      chrome.notifications.create('' /* notificationId */, {
-        type: 'basic',
-        iconUrl: chrome.runtime.getManifest().icons[128],
-        title: chrome.i18n.getMessage('mountErrorTitle'),
-        message: chrome.i18n.getMessage(
-            error == 'EXISTS' ? 'existsErrorMessage' : 'otherErrorMessage')
-      }, function() {});
-      if (opt_onError)
-        opt_onError(fileSystemId);
-      // Cleanup volume resources in order to allow future attempts
-      // to mount the volume.
-      app.cleanupVolume(fileSystemId);
-    };
-
     app.moduleLoadedPromise.then(function() {
       launchData.items.forEach(function(item) {
-        chrome.fileSystem.getDisplayPath(item.entry, function(fileSystemId) {
-          if (app.volumeLoadedPromises[fileSystemId]) {
-            onError('EXISTS', fileSystemId);
-            return;
-          }
+        chrome.fileSystem.getDisplayPath(item.entry,
+            function(entry, fileSystemId) {
+              // If loading takes significant amount of time, then show a
+              // notification about scanning in progress.
+              var deferredNotificationTimer = setTimeout(function() {
+                chrome.notifications.create(fileSystemId, {
+                  type: 'basic',
+                  iconUrl: chrome.runtime.getManifest().icons[128],
+                  title: entry.name,
+                  message: chrome.i18n.getMessage('mountingMessage'),
+                }, function() {});
+              }, app.MOUNTING_NOTIFICATION_DELAY);
 
-          var loadPromise = new Promise(function(fulfill, reject) {
-            app.loadVolume_(fileSystemId, item.entry, fulfill, reject);
-          });
+              var onError = function(error) {
+                clearTimeout(deferredNotificationTimer);
+                chrome.notifications.create(fileSystemId, {
+                  type: 'basic',
+                  iconUrl: chrome.runtime.getManifest().icons[128],
+                  title: entry.name,
+                  message: chrome.i18n.getMessage(error == 'EXISTS' ?
+                      'existsErrorMessage' : 'otherErrorMessage')
+                }, function() {});
+                if (opt_onError)
+                  opt_onError(fileSystemId);
+                // Cleanup volume resources in order to allow future attempts
+                // to mount the volume.
+                app.cleanupVolume(fileSystemId);
+              };
 
-          loadPromise.then(function() {
-            // Mount the volume and save its information in local storage
-            // in order to be able to recover the metadata in case of
-            // restarts, system crashes, etc.
-            chrome.fileSystemProvider.mount(
-                {fileSystemId: fileSystemId, displayName: item.entry.name},
-                function() {
-                  if (chrome.runtime.lastError) {
-                    console.error('Mount error: ' +
-                        chrome.runtime.lastError.message + '.');
-                    onError('FAILED', fileSystemId);
-                    return;
-                  }
-                  // Save state so in case of restarts we are able to correctly
-                  // get the archive's metadata.
-                  app.saveState_([fileSystemId]);
-                  if (opt_onSuccess)
-                    opt_onSuccess(fileSystemId);
-                });
-          }).catch(function(error) {
-            onError(error.stack || error, fileSystemId);
-            return Promise.reject(error);
-          });
+              var onSuccess = function(fileSystemId, entry) {
+                clearTimeout(deferredNotificationTimer);
+                chrome.notifications.clear(fileSystemId, function() {});
+                if (opt_onSuccess)
+                  opt_onSuccess(fileSystemId);
+              };
 
-          app.volumeLoadedPromises[fileSystemId] = loadPromise;
-        });
+              if (app.volumeLoadedPromises[fileSystemId]) {
+                onError('EXISTS', fileSystemId);
+                return;
+              }
+
+              var loadPromise = new Promise(function(fulfill, reject) {
+                app.loadVolume_(fileSystemId, entry, fulfill, reject);
+              });
+
+              loadPromise.then(function() {
+                // Mount the volume and save its information in local storage
+                // in order to be able to recover the metadata in case of
+                // restarts, system crashes, etc.
+                chrome.fileSystemProvider.mount(
+                    {fileSystemId: fileSystemId, displayName: entry.name},
+                    function() {
+                      if (chrome.runtime.lastError) {
+                        console.error('Mount error: ' +
+                            chrome.runtime.lastError.message + '.');
+                        onError('FAILED', fileSystemId);
+                        return;
+                      }
+                      // Save state so in case of restarts we are able to correctly
+                      // get the archive's metadata.
+                      app.saveState_([fileSystemId]);
+                      onSuccess(fileSystemId);
+                    });
+              }).catch(function(error) {
+                onError(error.stack || error, fileSystemId);
+                return Promise.reject(error);
+              });
+
+              app.volumeLoadedPromises[fileSystemId] = loadPromise;
+            }.bind(null, item.entry));
       });
     }).catch(function(error) {
       console.error(error.stack || error);
