@@ -1,0 +1,22 @@
+{
+  "name": {
+    "message": "ZIP unpacker",
+    "description": "Name of the ZIP unpacker app."
+  },
+  "description": {
+    "message": "Ouvrir les fichiers ZIP dans l'application Fichiers",
+    "description": "Short description of the ZIP unpacker app."
+  },
+  "mountErrorTitle": {
+    "message": "Échec de l'ouverture d'une archive",
+    "description": "Title of a notification with a mounting error message."
+  },
+  "existsErrorMessage": {
+    "message": "L'archive est déjà installée.",
+    "description": "Error message when the archive is already mounted."
+  },
+  "otherErrorMessage": {
+    "message": "Le format de l'archive n'est pas compatible, ou le fichier est endommagé.",
+    "description": "Error message when opening an archive fails because of an unknown reason."
+  }
+}

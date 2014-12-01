@@ -1,0 +1,22 @@
+{
+  "name": {
+    "message": "โปรแกรมเปิดไฟล์ ZIP",
+    "description": "Name of the ZIP unpacker app."
+  },
+  "description": {
+    "message": "เปิดไฟล์ ZIP ในแอป Files",
+    "description": "Short description of the ZIP unpacker app."
+  },
+  "mountErrorTitle": {
+    "message": "ไม่สามารถเปิดที่เก็บถาวร",
+    "description": "Title of a notification with a mounting error message."
+  },
+  "existsErrorMessage": {
+    "message": "ที่เก็บถาวรนี้มีการต่อเชื่อมแล้ว",
+    "description": "Error message when the archive is already mounted."
+  },
+  "otherErrorMessage": {
+    "message": "ระบบไม่สนับสนุนรูปแบบที่เก็บถาวร หรือไฟล์เสียหาย",
+    "description": "Error message when opening an archive fails because of an unknown reason."
+  }
+}

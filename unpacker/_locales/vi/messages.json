@@ -1,0 +1,22 @@
+{
+  "name": {
+    "message": "Trình giải nén ZIP",
+    "description": "Name of the ZIP unpacker app."
+  },
+  "description": {
+    "message": "Mở tệp ZIP trong ứng dụng Tệp.",
+    "description": "Short description of the ZIP unpacker app."
+  },
+  "mountErrorTitle": {
+    "message": "Không mở được tệp lưu trữ.",
+    "description": "Title of a notification with a mounting error message."
+  },
+  "existsErrorMessage": {
+    "message": "Tệp lưu trữ đã được gắn kết rồi.",
+    "description": "Error message when the archive is already mounted."
+  },
+  "otherErrorMessage": {
+    "message": "Định dạng lưu trữ không được hỗ trợ hoặc tệp bị hỏng.",
+    "description": "Error message when opening an archive fails because of an unknown reason."
+  }
+}

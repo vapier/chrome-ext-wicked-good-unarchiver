@@ -1,0 +1,22 @@
+{
+  "name": {
+    "message": "ZIP 解凍",
+    "description": "Name of the ZIP unpacker app."
+  },
+  "description": {
+    "message": "ZIP ファイルをファイルアプリで開きます。",
+    "description": "Short description of the ZIP unpacker app."
+  },
+  "mountErrorTitle": {
+    "message": "アーカイブを開けませんでした。",
+    "description": "Title of a notification with a mounting error message."
+  },
+  "existsErrorMessage": {
+    "message": "アーカイブは既にマウントされています。",
+    "description": "Error message when the archive is already mounted."
+  },
+  "otherErrorMessage": {
+    "message": "アーカイブ形式がサポートされていないか、ファイルが破損しています。",
+    "description": "Error message when opening an archive fails because of an unknown reason."
+  }
+}

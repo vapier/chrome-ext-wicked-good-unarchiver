@@ -1,0 +1,22 @@
+{
+  "name": {
+    "message": "Penyahpadat ZIP",
+    "description": "Name of the ZIP unpacker app."
+  },
+  "description": {
+    "message": "Buka fail ZIP dalam apl Fail.",
+    "description": "Short description of the ZIP unpacker app."
+  },
+  "mountErrorTitle": {
+    "message": "Gagal membuka arkib.",
+    "description": "Title of a notification with a mounting error message."
+  },
+  "existsErrorMessage": {
+    "message": "Arkib sudah dilekapkan.",
+    "description": "Error message when the archive is already mounted."
+  },
+  "otherErrorMessage": {
+    "message": "Format arkib tidak disokong atau fail rosak.",
+    "description": "Error message when opening an archive fails because of an unknown reason."
+  }
+}

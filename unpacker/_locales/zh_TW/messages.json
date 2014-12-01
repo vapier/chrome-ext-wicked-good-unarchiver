@@ -1,0 +1,22 @@
+{
+  "name": {
+    "message": "ZIP 解壓縮工具",
+    "description": "Name of the ZIP unpacker app."
+  },
+  "description": {
+    "message": "在「檔案」應用程式中開啟 ZIP 檔案。",
+    "description": "Short description of the ZIP unpacker app."
+  },
+  "mountErrorTitle": {
+    "message": "無法開啟封存檔案。",
+    "description": "Title of a notification with a mounting error message."
+  },
+  "existsErrorMessage": {
+    "message": "這個封存檔案已經掛接。",
+    "description": "Error message when the archive is already mounted."
+  },
+  "otherErrorMessage": {
+    "message": "您使用了不支援的封存格式，或者檔案已毀損。",
+    "description": "Error message when opening an archive fails because of an unknown reason."
+  }
+}

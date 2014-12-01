@@ -1,0 +1,22 @@
+{
+  "name": {
+    "message": "ZIP-Datei-Entpacker",
+    "description": "Name of the ZIP unpacker app."
+  },
+  "description": {
+    "message": "ZIP-Dateien in App \"Dateien\" öffnen",
+    "description": "Short description of the ZIP unpacker app."
+  },
+  "mountErrorTitle": {
+    "message": "Ein Archiv konnte nicht geöffnet werden.",
+    "description": "Title of a notification with a mounting error message."
+  },
+  "existsErrorMessage": {
+    "message": "Das Archiv wurde bereits bereitgestellt.",
+    "description": "Error message when the archive is already mounted."
+  },
+  "otherErrorMessage": {
+    "message": "Das Archivformat wird nicht unterstützt oder die Datei ist fehlerhaft.",
+    "description": "Error message when opening an archive fails because of an unknown reason."
+  }
+}

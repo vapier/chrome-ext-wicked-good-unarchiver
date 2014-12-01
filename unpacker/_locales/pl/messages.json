@@ -1,0 +1,22 @@
+{
+  "name": {
+    "message": "Program do dekompresji plików ZIP",
+    "description": "Name of the ZIP unpacker app."
+  },
+  "description": {
+    "message": "Otwieraj pliki ZIP w aplikacji Pliki.",
+    "description": "Short description of the ZIP unpacker app."
+  },
+  "mountErrorTitle": {
+    "message": "Nie udało się otworzyć archiwum.",
+    "description": "Title of a notification with a mounting error message."
+  },
+  "existsErrorMessage": {
+    "message": "Archiwum jest już podłączone.",
+    "description": "Error message when the archive is already mounted."
+  },
+  "otherErrorMessage": {
+    "message": "Format archiwum nie jest obsługiwany albo plik jest uszkodzony.",
+    "description": "Error message when opening an archive fails because of an unknown reason."
+  }
+}

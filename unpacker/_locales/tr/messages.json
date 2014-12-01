@@ -1,0 +1,22 @@
+{
+  "name": {
+    "message": "ZIP paket açıcı",
+    "description": "Name of the ZIP unpacker app."
+  },
+  "description": {
+    "message": "Zip dosyalarını Dosyalar uygulamasında açın.",
+    "description": "Short description of the ZIP unpacker app."
+  },
+  "mountErrorTitle": {
+    "message": "Arşiv açılamadı.",
+    "description": "Title of a notification with a mounting error message."
+  },
+  "existsErrorMessage": {
+    "message": "Arşiv zaten eklendi.",
+    "description": "Error message when the archive is already mounted."
+  },
+  "otherErrorMessage": {
+    "message": "Arşiv biçimi desteklenmiyor veya dosya bozuk.",
+    "description": "Error message when opening an archive fails because of an unknown reason."
+  }
+}

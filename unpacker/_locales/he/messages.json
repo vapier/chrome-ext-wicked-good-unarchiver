@@ -1,0 +1,22 @@
+{
+  "name": {
+    "message": "ZIP unpacker",
+    "description": "Name of the ZIP unpacker app."
+  },
+  "description": {
+    "message": "פתח קובצי ZIP ביישום 'קבצים'.",
+    "description": "Short description of the ZIP unpacker app."
+  },
+  "mountErrorTitle": {
+    "message": "פתיחת ארכיון נכשלה.",
+    "description": "Title of a notification with a mounting error message."
+  },
+  "existsErrorMessage": {
+    "message": "הארכיון כבר נטען.",
+    "description": "Error message when the archive is already mounted."
+  },
+  "otherErrorMessage": {
+    "message": "פורמט הארכיון אינו נתמך, או שהקובץ פגום.",
+    "description": "Error message when opening an archive fails because of an unknown reason."
+  }
+}

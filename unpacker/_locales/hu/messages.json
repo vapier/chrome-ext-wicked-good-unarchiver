@@ -1,0 +1,22 @@
+{
+  "name": {
+    "message": "ZIP-kicsomagoló",
+    "description": "Name of the ZIP unpacker app."
+  },
+  "description": {
+    "message": "ZIP-fájlok megnyitása a Fájlok alkalmazásban.",
+    "description": "Short description of the ZIP unpacker app."
+  },
+  "mountErrorTitle": {
+    "message": "Nem sikerült megnyitni egy archívumot.",
+    "description": "Title of a notification with a mounting error message."
+  },
+  "existsErrorMessage": {
+    "message": "Az archívum már be van töltve.",
+    "description": "Error message when the archive is already mounted."
+  },
+  "otherErrorMessage": {
+    "message": "Az archív formátuma nem támogatott, vagy hibás a fájl.",
+    "description": "Error message when opening an archive fails because of an unknown reason."
+  }
+}
