@@ -197,6 +197,20 @@ var tests_helper = {
       // Contains 'lastError' property which is checked in case
       // chrome.fileSystem.restoreEntry fails. By default 'lastError' should be
       // undefined as no error is returned.
+      getManifest: sinon.stub().returns({
+        icons: {}
+      })
+    };
+
+    // Chrome notifications API.
+    chrome.notifications = {
+      create: sinon.stub(),
+      clear: sinon.stub(),
+    };
+
+    // Chrome i18n API.
+    chrome.i18n = {
+      getMessage: sinon.stub()
     };
   },
 
