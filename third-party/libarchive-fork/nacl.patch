@@ -1,0 +1,15 @@
+diff --git a/libarchive/archive_random.c b/libarchive/archive_random.c
+index 7786323..7b807d1 100644
+--- a/libarchive/archive_random.c
++++ b/libarchive/archive_random.c
+@@ -34,6 +34,10 @@ __FBSDID("$FreeBSD$");
+ 
+ #ifdef HAVE_FCNTL
+ #include <fcntl.h>
++// TODO(cmihail): If possible remove this workaround for O_CLOEXEC.
++#ifndef O_CLOEXEC
++#define O_CLOEXEC 0
++#endif
+ #endif
+ #ifdef HAVE_LIMITS_H
+ #include <limits.h>

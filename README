@@ -1,10 +1,15 @@
 ### Build steps:
-Build libarchive-dev from naclports (https://code.google.com/p/naclports/).
+First of all you will need naclports (https://code.google.com/p/naclports/).
 See https://code.google.com/p/naclports/wiki/HowTo_Checkout?tm=4
-> cd src  # In naclports repository.
-> ./make_all.sh libarchive-dev
 
-Build the NaCl module. To use NaCl by default for "make" see unpacker/Makefile
+Once done, install the libarchive-fork from third-party of the unpacker
+project. Note that you cannot use libarchive nor libarchive-dev packages from
+naclports at this moment, as not all patches in the fork are upstreamed.
+
+> cd third-party
+>  NACLPORTS_PATH=[path-to-your-naclports] make
+
+Build the (P)NaCl module. To use NaCl by default for "make" see unpacker/Makefile
 for instructions.
 > cd unpacker
 > make  # For PNaCl.
