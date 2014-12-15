@@ -18,5 +18,9 @@
   "otherErrorMessage": {
     "message": "Oblika zapisa arhiva ni podprta ali pa je datoteka poškodovana.",
     "description": "Error message when opening an archive fails because of an unknown reason."
+  },
+  "mountingMessage": {
+    "message": "Počakajte, poteka preverjanje arhiva ...",
+    "description": "Message shown when opening an archive takes long time."
   }
 }

@@ -18,5 +18,9 @@
   "otherErrorMessage": {
     "message": "Arkivformatet understøttes ikke, eller filen er beskadiget.",
     "description": "Error message when opening an archive fails because of an unknown reason."
+  },
+  "mountingMessage": {
+    "message": "Et øjeblik, arkivet scannes…",
+    "description": "Message shown when opening an archive takes long time."
   }
 }

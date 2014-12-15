@@ -16,7 +16,11 @@
     "description": "Error message when the archive is already mounted."
   },
   "otherErrorMessage": {
-    "message": "Format arhive nije podržan ili je datoteka oštećena.",
+    "message": "Oblik arhive nije podržan ili je datoteka oštećena.",
     "description": "Error message when opening an archive fails because of an unknown reason."
+  },
+  "mountingMessage": {
+    "message": "Pričekajte, arhiva se skenira...",
+    "description": "Message shown when opening an archive takes long time."
   }
 }

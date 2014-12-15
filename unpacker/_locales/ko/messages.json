@@ -16,7 +16,11 @@
     "description": "Error message when the archive is already mounted."
   },
   "otherErrorMessage": {
-    "message": "보관 파일 형식이 지원되지 않거나 파일이 손상되었습니다.",
+    "message": "보관 파일이 지원되지 않는 형식이거나 파일이 손상되었습니다.",
     "description": "Error message when opening an archive fails because of an unknown reason."
+  },
+  "mountingMessage": {
+    "message": "잠시 기다려 주세요. 보관 파일을 검사하는 중입니다.",
+    "description": "Message shown when opening an archive takes long time."
   }
 }

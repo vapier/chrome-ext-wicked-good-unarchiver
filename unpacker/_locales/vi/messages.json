@@ -12,11 +12,15 @@
     "description": "Title of a notification with a mounting error message."
   },
   "existsErrorMessage": {
-    "message": "Tệp lưu trữ đã được gắn kết rồi.",
+    "message": "Tệp lưu trữ đã được kết nối.",
     "description": "Error message when the archive is already mounted."
   },
   "otherErrorMessage": {
     "message": "Định dạng lưu trữ không được hỗ trợ hoặc tệp bị hỏng.",
     "description": "Error message when opening an archive fails because of an unknown reason."
+  },
+  "mountingMessage": {
+    "message": "Vui lòng đợi, tệp lưu trữ đang được quét...",
+    "description": "Message shown when opening an archive takes long time."
   }
 }

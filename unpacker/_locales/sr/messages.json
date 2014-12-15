@@ -12,11 +12,15 @@
     "description": "Title of a notification with a mounting error message."
   },
   "existsErrorMessage": {
-    "message": "Архива је већ прикључена.",
+    "message": "Архива је већ учитана",
     "description": "Error message when the archive is already mounted."
   },
   "otherErrorMessage": {
     "message": "Формат архиве није подржан или је датотека оштећена.",
     "description": "Error message when opening an archive fails because of an unknown reason."
+  },
+  "mountingMessage": {
+    "message": "Сачекајте, архива се скенира...",
+    "description": "Message shown when opening an archive takes long time."
   }
 }

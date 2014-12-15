@@ -18,5 +18,9 @@
   "otherErrorMessage": {
     "message": "संग्रह का प्रारूप समर्थित नहीं है या फ़ाइल त्रुटिपूर्ण है.",
     "description": "Error message when opening an archive fails because of an unknown reason."
+  },
+  "mountingMessage": {
+    "message": "कृपया प्रतीक्षा करें, संग्रह स्‍कैन किया जा रहा है...",
+    "description": "Message shown when opening an archive takes long time."
   }
 }

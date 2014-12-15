@@ -12,11 +12,15 @@
     "description": "Title of a notification with a mounting error message."
   },
   "existsErrorMessage": {
-    "message": "El archivo ya está montado.",
+    "message": "Ya se montó el archivo.",
     "description": "Error message when the archive is already mounted."
   },
   "otherErrorMessage": {
     "message": "El formato de archivo no es compatible o el archivo está dañado.",
     "description": "Error message when opening an archive fails because of an unknown reason."
+  },
+  "mountingMessage": {
+    "message": "Espera, se está analizando el archivo…",
+    "description": "Message shown when opening an archive takes long time."
   }
 }

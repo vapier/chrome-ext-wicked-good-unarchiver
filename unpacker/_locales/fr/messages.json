@@ -18,5 +18,9 @@
   "otherErrorMessage": {
     "message": "Le format de l'archive n'est pas compatible, ou le fichier est endommagé.",
     "description": "Error message when opening an archive fails because of an unknown reason."
+  },
+  "mountingMessage": {
+    "message": "Veuillez patienter, l'archive est en cours d'analyse…",
+    "description": "Message shown when opening an archive takes long time."
   }
 }

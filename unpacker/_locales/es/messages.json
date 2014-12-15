@@ -1,6 +1,6 @@
 {
   "name": {
-    "message": "Descompresor ZIP",
+    "message": "Descompresor de ZIP",
     "description": "Name of the ZIP unpacker app."
   },
   "description": {
@@ -8,15 +8,19 @@
     "description": "Short description of the ZIP unpacker app."
   },
   "mountErrorTitle": {
-    "message": "Error al abrir el archivo comprimido.",
+    "message": "Error al abrir el archivo.",
     "description": "Title of a notification with a mounting error message."
   },
   "existsErrorMessage": {
-    "message": "El archivo comprimido ya está montado.",
+    "message": "El archivo ya está activado.",
     "description": "Error message when the archive is already mounted."
   },
   "otherErrorMessage": {
-    "message": "El formato del archivo comprimido no es compatible o el archivo está dañado.",
+    "message": "El formato del archivo no es compatible o el archivo está dañado.",
     "description": "Error message when opening an archive fails because of an unknown reason."
+  },
+  "mountingMessage": {
+    "message": "Espera, se está analizando el archivo...",
+    "description": "Message shown when opening an archive takes long time."
   }
 }

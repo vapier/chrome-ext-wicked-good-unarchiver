@@ -12,11 +12,15 @@
     "description": "Title of a notification with a mounting error message."
   },
   "existsErrorMessage": {
-    "message": "L'arxiu ja s'ha activat.",
+    "message": "L'arxiu ja està activat.",
     "description": "Error message when the archive is already mounted."
   },
   "otherErrorMessage": {
     "message": "El format de l'arxiu no s'admet, o bé el fitxer està malmès.",
     "description": "Error message when opening an archive fails because of an unknown reason."
+  },
+  "mountingMessage": {
+    "message": "Espereu, s'està analitzant l'arxiu...",
+    "description": "Message shown when opening an archive takes long time."
   }
 }

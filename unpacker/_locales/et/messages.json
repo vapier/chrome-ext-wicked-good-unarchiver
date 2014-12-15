@@ -18,5 +18,9 @@
   "otherErrorMessage": {
     "message": "Arhiivi formaati ei toetata või on fail katki.",
     "description": "Error message when opening an archive fails because of an unknown reason."
+  },
+  "mountingMessage": {
+    "message": "Oodake, arhiivi skannitakse ...",
+    "description": "Message shown when opening an archive takes long time."
   }
 }

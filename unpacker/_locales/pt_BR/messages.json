@@ -18,5 +18,9 @@
   "otherErrorMessage": {
     "message": "O formato de arquivo não é compatível ou o arquivo está corrompido.",
     "description": "Error message when opening an archive fails because of an unknown reason."
+  },
+  "mountingMessage": {
+    "message": "Aguarde. O arquivo está sendo verificado...",
+    "description": "Message shown when opening an archive takes long time."
   }
 }

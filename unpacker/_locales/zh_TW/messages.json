@@ -4,7 +4,7 @@
     "description": "Name of the ZIP unpacker app."
   },
   "description": {
-    "message": "在「檔案」應用程式中開啟 ZIP 檔案。",
+    "message": "可讓您在「檔案」應用程式中開啟 ZIP 檔案。",
     "description": "Short description of the ZIP unpacker app."
   },
   "mountErrorTitle": {
@@ -12,11 +12,15 @@
     "description": "Title of a notification with a mounting error message."
   },
   "existsErrorMessage": {
-    "message": "這個封存檔案已經掛接。",
+    "message": "這個封存檔案已處於掛接狀態。",
     "description": "Error message when the archive is already mounted."
   },
   "otherErrorMessage": {
     "message": "您使用了不支援的封存格式，或者檔案已毀損。",
     "description": "Error message when opening an archive fails because of an unknown reason."
+  },
+  "mountingMessage": {
+    "message": "系統正在掃描封存檔案，請稍候...",
+    "description": "Message shown when opening an archive takes long time."
   }
 }

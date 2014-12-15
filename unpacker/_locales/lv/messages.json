@@ -18,5 +18,9 @@
   "otherErrorMessage": {
     "message": "Arhīva formāts netiek atbalstīts, vai fails ir bojāts.",
     "description": "Error message when opening an archive fails because of an unknown reason."
+  },
+  "mountingMessage": {
+    "message": "Lūdzu, uzgaidiet, kamēr arhīvs tiek pārbaudīts...",
+    "description": "Message shown when opening an archive takes long time."
   }
 }

@@ -18,5 +18,9 @@
   "otherErrorMessage": {
     "message": "تنسيق الأرشيف غير متوافق، أو الملف تالف.",
     "description": "Error message when opening an archive fails because of an unknown reason."
+  },
+  "mountingMessage": {
+    "message": "الرجاء الانتظار، يتم فحص الأرشيف...",
+    "description": "Message shown when opening an archive takes long time."
   }
 }

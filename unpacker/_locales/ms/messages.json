@@ -18,5 +18,9 @@
   "otherErrorMessage": {
     "message": "Format arkib tidak disokong atau fail rosak.",
     "description": "Error message when opening an archive fails because of an unknown reason."
+  },
+  "mountingMessage": {
+    "message": "Sila tunggu, arkib sedang diimbas…",
+    "description": "Message shown when opening an archive takes long time."
   }
 }

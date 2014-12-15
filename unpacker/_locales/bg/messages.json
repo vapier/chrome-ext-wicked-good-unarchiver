@@ -18,5 +18,9 @@
   "otherErrorMessage": {
     "message": "Форматът на архива не се поддържа или файлът е невалиден.",
     "description": "Error message when opening an archive fails because of an unknown reason."
+  },
+  "mountingMessage": {
+    "message": "Моля, изчакайте. Архивът се сканира...",
+    "description": "Message shown when opening an archive takes long time."
   }
 }

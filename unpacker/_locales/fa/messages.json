@@ -12,11 +12,15 @@
     "description": "Title of a notification with a mounting error message."
   },
   "existsErrorMessage": {
-    "message": "بایگانی قبلاً نشانده شده است.",
+    "message": "بایگانی قبلاً نشانده شده است.",
     "description": "Error message when the archive is already mounted."
   },
   "otherErrorMessage": {
     "message": "قالب بایگانی پشتیبانی نمی‌شود یا فایل خراب است.",
     "description": "Error message when opening an archive fails because of an unknown reason."
+  },
+  "mountingMessage": {
+    "message": "لطفاً صبر کنید، بایگانی در حال اسکن شدن است...",
+    "description": "Message shown when opening an archive takes long time."
   }
 }

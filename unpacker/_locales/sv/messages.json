@@ -18,5 +18,9 @@
   "otherErrorMessage": {
     "message": "Arkivformatet stöds inte, eller så är filen trasig.",
     "description": "Error message when opening an archive fails because of an unknown reason."
+  },
+  "mountingMessage": {
+    "message": "Arkivet läses in. Vänta ...",
+    "description": "Message shown when opening an archive takes long time."
   }
 }

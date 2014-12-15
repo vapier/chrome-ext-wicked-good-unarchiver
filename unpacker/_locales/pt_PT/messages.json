@@ -18,5 +18,9 @@
   "otherErrorMessage": {
     "message": "O formato do arquivo não é suportado ou o ficheiro está danificado.",
     "description": "Error message when opening an archive fails because of an unknown reason."
+  },
+  "mountingMessage": {
+    "message": "Aguarde enquanto o arquivo está a ser analisado...",
+    "description": "Message shown when opening an archive takes long time."
   }
 }

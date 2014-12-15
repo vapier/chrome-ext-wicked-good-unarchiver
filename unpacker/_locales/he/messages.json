@@ -18,5 +18,9 @@
   "otherErrorMessage": {
     "message": "פורמט הארכיון אינו נתמך, או שהקובץ פגום.",
     "description": "Error message when opening an archive fails because of an unknown reason."
+  },
+  "mountingMessage": {
+    "message": "המתן בזמן שהארכיון נסרק...",
+    "description": "Message shown when opening an archive takes long time."
   }
 }

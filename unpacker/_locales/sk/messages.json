@@ -18,5 +18,9 @@
   "otherErrorMessage": {
     "message": "Formát archívu nie je podporovaný alebo je súbor poškodený",
     "description": "Error message when opening an archive fails because of an unknown reason."
+  },
+  "mountingMessage": {
+    "message": "Čakajte, prebieha prehľadávanie archívu...",
+    "description": "Message shown when opening an archive takes long time."
   }
 }
