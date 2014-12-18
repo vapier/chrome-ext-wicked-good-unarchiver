@@ -1,6 +1,6 @@
 NAME=libarchive-fork
 VERSION=0.1  # Custom version.
-URL=https://github.com/mtomasz-chromium/libarchive.git@1b4788e
+URL=https://github.com/mtomasz-chromium/libarchive.git@7c31b5f
 LICENSE=BSD
 DEPENDS=(zlib libiconv)
 DISABLED_LIBC=(bionic)
