@@ -18,5 +18,9 @@
   "otherErrorMessage": {
     "message": "Il formato dell'archivio non è supportato oppure il file è danneggiato.",
     "description": "Error message when opening an archive fails because of an unknown reason."
+  },
+  "mountingMessage": {
+    "message": "Attendi, è in corso la scansione dell'archivio...",
+    "description": "Message shown when opening an archive takes long time."
   }
 }
