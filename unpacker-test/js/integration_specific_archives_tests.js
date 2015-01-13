@@ -46,7 +46,7 @@ var SMALL_ZIP_METADATA = {
   index: -1,
   isDirectory: true,
   modificationTime: new Date('1970-01-01T00:00:00.000Z'),
-  name: '/',
+  name: '',
   size: 0
 };
 

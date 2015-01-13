@@ -321,7 +321,7 @@ void Volume::ReadMetadataCallback(int32_t /*result*/,
   }
 
   // Read and construct metadata.
-  pp::VarDictionary root_metadata = CreateEntry(-1, kPathDelimiter, true, 0, 0);
+  pp::VarDictionary root_metadata = CreateEntry(-1, "" /* name */, true, 0, 0);
 
   const char* path_name = NULL;
   int64_t size = 0;
