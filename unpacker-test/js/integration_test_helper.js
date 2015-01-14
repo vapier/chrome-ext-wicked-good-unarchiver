@@ -184,12 +184,18 @@ var tests_helper = {
     // File system provider API.
     chrome.fileSystemProvider = {
       mount: sinon.stub(),
-      unmount: sinon.stub()
-    };
+      unmount: sinon.stub(),
+      getAll: sinon.stub().callsArgWith(
+          0,
+          tests_helper.volumesInformation.map(function(volumeInfo) {
+            return volumeInfo.fileSystemMetadata;
+          }))
+    }
     tests_helper.volumesInformation.forEach(function(volume) {
       chrome.fileSystemProvider.mount
           .withArgs({fileSystemId: volume.fileSystemId,
-                     displayName: volume.entry.name})
+                     displayName: volume.entry.name,
+                     openedFilesLimit: 1})
           .callsArg(1);
       chrome.fileSystemProvider.unmount
           .withArgs({fileSystemId: volume.fileSystemId})
@@ -279,7 +285,18 @@ var tests_helper = {
          * only the volume's state.
          * @type {function()}
          */
-        afterRestartTests: archiveData.afterRestartTests
+        afterRestartTests: archiveData.afterRestartTests,
+        /**
+         * File system metadata to be returned as part of chrome.
+         * fileSystemProvider.getAll().
+         * @type {Object}
+         */
+        fileSystemMetadata: {
+          fileSystemId: fileSystemId,
+          displayName: archiveData.name,
+          writable: false,
+          openedFilesLimit: 1
+        }
       };
 
       tests_helper.volumesInformation.push(volumeInformation);

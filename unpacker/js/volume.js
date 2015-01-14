@@ -75,13 +75,6 @@ function Volume(decompressor, entry) {
   this.encoding = Volume.ENCODING_TABLE[chrome.i18n.getUILanguage()] || '';
 
   /**
-   * Queue of pending open file requests, as only one at the same time is
-   * allowed.
-   * @type {Array.<Object>}
-   */
-  this.pendingOpenFileRequests = [];
-
-  /**
    * The default read metadata request id. -1 is ok as the request ids used by
    * flleSystemProvider are greater than 0.
    * @type {number}
@@ -228,28 +221,6 @@ Volume.prototype.onReadDirectoryRequested = function(options, onSuccess,
   onSuccess(entries, false /* Last call. */);
 };
 
-Volume.prototype.runNextPendingOpenFileRequest_ = function() {
-  console.assert(Object.keys(this.openedFiles) == 0);
-  if (!this.pendingOpenFileRequests.length)
-    return;
-
-  var pendingRequest = this.pendingOpenFileRequests.shift();
-  this.openedFiles[pendingRequest.options.requestId] = pendingRequest.options;
-
-  this.decompressor.openFile(
-      pendingRequest.options.requestId,
-      pendingRequest.index,
-      this.encoding,
-      function() {
-        pendingRequest.onSuccess();
-      },
-      function(error) {
-        delete this.openedFiles[pendingRequest.options.requestId];
-        pendingRequest.onError('FAILED');
-        this.runNextPendingOpenFileRequest_();
-      }.bind(this));
-};
-
 /**
  * Opens a file for read or write.
  * @param {fileSystemProvider.OpenFileRequestedOptions} options Options for
@@ -270,17 +241,6 @@ Volume.prototype.onOpenFileRequested = function(options, onSuccess, onError) {
     return;
   }
 
-  // Already some opened files. Enqueue.
-  if (Object.keys(this.openedFiles).length) {
-    this.pendingOpenFileRequests.push({
-        options: options,
-        index: metadata.index,
-        onSuccess: onSuccess,
-        onError: onError
-    });
-    return;
-  }
-
   this.openedFiles[options.requestId] = options;
 
   this.decompressor.openFile(
@@ -289,7 +249,6 @@ Volume.prototype.onOpenFileRequested = function(options, onSuccess, onError) {
       }.bind(this), function(error) {
         delete this.openedFiles[options.requestId];
         onError('FAILED');
-        this.runNextPendingOpenFileRequest_();
       }.bind(this));
 };
 
@@ -312,7 +271,6 @@ Volume.prototype.onCloseFileRequested = function(options, onSuccess, onError) {
   this.decompressor.closeFile(options.requestId, openRequestId, function() {
     delete this.openedFiles[openRequestId];
     onSuccess();
-    this.runNextPendingOpenFileRequest_();
   }.bind(this), onError);
 };
 

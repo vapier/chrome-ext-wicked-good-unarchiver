@@ -150,37 +150,37 @@ var app = {
   /**
    * Restores archive's entry and opened files for the passed file system id.
    * @param {string} fileSystemId The file system id.
-   * @param {function(Entry, Object.<number, string>)} onSuccessRestore Callback
-   *     to execute on success. The first parameter is the volume's archive
-   *     entry, while the second is the opened files before suspend event.
-   * @param {function(ProviderError)} onErrorRestore Callback to execute on
-   *     error.
+   * @return {Promise.<Object>} Promise fulfilled with the entry and list of
+   *     opened files.
    * @private
    */
-  restoreVolumeState_: function(fileSystemId, onSuccessRestore,
-                                onErrorRestore) {
-    chrome.storage.local.get([app.STORAGE_KEY], function(result) {
-      if (!result[app.STORAGE_KEY]) {
-        onErrorRestore('FAILED');
-        return;
-      }
-
-      var volumeState = result[app.STORAGE_KEY][fileSystemId];
-      if (!volumeState) {
-        console.error('No state for: ' + fileSystemId + '.');
-        onErrorRestore('FAILED');
-        return;
-      }
-
-      chrome.fileSystem.restoreEntry(volumeState.entryId, function(entry) {
-        if (chrome.runtime.lastError) {
-          console.error('Restore entry error for <' + fileSystemId + '>: ' +
-                        chrome.runtime.lastError.message);
-          onErrorRestore('FAILED');
+  restoreVolumeState_: function(fileSystemId) {
+    return new Promise(function(fulfill, reject) {
+      chrome.storage.local.get([app.STORAGE_KEY], function(result) {
+        if (!result[app.STORAGE_KEY]) {
+          reject('FAILED');
           return;
         }
 
-        onSuccessRestore(entry, volumeState.openedFiles);
+        var volumeState = result[app.STORAGE_KEY][fileSystemId];
+        if (!volumeState) {
+          console.error('No state for: ' + fileSystemId + '.');
+          reject('FAILED');
+          return;
+        }
+
+        chrome.fileSystem.restoreEntry(volumeState.entryId, function(entry) {
+          if (chrome.runtime.lastError) {
+            console.error('Restore entry error for <' + fileSystemId + '>: ' +
+                          chrome.runtime.lastError.message);
+            reject('FAILED');
+            return;
+          }
+          fulfill({
+            entry: entry,
+            openedFiles: volumeState.openedFiles
+          });
+        });
       });
     });
   },
@@ -189,41 +189,41 @@ var app = {
    * Creates a volume and loads its metadata from NaCl.
    * @param {string} fileSystemId The file system id.
    * @param {Entry} entry The volume's archive entry.
-   * @param {function()} fulfillVolumeLoad The promise fulfill calback.
-   * @param {function(ProviderError)} rejectVolumeLoad The promise reject
-   *     callback.
    * @param {Object.<number, string>} opt_openedFiles Previously opened files
    *     before suspend.
+   * @return {Promise} Promise fulfilled on success and rejected on failure.
    * @private
    */
-  loadVolume_: function(fileSystemId, entry, fulfillVolumeLoad,
-                        rejectVolumeLoad, opt_openedFiles) {
-    entry.file(function(file) {
-      // File is a Blob object, so it's ok to construct the Decompressor
-      // directly with it.
-      var decompressor = new Decompressor(app.naclModule, fileSystemId, file);
-      var volume = new Volume(decompressor, entry);
+  loadVolume_: function(fileSystemId, entry, opt_openedFiles) {
+    return new Promise(function(fulfill, reject) {
+      entry.file(function(file) {
+        // File is a Blob object, so it's ok to construct the Decompressor
+        // directly with it.
+        var decompressor = new Decompressor(app.naclModule, fileSystemId, file);
+        var volume = new Volume(decompressor, entry);
 
-      var onLoadVolumeSuccess = function() {
-        var openedFiles = opt_openedFiles ? opt_openedFiles : {};
-        if (Object.keys(openedFiles).length == 0) {
-          fulfillVolumeLoad();
-          return;
-        }
+        var onLoadVolumeSuccess = function() {
+          var openedFiles = opt_openedFiles ? opt_openedFiles : {};
+          if (Object.keys(openedFiles).length == 0) {
+            fulfill();
+            return;
+          }
 
-        // Restore opened files on NaCl side.
-        var openFilePromises = [];
-        for (var openRequestId in openedFiles) {
-          var options = openedFiles[openRequestId]
-          openFilePromises.push(new Promise(function(resolve, reject) {
-            volume.onOpenFileRequested(options, resolve, reject);
-          }));
-        }
+          // Restore opened files on NaCl side.
+          var openFilePromises = [];
+          for (var openRequestId in openedFiles) {
+            var options = openedFiles[openRequestId]
+            openFilePromises.push(new Promise(function(resolve, reject) {
+              volume.onOpenFileRequested(options, resolve, reject);
+            }));
+          }
 
-        Promise.all(openFilePromises).then(fulfillVolumeLoad, rejectVolumeLoad);
-      };
-      app.volumes[fileSystemId] = volume;
-      volume.initialize(onLoadVolumeSuccess, rejectVolumeLoad);
+          Promise.all(openFilePromises).then(fulfill, reject);
+        };
+
+        app.volumes[fileSystemId] = volume;
+        volume.initialize(onLoadVolumeSuccess, reject);
+      });
     });
   },
 
@@ -236,18 +236,36 @@ var app = {
    * @private
    */
   restoreSingleVolume_: function(fileSystemId) {
-    return new Promise(function(fulfillVolumeLoad, rejectVolumeLoad) {
-      // Load volume after restart / suspend page event.
-      app.restoreVolumeState_(fileSystemId, function(entry, openedFiles) {
-        app.loadVolume_(fileSystemId, entry, fulfillVolumeLoad,
-                        rejectVolumeLoad, openedFiles);
-      }, function(error) {
-        // Force unmount in case restore failed. All resources related to the
-        // volume will be cleanup from both memory and local storage.
-        app.unmountVolume_(fileSystemId, true).then(function() {
-          rejectVolumeLoad(error);
-        }).catch(rejectVolumeLoad);
+    // Load volume after restart / suspend page event.
+    return app.restoreVolumeState_(fileSystemId).then(function(state) {
+      return new Promise(function(fulfill, reject) {
+        chrome.fileSystemProvider.getAll(function(fileSystems) {
+          if (chrome.runtime.lastError) {
+            console.error(chrome.runtime.lastError.name);
+            reject('FAILED');
+          }
+          // Check if there is a compatible file system mounted with the
+          // matching id. If not, then unmount it.
+          // TODO(mtomasz): Implement remounting instead of unmounting.
+          // TODO(mtomasz): Implement chrome.fileSystemProvider.get().
+          var compatibleFileSystems = fileSystems.filter(function(fileSystem) {
+            return fileSystem.fileSystemId == fileSystemId &&
+                   fileSystem.openedFilesLimit == 1;
+          });
+          if (!compatibleFileSystems.length) {
+            console.error('No compatible mounted file system found.');
+            reject('FAILED');
+          }
+          fulfill(state);
+        });
       });
+    }).then(function(state) {
+      return app.loadVolume_(fileSystemId, state.entry, state.openedFiles);
+    }).catch(function(error) {
+      console.error(error.stack || error);
+      // Force unmount in case restore failed. All resources related to the
+      // volume will be cleanup from both memory and local storage.
+      return app.unmountVolume_(fileSystemId, true);
     });
   },
 
@@ -522,6 +540,7 @@ var app = {
                   message: chrome.i18n.getMessage(error == 'EXISTS' ?
                       'existsErrorMessage' : 'otherErrorMessage')
                 }, function() {});
+                console.error(error);
                 if (opt_onError)
                   opt_onError(fileSystemId);
                 // Cleanup volume resources in order to allow future attempts
@@ -537,32 +556,33 @@ var app = {
               };
 
               if (app.volumeLoadedPromises[fileSystemId]) {
+                console.error('ALREADY EXISTS, COME ON!');
                 onError('EXISTS', fileSystemId);
                 return;
               }
 
-              var loadPromise = new Promise(function(fulfill, reject) {
-                app.loadVolume_(fileSystemId, entry, fulfill, reject);
-              });
-
+              var loadPromise = app.loadVolume_(fileSystemId, entry);
               loadPromise.then(function() {
                 // Mount the volume and save its information in local storage
                 // in order to be able to recover the metadata in case of
                 // restarts, system crashes, etc.
-                chrome.fileSystemProvider.mount(
-                    {fileSystemId: fileSystemId, displayName: entry.name},
-                    function() {
-                      if (chrome.runtime.lastError) {
-                        console.error('Mount error: ' +
-                            chrome.runtime.lastError.message + '.');
-                        onError('FAILED', fileSystemId);
-                        return;
-                      }
-                      // Save state so in case of restarts we are able to correctly
-                      // get the archive's metadata.
-                      app.saveState_([fileSystemId]);
-                      onSuccess(fileSystemId);
-                    });
+                chrome.fileSystemProvider.mount({
+                  fileSystemId: fileSystemId,
+                  displayName: entry.name,
+                  openedFilesLimit: 1
+                },
+                function() {
+                  if (chrome.runtime.lastError) {
+                    console.error('Mount error: ' +
+                        chrome.runtime.lastError.message + '.');
+                    onError('FAILED', fileSystemId);
+                    return;
+                  }
+                  // Save state so in case of restarts we are able to correctly
+                  // get the archive's metadata.
+                  app.saveState_([fileSystemId]);
+                  onSuccess(fileSystemId);
+                });
               }).catch(function(error) {
                 onError(error.stack || error, fileSystemId);
                 return Promise.reject(error);
