@@ -44,14 +44,12 @@ var initPromise = tests_helper.init([
           'encrypted.zip', SMALL_ZIP_METADATA, false, ENCRYPTED_ZIP_PASSPHRASE);
     },
     afterSuspendTests: function() {
-      smallArchiveCheck(
-          'encrypted.zip', SMALL_ZIP_METADATA, true, ENCRYPTED_ZIP_PASSPHRASE);
+      smallArchiveCheck('encrypted.zip', SMALL_ZIP_METADATA, true, null);
       smallArchiveCheckAfterSuspend('encrypted.zip');
     },
     afterRestartTests: function() {
       smallArchiveCheckAfterRestart('encrypted.zip');
-      smallArchiveCheck(
-          'encrypted.zip', SMALL_ZIP_METADATA, true, ENCRYPTED_ZIP_PASSPHRASE);
+      smallArchiveCheck('encrypted.zip', SMALL_ZIP_METADATA, true, null);
     }
   }
 ]);
@@ -168,12 +166,14 @@ var integration_tests = function(describeMessage, moduleNmfFilePath,
         app.onSuspend();  // This gets called before suspend.
         unloadExtension();
 
-        // Set the opened files before suspend. Used to test correct restoring
+        // Remember the state before suspend. Used to test correct restoring
         // after suspend.
         tests_helper.volumesInformation.forEach(function(volumeInformation) {
           var fileSystemId = volumeInformation.fileSystemId;
           volumeInformation.fileSystemMetadata.openedFiles =
               getOpenedFilesBeforeSuspend(fileSystemId);
+          tests_helper.localStorageState[app.STORAGE_KEY][fileSystemId].
+              passphrase = ENCRYPTED_ZIP_PASSPHRASE;
         });
       });
 
@@ -206,6 +206,8 @@ var integration_tests = function(describeMessage, moduleNmfFilePath,
           var fileSystemId = volumeInformation.fileSystemId;
           volumeInformation.fileSystemMetadata.openedFiles =
               getOpenedFilesBeforeSuspend(fileSystemId);
+          tests_helper.localStorageState[app.STORAGE_KEY][fileSystemId].
+              passphrase = ENCRYPTED_ZIP_PASSPHRASE;
         });
 
         unloadExtension();

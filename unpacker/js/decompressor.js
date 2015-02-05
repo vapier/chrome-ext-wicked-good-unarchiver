@@ -12,8 +12,9 @@
  *     communicates.
  * @param {string} fileSystemId The file system id of the correspondent volume.
  * @param {Blob} blob The correspondent file blob for fileSystemId.
+ * @param {string} passphrase Initial passphrase to try decompressing with.
  */
-var Decompressor = function(naclModule, fileSystemId, blob) {
+var Decompressor = function(naclModule, fileSystemId, blob, passphrase) {
   /**
    * The NaCl module that will decompress archives.
    * @type {Object}
@@ -34,11 +35,24 @@ var Decompressor = function(naclModule, fileSystemId, blob) {
   this.blob_ = blob;
 
   /**
+   * Whether any passphrase has been alreadysent to the NaCL module).
+   * @private {boolean}
+   */
+  this.passphraseSent_ = false;
+
+  /**
    * Requests in progress. No need to save them onSuspend for now as metadata
    * reads are restarted from start.
    * @type {Object.<number, Object>}
    */
   this.requestsInProgress = {};
+
+  /**
+   * Last used passphrase if a user decided to remember the passphrase.
+   * Otherwise empty.
+   * @public {string}
+   */
+  this.passphrase = passphrase;
 };
 
 /**
@@ -265,6 +279,19 @@ Decompressor.prototype.readChunk_ = function(data, requestId) {
  * @private
  */
 Decompressor.prototype.readPassphrase_ = function(data, requestId) {
+  // For the first passphrase request try the init passphrase (which may be
+  // incorrect though, so do it only once).
+  // TODO(mtomasz): Extract this logic to a separate PasswordManager class.
+  if (this.passphrase && !this.passphraseSent_) {
+    this.naclModule_.postMessage(
+        request.createReadPassphraseDoneResponse(
+            this.fileSystemId_,
+            requestId,
+            this.passphrase));
+    this.passphraseSent_ = true;
+    return;
+  }
+
   chrome.app.window.create(
       '../html/passphrase.html',
       {
@@ -288,9 +315,10 @@ Decompressor.prototype.readPassphrase_ = function(data, requestId) {
         }.bind(this));
 
         passphraseWindow.contentWindow.onPassphraseSuccess =
-            function(passphrase) {
+            function(passphrase, remember) {
               passphraseSucceeded = true;
-              // TODO(mtomasz): Remember the password if users chooses.
+              this.passphrase = remember ? passphrase : '';
+              this.passphraseUsed_ = true;
               this.naclModule_.postMessage(
                   request.createReadPassphraseDoneResponse(
                       this.fileSystemId_,

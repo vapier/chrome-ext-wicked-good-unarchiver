@@ -122,6 +122,7 @@ var app = {
             chrome.fileSystem.retainEntry(app.volumes[fileSystemId].entry);
         result[app.STORAGE_KEY][fileSystemId] = {
           entryId: entryId,
+          passphrase: app.volumes[fileSystemId].decompressor.passphrase
         };
       });
 
@@ -176,7 +177,8 @@ var app = {
             return;
           }
           fulfill({
-            entry: entry
+            entry: entry,
+            passphrase: volumeState.passphrase
           });
         });
       });
@@ -187,21 +189,22 @@ var app = {
    * Creates a volume and loads its metadata from NaCl.
    * @param {string} fileSystemId The file system id.
    * @param {Entry} entry The volume's archive entry.
-   * @param {Object.<number, string>} opt_openedFiles Previously opened files
-   *     before suspend.
+   * @param {Object.<number, string>} openedFiles Previously opened files
+   *     before a suspend.
+   * @param {string} passphase Previously used passphrase before a suspend.
    * @return {Promise} Promise fulfilled on success and rejected on failure.
    * @private
    */
-  loadVolume_: function(fileSystemId, entry, opt_openedFiles) {
+  loadVolume_: function(fileSystemId, entry, openedFiles, passphrase) {
     return new Promise(function(fulfill, reject) {
       entry.file(function(file) {
         // File is a Blob object, so it's ok to construct the Decompressor
         // directly with it.
-        var decompressor = new Decompressor(app.naclModule, fileSystemId, file);
+        var decompressor = new Decompressor(
+            app.naclModule, fileSystemId, file, passphrase);
         var volume = new Volume(decompressor, entry);
 
         var onLoadVolumeSuccess = function() {
-          var openedFiles = opt_openedFiles ? opt_openedFiles : {};
           if (Object.keys(openedFiles).length == 0) {
             fulfill();
             return;
@@ -267,7 +270,8 @@ var app = {
       return app.loadVolume_(
           fileSystemId,
           stateWithFileSystem.state.entry,
-          openedFilesOptions);
+          openedFilesOptions,
+          stateWithFileSystem.state.passphrase);
     }).catch(function(error) {
       console.error(error.stack || error);
       // Force unmount in case restore failed. All resources related to the
@@ -570,7 +574,8 @@ var app = {
                 return;
               }
 
-              var loadPromise = app.loadVolume_(fileSystemId, entry);
+              var loadPromise = app.loadVolume_(
+                  fileSystemId, entry, {}, '' /* passphrase */);
               loadPromise.then(function() {
                 // Mount the volume and save its information in local storage
                 // in order to be able to recover the metadata in case of
