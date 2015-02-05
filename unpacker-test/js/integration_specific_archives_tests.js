@@ -363,22 +363,19 @@ var smallArchiveCheck = function(
 };
 
 /**
- * Gets the map of opened files before suspend. Used to test correct restore
+ * Gets an array of opened files before suspend. Used to test correct restore
  * after receiving a fileSystemProvider API call after suspend page event.
- * The key is the open request id and the value is the open request options.
  * @param {string} fileSystemId The file system id.
- * @return {Object.<number, fileSystemProvider.OpenFileRequestedOptions>}
+ * @return {Array.<fileSystemProvider.OpenFileRequestedOptions>}
  */
 var getOpenedFilesBeforeSuspend = function(fileSystemId) {
-  return {
-    30: /* requestId */ {
-      fileSystemId: fileSystemId,
-      mode: 'READ',
-      create: false,
-      requestId: 30,
-      filePath: '/file1'
+  return [
+    {
+      openRequestId: 30,
+      filePath: '/file1',
+      mode: 'READ'
     }
-  };
+  ];
 };
 
 /**
@@ -390,15 +387,16 @@ var smallArchiveCheckAfterSuspend = function(fileSystemId) {
   var openedFilesBeforeSuspend =
       getOpenedFilesBeforeSuspend(fileSystemId);
 
-  for (var openRequestId in openedFilesBeforeSuspend) {
-    var openOptions = openedFilesBeforeSuspend[openRequestId];
+  for (var i = 0; i < openedFilesBeforeSuspend.length; i++) {
+    var openedFile = openedFilesBeforeSuspend[i];
+    var openRequestId = openedFile.openRequestId;
     var describeMessage =
         'for <' + fileSystemId + '> and then reads contents of file <' +
-        openOptions.filePath + '> ' + 'opened before suspend page event,';
+        openedFile.filePath + '> ' + 'opened before suspend page event,';
 
     describe(describeMessage, function() {
       // Test read file.
-      testReadFile(fileSystemId, openOptions.filePath, openRequestId,
+      testReadFile(fileSystemId, openedFile.filePath, openRequestId,
                    openRequestId + 1);
 
       // Clean resources.
@@ -425,8 +423,9 @@ var smallArchiveCheckAfterRestart = function(fileSystemId) {
   var openedFilesBeforeSuspend =
       getOpenedFilesBeforeSuspend(fileSystemId);
 
-  for (var openRequestId in openedFilesBeforeSuspend) {
-    var openOptions = openedFilesBeforeSuspend[openRequestId];
+  for (var i = 0; i < openedFilesBeforeSuspend.length; i++) {
+    var openedFile = openedFilesBeforeSuspend[i];
+    var openRequestId = openedFile.openRequestId;
 
     describe('for <' + fileSystemId + '>', function() {
       it('and then tries to read contents of a previous opened file must fail',

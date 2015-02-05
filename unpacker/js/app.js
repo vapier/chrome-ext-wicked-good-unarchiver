@@ -122,7 +122,6 @@ var app = {
             chrome.fileSystem.retainEntry(app.volumes[fileSystemId].entry);
         result[app.STORAGE_KEY][fileSystemId] = {
           entryId: entryId,
-          openedFiles: app.volumes[fileSystemId].openedFiles
         };
       });
 
@@ -177,8 +176,7 @@ var app = {
             return;
           }
           fulfill({
-            entry: entry,
-            openedFiles: volumeState.openedFiles
+            entry: entry
           });
         });
       });
@@ -253,11 +251,23 @@ var app = {
             reject('FAILED');
             return;
           }
-          fulfill(state);
+          fulfill({state: state, fileSystem: fileSystem});
         });
       });
-    }).then(function(state) {
-      return app.loadVolume_(fileSystemId, state.entry, state.openedFiles);
+    }).then(function(stateWithFileSystem) {
+      var openedFilesOptions = {};
+      stateWithFileSystem.fileSystem.openedFiles.forEach(function(openedFile) {
+        openedFilesOptions[openedFile.openRequestId] = {
+          fileSystemId: fileSystemId,
+          requestId: openedFile.openRequestId,
+          mode: openedFile.mode,
+          filePath: openedFile.filePath
+        };
+      });
+      return app.loadVolume_(
+          fileSystemId,
+          stateWithFileSystem.state.entry,
+          openedFilesOptions);
     }).catch(function(error) {
       console.error(error.stack || error);
       // Force unmount in case restore failed. All resources related to the
@@ -592,29 +602,6 @@ var app = {
       });
     }).catch(function(error) {
       console.error(error.stack || error);
-    });
-  },
-
-  /**
-   * Restores the state on a profile startup.
-   */
-  onStartup: function() {
-    app.onStartupPromise = new Promise(function(fulfill, reject) {
-      chrome.storage.local.get([app.STORAGE_KEY], function(result) {
-        // Nothing to change.
-        if (!result[app.STORAGE_KEY]) {
-          fulfill();
-          return;
-        }
-
-        // Remove files opened before the profile shutdown from the local
-        // storage.
-        for (var fileSystemId in result[app.STORAGE_KEY]) {
-          result[app.STORAGE_KEY][fileSystemId].openedFiles = {};
-        }
-
-        chrome.storage.local.set(result, fulfill);
-      });
     });
   },
 

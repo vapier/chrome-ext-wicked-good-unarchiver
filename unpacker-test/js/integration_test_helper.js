@@ -298,14 +298,15 @@ var tests_helper = {
         afterRestartTests: archiveData.afterRestartTests,
         /**
          * File system metadata to be returned as part of chrome.
-         * fileSystemProvider.getAll().
+         * fileSystemProvider.getAll() and get().
          * @type {Object}
          */
         fileSystemMetadata: {
           fileSystemId: fileSystemId,
           displayName: archiveData.name,
           writable: false,
-          openedFilesLimit: 1
+          openedFilesLimit: 1,
+          openedFiles: []
         }
       };
 

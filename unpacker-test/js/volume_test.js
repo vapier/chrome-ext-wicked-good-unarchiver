@@ -354,23 +354,7 @@ describe('Volume', function() {
       // Invalid option.mode.
       describe('with invalid options.mode', function() {
         beforeEach(function() {
-          var options = {mode: 'invalid', create: false, filePath: '/file'};
-          volume.onOpenFileRequested(options, onSuccessSpy, onErrorSpy);
-        });
-
-        it('should not call onSuccess', function() {
-          expect(onSuccessSpy.called).to.be.false;
-        });
-
-        it('should call onError with INVALID_OPERATION', function() {
-          expect(onErrorSpy.calledWith('INVALID_OPERATION')).to.be.true;
-        });
-      });
-
-      // Invalid option.create.
-      describe('with options.create as true', function() {
-        beforeEach(function() {
-          var options = {mode: 'READ', create: true, filePath: '/file'};
+          var options = {mode: 'invalid', filePath: '/file'};
           volume.onOpenFileRequested(options, onSuccessSpy, onErrorSpy);
         });
 
@@ -386,7 +370,7 @@ describe('Volume', function() {
       // Inexistent file path.
       describe('with inexistent filePath', function() {
         beforeEach(function() {
-          var options = {mode: 'READ', create: false, filePath: '/invalid'};
+          var options = {mode: 'READ', filePath: '/invalid'};
           volume.onOpenFileRequested(options, onSuccessSpy, onErrorSpy);
         });
 
@@ -405,7 +389,6 @@ describe('Volume', function() {
         beforeEach(function() {
           options = {
             mode: 'READ',
-            create: false,
             requestId: OPEN_REQUEST_ID,
             filePath: '/file'
           };

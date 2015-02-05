@@ -230,7 +230,7 @@ Volume.prototype.onReadDirectoryRequested = function(options, onSuccess,
  */
 Volume.prototype.onOpenFileRequested = function(options, onSuccess, onError) {
   console.assert(this.isReady(), 'Metadata must be loaded.');
-  if (options.mode != 'READ' || options.create) {
+  if (options.mode != 'READ') {
     onError('INVALID_OPERATION');
     return;
   }

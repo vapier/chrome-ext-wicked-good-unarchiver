@@ -172,8 +172,8 @@ var integration_tests = function(describeMessage, moduleNmfFilePath,
         // after suspend.
         tests_helper.volumesInformation.forEach(function(volumeInformation) {
           var fileSystemId = volumeInformation.fileSystemId;
-          tests_helper.localStorageState[app.STORAGE_KEY][fileSystemId]
-              .openedFiles = getOpenedFilesBeforeSuspend(fileSystemId);
+          volumeInformation.fileSystemMetadata.openedFiles =
+              getOpenedFilesBeforeSuspend(fileSystemId);
         });
       });
 
@@ -204,12 +204,14 @@ var integration_tests = function(describeMessage, moduleNmfFilePath,
         // after restart.
         tests_helper.volumesInformation.forEach(function(volumeInformation) {
           var fileSystemId = volumeInformation.fileSystemId;
-          tests_helper.localStorageState[app.STORAGE_KEY][fileSystemId]
-              .openedFiles = getOpenedFilesBeforeSuspend(fileSystemId);
+          volumeInformation.fileSystemMetadata.openedFiles =
+              getOpenedFilesBeforeSuspend(fileSystemId);
         });
 
         unloadExtension();
-        app.onStartup();  // This gets called after restart.
+        tests_helper.volumesInformation.forEach(function(volumeInformation) {
+          volumeInformation.fileSystemMetadata.openedFiles = [];
+        });
 
         // Reset spies and stubs.
         tests_helper.initChromeApis();
