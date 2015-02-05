@@ -185,6 +185,16 @@ var tests_helper = {
     chrome.fileSystemProvider = {
       mount: sinon.stub(),
       unmount: sinon.stub(),
+      get: function(fileSystemId, callback) {
+        var volumeInfoList = tests_helper.volumesInformation.filter(
+            function(volumeInfo) {
+              return volumeInfo.fileSystemId == fileSystemId;
+            });
+        if (volumeInfoList.length == 0)
+          callback(null);  // No easy way to set lastError.
+        else
+          callback(volumeInfoList[0].fileSystemMetadata);
+      },
       getAll: sinon.stub().callsArgWith(
           0,
           tests_helper.volumesInformation.map(function(volumeInfo) {

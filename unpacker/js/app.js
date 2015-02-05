@@ -239,22 +239,19 @@ var app = {
     // Load volume after restart / suspend page event.
     return app.restoreVolumeState_(fileSystemId).then(function(state) {
       return new Promise(function(fulfill, reject) {
-        chrome.fileSystemProvider.getAll(function(fileSystems) {
+        // Check if the file system is compatible with this version of the
+        // ZIP unpacker.
+        // TODO(mtomasz): Implement remounting instead of unmounting.
+        chrome.fileSystemProvider.get(fileSystemId, function(fileSystem) {
           if (chrome.runtime.lastError) {
             console.error(chrome.runtime.lastError.name);
             reject('FAILED');
+            return;
           }
-          // Check if there is a compatible file system mounted with the
-          // matching id. If not, then unmount it.
-          // TODO(mtomasz): Implement remounting instead of unmounting.
-          // TODO(mtomasz): Implement chrome.fileSystemProvider.get().
-          var compatibleFileSystems = fileSystems.filter(function(fileSystem) {
-            return fileSystem.fileSystemId == fileSystemId &&
-                   fileSystem.openedFilesLimit == 1;
-          });
-          if (!compatibleFileSystems.length) {
+          if (!fileSystem || fileSystem.openedFilesLimit != 1) {
             console.error('No compatible mounted file system found.');
             reject('FAILED');
+            return;
           }
           fulfill(state);
         });
@@ -265,7 +262,9 @@ var app = {
       console.error(error.stack || error);
       // Force unmount in case restore failed. All resources related to the
       // volume will be cleanup from both memory and local storage.
-      return app.unmountVolume_(fileSystemId, true);
+      return app.unmountVolume_(fileSystemId, true).then(function() {
+        return Promise.reject('FAILED');
+      });
     });
   },
 
