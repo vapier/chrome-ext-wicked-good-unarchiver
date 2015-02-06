@@ -12,47 +12,41 @@
  *     communicates.
  * @param {string} fileSystemId The file system id of the correspondent volume.
  * @param {Blob} blob The correspondent file blob for fileSystemId.
- * @param {string} passphrase Initial passphrase to try decompressing with.
+ * @param {!PassphraseManager} passphraseManager Passphrase manager.
  */
-var Decompressor = function(naclModule, fileSystemId, blob, passphrase) {
+var Decompressor = function(naclModule, fileSystemId, blob, passphraseManager) {
   /**
    * The NaCl module that will decompress archives.
-   * @type {Object}
-   * @private
+   * @private {Object}
+   * @const
    */
   this.naclModule_ = naclModule;
 
   /**
-   * @type {string}
-   * @private
+   * @private {string}
+   * @const
    */
   this.fileSystemId_ = fileSystemId;
 
   /**
-   * @type {Blob}
-   * @private
+   * @private {Blob}
+   * @const
    */
   this.blob_ = blob;
 
   /**
-   * Whether any passphrase has been alreadysent to the NaCL module).
-   * @private {boolean}
+   * @public {PassphraseManager}
+   * @const
    */
-  this.passphraseSent_ = false;
+  this.passphraseManager = passphraseManager;
 
   /**
    * Requests in progress. No need to save them onSuspend for now as metadata
    * reads are restarted from start.
-   * @type {Object.<number, Object>}
+   * @public {Object.<number, Object>}
+   * @const
    */
   this.requestsInProgress = {};
-
-  /**
-   * Last used passphrase if a user decided to remember the passphrase.
-   * Otherwise empty.
-   * @public {string}
-   */
-  this.passphrase = passphrase;
 };
 
 /**
@@ -279,51 +273,18 @@ Decompressor.prototype.readChunk_ = function(data, requestId) {
  * @private
  */
 Decompressor.prototype.readPassphrase_ = function(data, requestId) {
-  // For the first passphrase request try the init passphrase (which may be
-  // incorrect though, so do it only once).
-  // TODO(mtomasz): Extract this logic to a separate PasswordManager class.
-  if (this.passphrase && !this.passphraseSent_) {
+  this.passphraseManager.getPassphrase().then(function(passphrase) {
     this.naclModule_.postMessage(
         request.createReadPassphraseDoneResponse(
             this.fileSystemId_,
             requestId,
-            this.passphrase));
-    this.passphraseSent_ = true;
-    return;
-  }
-
-  chrome.app.window.create(
-      '../html/passphrase.html',
-      {
-        innerBounds: {width: 320, height: 160},
-        alwaysOnTop: true,
-        resizable: false,
-        frame: 'none',
-        hidden: true
-      },
-      function(passphraseWindow) {
-        var passphraseSucceeded = false;
-
-        passphraseWindow.onClosed.addListener(function() {
-          if (passphraseSucceeded)
-            return;
-          this.naclModule_.postMessage(
-              request.createReadPassphraseErrorResponse(
-                  this.fileSystemId_,
-                  requestId));
-          // TODO(mtomasz): Cancelling should unmount.
-        }.bind(this));
-
-        passphraseWindow.contentWindow.onPassphraseSuccess =
-            function(passphrase, remember) {
-              passphraseSucceeded = true;
-              this.passphrase = remember ? passphrase : '';
-              this.passphraseUsed_ = true;
-              this.naclModule_.postMessage(
-                  request.createReadPassphraseDoneResponse(
-                      this.fileSystemId_,
-                      requestId,
-                      passphrase));
-             }.bind(this);
-      }.bind(this));
+            passphrase));
+  }.bind(this)).catch(function(error) {
+    console.error(error.stack || error);
+    // TODO(mtomasz): Unmount the archive.
+    this.naclModule_.postMessage(
+        request.createReadPassphraseErrorResponse(
+            this.fileSystemId_,
+            requestId));
+  }.bind(this));
 };

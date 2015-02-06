@@ -122,7 +122,8 @@ var app = {
             chrome.fileSystem.retainEntry(app.volumes[fileSystemId].entry);
         result[app.STORAGE_KEY][fileSystemId] = {
           entryId: entryId,
-          passphrase: app.volumes[fileSystemId].decompressor.passphrase
+          passphrase: app.volumes[fileSystemId].
+              decompressor.passphraseManager.rememberedPassphrase
         };
       });
 
@@ -200,8 +201,9 @@ var app = {
       entry.file(function(file) {
         // File is a Blob object, so it's ok to construct the Decompressor
         // directly with it.
+        var passphraseManager = new PassphraseManager(passphrase);
         var decompressor = new Decompressor(
-            app.naclModule, fileSystemId, file, passphrase);
+            app.naclModule, fileSystemId, file, passphraseManager);
         var volume = new Volume(decompressor, entry);
 
         var onLoadVolumeSuccess = function() {

@@ -160,7 +160,7 @@ var testReadFile = function(fileSystemId, filePath, openRequestId,
     promise.then(function(buffer) {
       expectedBuffer = buffer;
       done();
-    }).catch(tests_helper.forceFailure);
+    }).catch(test_utils.forceFailure);
   });
 
   it('should read the whole file', function(done) {
@@ -189,7 +189,7 @@ var testReadFile = function(fileSystemId, filePath, openRequestId,
       expect(receivedBuffer).to.deep.equal(
           expectedBuffer.subarray(offset, offset + left_length));
       done();
-    }).catch(tests_helper.forceFailure);
+    }).catch(test_utils.forceFailure);
   });
 
   it('should read middle chunk from file', function(done) {
@@ -203,7 +203,7 @@ var testReadFile = function(fileSystemId, filePath, openRequestId,
       expect(receivedBuffer).to.deep.equal(
           expectedBuffer.subarray(offset, offset + length));
       done();
-    }).catch(tests_helper.forceFailure);
+    }).catch(test_utils.forceFailure);
   });
 };
 
@@ -230,7 +230,7 @@ var testOpenReadClose = function(fileSystemId, expectedMetadata, filePath,
         requestId: openRequestId
       };
 
-      app.onOpenFileRequested(options, done, tests_helper.forceFailure);
+      app.onOpenFileRequested(options, done, test_utils.forceFailure);
     });
 
     it('should load the volume metadata', function() {
@@ -250,7 +250,7 @@ var testOpenReadClose = function(fileSystemId, expectedMetadata, filePath,
         openRequestId: openRequestId
       };
 
-      app.onCloseFileRequested(options, done, tests_helper.forceFailure);
+      app.onCloseFileRequested(options, done, test_utils.forceFailure);
     });
   });
 };
@@ -307,7 +307,7 @@ var smallArchiveCheck = function(
       Promise.all(promises).then(function(result) {
         rootMetadataResult = result;
         done();
-      }, tests_helper.forceFailure);
+      }, test_utils.forceFailure);
     });
 
 
@@ -339,7 +339,7 @@ var smallArchiveCheck = function(
       app.onReadDirectoryRequested(options, function(entries) {
         directoryEntries = entries;
         done();
-      }, tests_helper.forceFailure);
+      }, test_utils.forceFailure);
     });
 
     it('should load the volume metadata', function() {
@@ -409,7 +409,7 @@ var smallArchiveCheckAfterSuspend = function(fileSystemId) {
           openRequestId: openRequestId
         };
 
-        app.onCloseFileRequested(options, done, tests_helper.forceFailure);
+        app.onCloseFileRequested(options, done, test_utils.forceFailure);
       });
     });
   }
@@ -440,7 +440,7 @@ var smallArchiveCheckAfterRestart = function(fileSystemId) {
           length: 10
         };
 
-        app.onReadFileRequested(options, tests_helper.forceFailure,
+        app.onReadFileRequested(options, test_utils.forceFailure,
             function(error) {
           setTimeout(function() {
             expect(error).to.equal('INVALID_OPERATION');
@@ -457,7 +457,7 @@ var smallArchiveCheckAfterRestart = function(fileSystemId) {
           openRequestId: openRequestId
         };
 
-        app.onCloseFileRequested(options, tests_helper.forceFailure,
+        app.onCloseFileRequested(options, test_utils.forceFailure,
             function(error) {
           setTimeout(function() {
             expect(error).to.equal('INVALID_OPERATION');

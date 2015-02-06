@@ -11,6 +11,7 @@ $(error PACKAGE_DIR must be set)
 endif
 
 all:
+	rm -rf $(PACKAGE_DIR)
 	mkdir -p $(PACKAGE_DIR)
 	cp -r js $(PACKAGE_DIR)/js
 	cp -r icons $(PACKAGE_DIR)/icons
@@ -20,8 +21,8 @@ all:
 	cp manifest.json $(PACKAGE_DIR)/
 	cp pnacl/$(PNACL_TARGET)/module.nmf $(PACKAGE_DIR)/
 	cp pnacl/$(PNACL_TARGET)/module.pexe $(PACKAGE_DIR)/
-	mkdir -p $(PACKAGE_DIR)/third_party
-	cp vulcanized-polymer/* $(PACKAGE_DIR)/third_party/
+	mkdir -p $(PACKAGE_DIR)/third-party
+	cp vulcanized-polymer/* $(PACKAGE_DIR)/third-party/
 
 .PHONY: clean
 clean:

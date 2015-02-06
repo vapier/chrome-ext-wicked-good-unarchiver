@@ -23,6 +23,6 @@ fi
 
 cd ../unpacker/
 # Test only with the Debug build.
-make debug || { exit 1; }  # In case any make fails, exit.
-cd ../unpacker-test/
+make debug || { exit 1; }
+cd ../unpacker-test
 karma start

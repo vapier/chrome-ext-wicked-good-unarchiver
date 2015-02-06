@@ -14,15 +14,21 @@ module.exports = function(config) {
      * Base path that will be used to resolve all patterns (eg. files, exclude).
      * @type {string}
      */
-    basePath: '../unpacker/release',
+    basePath: '../unpacker/debug',
 
     /**
-     * Hack for a bug in Karma, which doesn't allow to access static files
-     * which are not under the base path using relative paths.
      * @type {Object.<string, string>}
      */
     proxies: {
-      '/test-files/': '/absolute' + process.env['PWD'] + '/test-files/'
+      // Hack for a bug in Karma, which doesn't allow to access static files
+      // which are not under the base path using relative paths.
+      '/test-files/': '/absolute' + process.env['PWD'] + '/test-files/',
+
+      // For the passphrase dialog.
+      '/js/': '/base/js/',
+      '/html/': '/base/html/',
+      '/css/': '/base/css/',
+      '/third-party/': '/base/third-party/'
     },
 
     /**
@@ -43,7 +49,12 @@ module.exports = function(config) {
       // only served.
       {pattern: 'module.nmf', watched: false, included: false, served: true},
       {pattern: 'module.pexe', watched: false, included: false, served: true},
+      {pattern: 'js/passphrase-dialog.js', watched: true, included: false,
+                served: true},
       {pattern: 'js/*.js', watched: true, included: true, served: true},
+      {pattern: 'html/*.html', watched: true, included: false, served: true},
+      {pattern: 'css/*.css', watched: true, included: false, served: true},
+      {pattern: 'third-party/*', watched: true, included: false, served: true},
 
       // Test files.
       {pattern: '../../unpacker-test/test-files/**/*', watched: false,
@@ -65,8 +76,7 @@ module.exports = function(config) {
      * @type {Array.<string>}
      */
     exclude: [
-      'js/background.js',  // Contains direct calls to Chrome API.
-      'js/passphrase-dialog.js',  // The password dialog is mocked out.
+      'js/background.js'  // Contains direct calls to Chrome API.
     ],
 
     /**

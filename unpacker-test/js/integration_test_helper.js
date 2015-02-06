@@ -332,17 +332,4 @@ var tests_helper = {
       }, reject /* In case of errors just reject with ProviderError. */);
     });
   },
-
-  /**
-   * Forces failure in tests. Should be called only from 'beforeEach',
-   * 'afterEach' and 'it'. Useful to force failures in promises.
-   * @param {Object|string} An error with stack trace or a string error that
-   *     describes the failure reason.
-   */
-  forceFailure: function(error) {
-    console.error(error.stack || error);
-    setTimeout(function() {
-      expect(false).to.be.true;
-    });
-  }
 };

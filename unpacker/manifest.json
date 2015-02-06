@@ -32,6 +32,7 @@
         "js/app.js",
         "js/background.js",
         "js/decompressor.js",
+        "js/passphrase-manager.js",
         "js/request.js",
         "js/volume.js"
       ]
