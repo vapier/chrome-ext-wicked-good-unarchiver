@@ -99,7 +99,9 @@ PassphraseAppWindowFactory.prototype.create = function(url, options, callback) {
   callback(appWindow);
 
   if (passphrase !== null) {
-    appWindow.contentWindow.onPassphraseSuccess(passphrase);
+    // TODO(mtomasz): Add a test for not remembering the password.
+    appWindow.contentWindow.onPassphraseSuccess(
+        passphrase, true /* remember */);
   } else {
     closeCallbacks.forEach(function(closeCallback) {
       closeCallback();
@@ -259,8 +261,8 @@ var testOpenReadClose = function(fileSystemId, expectedMetadata, filePath,
  * @param {Object} expectedMetadata The volume's expected metadata.
  * @param {boolean} restore True if this is a request after restoring state.
  * @param {?string} passphrase Passphrase for encrypted archives. NULL
- *     otherwise.
- */
+*     otherwise.
+*/
 var smallArchiveCheck = function(
     fileSystemId, expectedMetadata, restore, passphrase) {
   var suffix = 'for <' + fileSystemId + '>';
