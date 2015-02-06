@@ -30,7 +30,6 @@
     "background": {
       "scripts": [
         "js/app.js",
-        "js/build-config.js",
         "js/background.js",
         "js/decompressor.js",
         "js/request.js",

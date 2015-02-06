@@ -17,31 +17,6 @@ var tests_helper = {
   TEST_FILES_BASE_URL_: 'http://localhost:9876/test-files/',
 
   /**
-   * The path to the module nmf file for the Release executable.
-   * "base/" prefix is required because Karma prefixes every file path with
-   * "base/" before serving it.
-   * @type {string}
-   * @const
-   */
-  MODULE_RELEASE_NMF_FILE_PATH: 'base/pnacl/Release/module.nmf',
-
-  /**
-   * The path to the module nmf file for the Debug executable.
-   * "base/" prefix is required because Karma prefixes every file path with
-   * "base/" before serving it.
-   * @type {string}
-   * @const
-   */
-  MODULE_DEBUG_NMF_FILE_PATH: 'base/pnacl/Debug/module.nmf',
-
-  /**
-   * The mime type of the module.
-   * @type {string}
-   * @const
-   */
-  MODULE_MIME_TYPE: 'application/x-pnacl',
-
-  /**
    * Define information for the volumes to check.
    * @type {Array.<Object>}
    */

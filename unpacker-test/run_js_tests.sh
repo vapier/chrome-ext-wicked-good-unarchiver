@@ -22,7 +22,7 @@ if [ -d user-data-dir-karma ]; then
 fi
 
 cd ../unpacker/
-# Build both Release and Debug executables for integration tests.
-make && make debug_for_tests || { exit 1; }  # In case any make fails, exit.
+# Test only with the Debug build.
+make debug || { exit 1; }  # In case any make fails, exit.
 cd ../unpacker-test/
 karma start

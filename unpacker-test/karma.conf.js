@@ -14,7 +14,7 @@ module.exports = function(config) {
      * Base path that will be used to resolve all patterns (eg. files, exclude).
      * @type {string}
      */
-    basePath: '../unpacker',
+    basePath: '../unpacker/release',
 
     /**
      * Hack for a bug in Karma, which doesn't allow to access static files
@@ -41,23 +41,23 @@ module.exports = function(config) {
     files: [
       // Application files. Only *.js files are included as <script>, the rest
       // only served.
-      {pattern: '**/*.nmf', watched: false, included: false, served: true},
-      {pattern: '**/*.[p|n]exe', watched: false, included: false, served: true},
+      {pattern: 'module.nmf', watched: false, included: false, served: true},
+      {pattern: 'module.pexe', watched: false, included: false, served: true},
       {pattern: 'js/*.js', watched: true, included: true, served: true},
 
       // Test files.
-      {pattern: '../unpacker-test/test-files/**/*', watched: false,
-          included: false, served: true},
+      {pattern: '../../unpacker-test/test-files/**/*', watched: false,
+                included: false, served: true},
 
       // These 2 files must be included before integration_test.js. They define
       // helper functions for the integration tests so by the time
       // integration_test.js file is parsed those functions must be already
       // available.
-      '../unpacker-test/js/integration_test_helper.js',
-      '../unpacker-test/js/integration_specific_archives_tests.js',
+      '../../unpacker-test/js/integration_test_helper.js',
+      '../../unpacker-test/js/integration_specific_archives_tests.js',
 
       // All other test files, including integration_test.js.
-      '../unpacker-test/js/*.js'
+      '../../unpacker-test/js/*.js'
     ],
 
     /**

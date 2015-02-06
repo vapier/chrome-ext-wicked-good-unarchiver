@@ -33,11 +33,9 @@ Note, that you need vulcanizer to be installed:
 Then you can create the package with:
 
 > cd unpacker
-> ./release.sh [newlib|pnacl]  # First argument is optional and is either newlib
-                               # or pnacl. Defaults to pnacl.
+> make [debug]
 
-After running release.sh, the extension release code will be available in
-unpacker-release directory.
+The package will be available in the release or debug directory.
 
 ### Use:
 Load unpacked extension and open rar / zip archives.
@@ -66,8 +64,3 @@ Chai for assertions (http://chaijs.com/) and Sinon for spies and stubs
 > cd unpacker-test
 > ./run_js_tests.sh  # JavaScript tests.
 > ./run_cpp_tests.sh  # C++ tests.
-
-# Run gdb:
-> export CHROME_PATH=<path_to_chrome_with_file_system_provider_api_support>
-> cd unpacker
-> [GDB_SCRIPT=<gdb_script>] make gdb_debug  # GDB_SCRIPT part is optional.

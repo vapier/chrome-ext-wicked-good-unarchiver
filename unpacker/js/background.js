@@ -28,6 +28,5 @@ chrome.fileSystemProvider.onCloseFileRequested.addListener(
 chrome.fileSystemProvider.onReadFileRequested.addListener(
     app.onReadFileRequested);
 
-// Load the NaCl module.
-app.loadNaclModule(buildConfig.BUILD_MODULE_PATH,
-                   buildConfig.BUILD_MODULE_TYPE);
+// Load the PNaCl module.
+app.loadNaclModule('module.nmf', 'application/x-pnacl');
