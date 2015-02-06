@@ -1,3 +1,7 @@
+input, paper-button, paper-checkbox {
+  -webkit-app-region: no-drag;
+}
+
 h3 {
   margin: 0;
 }
