@@ -14,7 +14,7 @@ var tests_helper = {
    * @private
    * @const
    */
-  TEST_FILES_BASE_URL_: 'http://localhost:9876/base-test/test-files/',
+  TEST_FILES_BASE_URL_: 'http://localhost:9876/test-files/',
 
   /**
    * The path to the module nmf file for the Release executable.

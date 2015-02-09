@@ -17,6 +17,15 @@ module.exports = function(config) {
     basePath: '../unpacker',
 
     /**
+     * Hack for a bug in Karma, which doesn't allow to access static files
+     * which are not under the base path using relative paths.
+     * @type {Object.<string, string>}
+     */
+    proxies: {
+      '/test-files/': '/absolute' + process.env['PWD'] + '/test-files/'
+    },
+
+    /**
      * Frameworks to use. Available frameworks:
      * https://npmjs.org/browse/keyword/karma-adapter
      * @type {Array.<string>}
@@ -38,7 +47,7 @@ module.exports = function(config) {
 
       // Test files.
       {pattern: '../unpacker-test/test-files/**/*', watched: false,
-                included: false, served: true},
+          included: false, served: true},
 
       // These 2 files must be included before integration_test.js. They define
       // helper functions for the integration tests so by the time
