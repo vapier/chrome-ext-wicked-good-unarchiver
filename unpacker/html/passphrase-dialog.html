@@ -3,7 +3,7 @@
 <polymer-element name="passphrase-dialog">
   <template>
     <link rel="stylesheet" href="../css/passphrase-dialog.css">
-    <h3>The file is password protected</h3>
+    <h3>{{ 'passphraseTitle' | i18n }}</h3>
     <paper-input-decorator label="{{ 'passphraseInputLabel' | i18n }}">
       <input is="core-input" type="password" id="input" autofocus>
     </paper-input-decorator>
