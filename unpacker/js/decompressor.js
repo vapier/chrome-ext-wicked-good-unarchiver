@@ -281,10 +281,13 @@ Decompressor.prototype.readPassphrase_ = function(data, requestId) {
             passphrase));
   }.bind(this)).catch(function(error) {
     console.error(error.stack || error);
-    // TODO(mtomasz): Unmount the archive.
     this.naclModule_.postMessage(
         request.createReadPassphraseErrorResponse(
             this.fileSystemId_,
             requestId));
+    // TODO(mtomasz): Instead of unmounting just let the current operation fail
+    // and ask for password for another files. This is however impossible for
+    // now due to a bug in libarchive.
+    app.unmountVolume_(this.fileSystemId_, true);
   }.bind(this));
 };
