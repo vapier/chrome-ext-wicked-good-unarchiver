@@ -2,7 +2,7 @@
   "name": "__MSG_name__",
   "version": "0.70",
   "manifest_version": 2,
-  "minimum_chrome_version": "40.0.2212.0",
+  "minimum_chrome_version": "42.0.2283.0",
   "description": "__MSG_description__",
   "default_locale": "en",
   "display_in_launcher": false,
