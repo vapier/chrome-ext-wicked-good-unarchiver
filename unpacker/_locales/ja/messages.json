@@ -22,5 +22,25 @@
   "mountingMessage": {
     "message": "アーカイブをスキャンしています。しばらくお待ちください...",
     "description": "Message shown when opening an archive takes long time."
+  },
+  "passphraseTitle": {
+    "message": "パスワードで保護されたファイル",
+    "description": "Title of the password input dialog."
+  },
+  "passphraseInputLabel": {
+    "message": "パスワード",
+    "description": "Label of the password input field."
+  },
+  "passphraseAccept": {
+    "message": "承認",
+    "description": "Short name of the password accept button."
+  },
+  "passphraseCancel": {
+    "message": "キャンセル",
+    "description": "Short name of the password cancel button."
+  },
+  "passphraseRemember": {
+    "message": "パスワードを保存",
+    "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
   }
 }

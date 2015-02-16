@@ -20,7 +20,27 @@
     "description": "Error message when opening an archive fails because of an unknown reason."
   },
   "mountingMessage": {
-    "message": "Lūdzu, uzgaidiet, kamēr arhīvs tiek pārbaudīts...",
+    "message": "Lūdzu, uzgaidiet, kamēr notiek arhīva pārbaude...",
     "description": "Message shown when opening an archive takes long time."
+  },
+  "passphraseTitle": {
+    "message": "Šis fails ir aizsargāts ar paroli",
+    "description": "Title of the password input dialog."
+  },
+  "passphraseInputLabel": {
+    "message": "Parole",
+    "description": "Label of the password input field."
+  },
+  "passphraseAccept": {
+    "message": "Pieņemt",
+    "description": "Short name of the password accept button."
+  },
+  "passphraseCancel": {
+    "message": "Atcelt",
+    "description": "Short name of the password cancel button."
+  },
+  "passphraseRemember": {
+    "message": "Atcerēties",
+    "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
   }
 }
