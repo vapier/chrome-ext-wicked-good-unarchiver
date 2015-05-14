@@ -1,8 +1,8 @@
 {
   "name": "__MSG_name__",
-  "version": "0.71",
+  "version": "0.72",
   "manifest_version": 2,
-  "minimum_chrome_version": "42.0.2283.0",
+  "minimum_chrome_version": "44.0.2400.0",
   "description": "__MSG_description__",
   "default_locale": "en",
   "display_in_launcher": false,
@@ -13,6 +13,10 @@
     "storage",
     "alwaysOnTopWindows"
   ],
+  "file_system_provider_capabilities": {
+    "multipleMounts": true,
+    "source": "file"
+  },
   "file_handlers": {
     "zip": {
       "types": ["application/zip"],
