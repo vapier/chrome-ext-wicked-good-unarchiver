@@ -28,7 +28,7 @@ TEST_PAGE_CONFIG = \
   "$(TEST_PAGE)?pathToNmfFile=pnacl/$(CONFIG)/main.nmf&mimeType=application/x-pnacl"
 
 TARGET = main
-LIBS = ppapi_simple nacl_io ppapi_cpp ppapi gtest pthread
+LIBS = ppapi_simple_cpp nacl_io ppapi_cpp ppapi gtest pthread
 
 CFLAGS = -Wall -Wno-sign-compare -I$(CODE_DIR)
 SOURCES = \
