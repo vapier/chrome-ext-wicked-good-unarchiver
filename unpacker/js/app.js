@@ -215,7 +215,7 @@ var app = {
           // Restore opened files on NaCl side.
           var openFilePromises = [];
           for (var openRequestId in openedFiles) {
-            var options = openedFiles[openRequestId]
+            var options = openedFiles[openRequestId];
             openFilePromises.push(new Promise(function(resolve, reject) {
               volume.onOpenFileRequested(options, resolve, reject);
             }));
@@ -226,7 +226,7 @@ var app = {
 
         app.volumes[fileSystemId] = volume;
         volume.initialize(onLoadVolumeSuccess, reject);
-      });
+      }, reject);
     });
   },
 
