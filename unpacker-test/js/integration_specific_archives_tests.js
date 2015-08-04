@@ -7,8 +7,7 @@
 /**
  * The expected metadata for small_zip.zip. Different from above when it comes
  * to Date objects (2014-08-13<T16> vs 2014-08-13<T07>).
- * @type {Object}
- * @const
+ * @const {!Object}
  */
 var SMALL_ZIP_METADATA = {
   entries: {
@@ -54,21 +53,19 @@ var SMALL_ZIP_METADATA = {
  * The small archive path prefix in 'test-files/' directory. Used to obtain the
  * expected files for read file requests. The small archive structure should be
  * identical to the metadata obtained from the archive.
- * @type {string}
- * @const
+ * @const {string}
  */
 var SMALL_ARCHIVE_PATH_PREFIX = 'small_archive';
 
 /**
  * Passphrase used to compress the encrypted.zip archive.
- * @type {string}
- * @const
+ * @const {string}
  */
 var ENCRYPTED_ZIP_PASSPHRASE = 'test123';
 
 /**
  * Factory class for fake app windows.
- * @param {!Array.<string>} passphrases Passphrases to be typed. If null, then
+ * @param {!Array<string>} passphrases Passphrases to be typed. If null, then
  *     pressing the cancel button will be simulated.
  * @constructor
  * @struct
@@ -113,8 +110,8 @@ PassphraseAppWindowFactory.prototype.create = function(url, options, callback) {
  * Tests if metadata is the same as expectedEntryMetadata. The function tests
  * recursively all the metadata by running the tests for all files in the
  * entries field of directories. It should be run from a Mocha 'it'.
- * @param {Object} entryMetadata The entry metadata to test.
- * @param {Object} expectedEntryMetadata The expected metadata.
+ * @param {!Object} entryMetadata The entry metadata to test.
+ * @param {!Object} expectedEntryMetadata The expected metadata.
  */
 var testMetadata = function(entryMetadata, expectedEntryMetadata) {
   expect(entryMetadata.name).to.equal(expectedEntryMetadata.name);
@@ -144,10 +141,11 @@ var testMetadata = function(entryMetadata, expectedEntryMetadata) {
 /**
  * Tests read for a file in the archive. The file must be opened with
  * openRequestId before calling this function.
- * @param {string} fileSystemId The file system id.
+ * @param {!unpacker.types.FileSystemId} fileSystemId
  * @param {string} filePath The file path in the archive.
- * @param {number} openRequestId The open request id for the file to read.
- * @param {number} readRequestId The read request id.
+ * @param {!unpacker.types.RequestId} openRequestId The open request id for
+ *     the file to read.
+ * @param {!unpacker.types.RequestId} readRequestId The read request id.
  */
 var testReadFile = function(fileSystemId, filePath, openRequestId,
                             readRequestId) {
@@ -209,12 +207,12 @@ var testReadFile = function(fileSystemId, filePath, openRequestId,
 
 /**
  * Tests open, read and close for a file in the archive.
- * @param {string} fileSystemId The file system id.
- * @param {Object} expectedMetadata The volume's expected metadata.
+ * @param {!unpacker.types.FileSystemId} fileSystemId
+ * @param {!Object} expectedMetadata The volume's expected metadata.
  * @param {string} filePath The file path in the archive.
- * @param {number} openRequestId The open request id.
- * @param {number} readRequestId The read request id.
- * @param {number} closeRequestId The close request id.
+ * @param {!unpacker.types.RequestId} openRequestId The open request id.
+ * @param {!unpacker.types.RequestId} readRequestId The read request id.
+ * @param {!unpacker.types.RequestId} closeRequestId The close request id.
  */
 var testOpenReadClose = function(fileSystemId, expectedMetadata, filePath,
                                  openRequestId, readRequestId, closeRequestId) {
@@ -230,11 +228,12 @@ var testOpenReadClose = function(fileSystemId, expectedMetadata, filePath,
         requestId: openRequestId
       };
 
-      app.onOpenFileRequested(options, done, test_utils.forceFailure);
+      unpacker.app.onOpenFileRequested(options, done, test_utils.forceFailure);
     });
 
     it('should load the volume metadata', function() {
-      testMetadata(app.volumes[fileSystemId].metadata, expectedMetadata);
+      testMetadata(unpacker.app.volumes[fileSystemId].metadata,
+                   expectedMetadata);
     });
 
     // Test read file operation.
@@ -250,15 +249,15 @@ var testOpenReadClose = function(fileSystemId, expectedMetadata, filePath,
         openRequestId: openRequestId
       };
 
-      app.onCloseFileRequested(options, done, test_utils.forceFailure);
+      unpacker.app.onCloseFileRequested(options, done, test_utils.forceFailure);
     });
   });
 };
 
 /**
  * Checks if volume was loaded correctly and its operations are successful.
- * @param {string} fileSystemId The file system id.
- * @param {Object} expectedMetadata The volume's expected metadata.
+ * @param {!unpacker.types.FileSystemId} fileSystemId
+ * @param {!Object} expectedMetadata The volume's expected metadata.
  * @param {boolean} restore True if this is a request after restoring state.
  * @param {?string} passphrase Passphrase for encrypted archives. NULL
 *     otherwise.
@@ -270,7 +269,7 @@ var smallArchiveCheck = function(
   beforeEach(function() {
     // In case of restore the volume object shouldn't be in memory.
     if (restore)
-      expect(app.volumes[fileSystemId]).to.be.undefined;
+      expect(unpacker.app.volumes[fileSystemId]).to.be.undefined;
     if (passphrase !== null) {
       // Simulate entering a wrong password twice until the correct one.
       var factory = new PassphraseAppWindowFactory(
@@ -290,7 +289,7 @@ var smallArchiveCheck = function(
         entryPath: entryPath
       };
       return new Promise(function(fulfill, reject) {
-        app.onGetMetadataRequested(options, fulfill, reject);
+        unpacker.app.onGetMetadataRequested(options, fulfill, reject);
       });
     };
 
@@ -312,7 +311,8 @@ var smallArchiveCheck = function(
 
 
     it('should load the volume metadata', function() {
-      testMetadata(app.volumes[fileSystemId].metadata, expectedMetadata);
+      testMetadata(unpacker.app.volumes[fileSystemId].metadata,
+                   expectedMetadata);
     });
 
     it('should return correct metadata for all calls', function() {
@@ -320,7 +320,8 @@ var smallArchiveCheck = function(
       // successfully fulfill.
       expect(rootMetadataResult).to.not.be.undefined;
       rootMetadataResult.forEach(function(rootMetadata) {
-        expect(rootMetadata).to.equal(app.volumes[fileSystemId].metadata);
+        expect(rootMetadata)
+            .to.equal(unpacker.app.volumes[fileSystemId].metadata);
       });
     });
   });
@@ -336,14 +337,15 @@ var smallArchiveCheck = function(
         directoryPath: '/'  // Ask for root directory entries.
       };
 
-      app.onReadDirectoryRequested(options, function(entries) {
+      unpacker.app.onReadDirectoryRequested(options, function(entries) {
         directoryEntries = entries;
         done();
       }, test_utils.forceFailure);
     });
 
     it('should load the volume metadata', function() {
-      testMetadata(app.volumes[fileSystemId].metadata, expectedMetadata);
+      testMetadata(unpacker.app.volumes[fileSystemId].metadata,
+                   expectedMetadata);
     });
 
     it('should load return the correct entries', function() {
@@ -367,8 +369,8 @@ var smallArchiveCheck = function(
 /**
  * Gets an array of opened files before suspend. Used to test correct restore
  * after receiving a fileSystemProvider API call after suspend page event.
- * @param {string} fileSystemId The file system id.
- * @return {Array.<fileSystemProvider.OpenFileRequestedOptions>}
+ * @param {!unpacker.types.FileSystemId} fileSystemId
+ * @return {!Array<!fileSystemProvider.OpenFileRequestedOptions>}
  */
 var getOpenedFilesBeforeSuspend = function(fileSystemId) {
   return [
@@ -383,7 +385,7 @@ var getOpenedFilesBeforeSuspend = function(fileSystemId) {
 /**
  * Tests read and close file operations after suspend page event for files that
  * were opened but not closed before suspending.
- * @param {string} fileSystemId The file system id.
+ * @param {!unpacker.types.FileSystemId} fileSystemId
  */
 var smallArchiveCheckAfterSuspend = function(fileSystemId) {
   var openedFilesBeforeSuspend =
@@ -409,7 +411,8 @@ var smallArchiveCheckAfterSuspend = function(fileSystemId) {
           openRequestId: openRequestId
         };
 
-        app.onCloseFileRequested(options, done, test_utils.forceFailure);
+        unpacker.app.onCloseFileRequested(options, done,
+                                          test_utils.forceFailure);
       });
     });
   }
@@ -419,7 +422,7 @@ var smallArchiveCheckAfterSuspend = function(fileSystemId) {
  * Tests read and close file operations after restart for files that were opened
  * but not closed before restart. The requests should fail because after restart
  * volume's opened files are cleared.
- * @param {string} fileSystemId The file system id.
+ * @param {!unpacker.types.FileSystemId} fileSystemId
  */
 var smallArchiveCheckAfterRestart = function(fileSystemId) {
   var openedFilesBeforeSuspend =
@@ -440,13 +443,13 @@ var smallArchiveCheckAfterRestart = function(fileSystemId) {
           length: 10
         };
 
-        app.onReadFileRequested(options, test_utils.forceFailure,
-            function(error) {
-          setTimeout(function() {
-            expect(error).to.equal('INVALID_OPERATION');
-            done();
-          });
-        });
+        unpacker.app.onReadFileRequested(
+            options, test_utils.forceFailure, function(error) {
+              setTimeout(function() {
+                expect(error).to.equal('INVALID_OPERATION');
+                done();
+              });
+            });
       });
 
       it('and then tries to close a previous opened file must fail',
@@ -457,13 +460,13 @@ var smallArchiveCheckAfterRestart = function(fileSystemId) {
           openRequestId: openRequestId
         };
 
-        app.onCloseFileRequested(options, test_utils.forceFailure,
-            function(error) {
-          setTimeout(function() {
-            expect(error).to.equal('INVALID_OPERATION');
-            done();
-          });
-        });
+        unpacker.app.onCloseFileRequested(
+            options, test_utils.forceFailure, function(error) {
+              setTimeout(function() {
+                expect(error).to.equal('INVALID_OPERATION');
+                done();
+              });
+            });
       });
     });
   }

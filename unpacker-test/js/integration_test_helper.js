@@ -10,15 +10,14 @@
 var tests_helper = {
   /**
    * The base URL where all test archives are located.
-   * @type {string}
-   * @private
+   * @private {string}
    * @const
    */
   TEST_FILES_BASE_URL_: 'http://localhost:9876/test-files/',
 
   /**
    * Define information for the volumes to check.
-   * @type {Array.<Object>}
+   * @type {!Array<!Object>}
    */
   volumesInformation: [],
 
@@ -26,16 +25,15 @@ var tests_helper = {
    * The local storage that contains the volumes state to restore after suspend
    * event, restarts, crashes, etc. The key is used to differentiate between
    * different values stored in the local storage. For our extension only
-   * app.STORAGE_KEY is used.
-   * @type {Object.<string, Object>}
+   * unpacker.app.STORAGE_KEY is used.
+   * @type {!Object<string, !Object>}
    */
   localStorageState: {},
 
   /**
    * A cache with downloaded files' Blob objects. The key is the file path and
    * the value is a Promise that fulfills with the file's Blob object.
-   * @type {Object.<string, Promise>}
-   * @private
+   * @private {!Object<string, !Promise>}
    */
   fileBlobCache_: {},
 
@@ -52,7 +50,7 @@ var tests_helper = {
    * object that is needed by the Decompressor to read the archive's file data
    * or other file's content that must be compared.
    * @param {string} filePath The file path in 'test-files/' directory.
-   * @return {Promise} A promise that fulfills with the file's blob or rejects
+   * @return {!Promise} A promise that fulfills with the file's blob or rejects
    *     with the download failure error.
    */
   getFileBlob: function(filePath) {
@@ -87,8 +85,8 @@ var tests_helper = {
    * Downloads a file's blob and converts it to an Int8Array that can be used
    * for comparisons.
    * @param {string} filePath The file path in 'test-files/' directory.
-   * @return {Promise} A Promise which fulfills with the data as an Int8Array or
-   *     rejects with any received error.
+   * @return {!Promise} A Promise which fulfills with the data as an Int8Array
+   *     or rejects with any received error.
    */
   getAndReadFileBlobPromise: function(filePath) {
     return tests_helper.getFileBlob(filePath).then(function(blob) {
@@ -175,7 +173,7 @@ var tests_helper = {
           tests_helper.volumesInformation.map(function(volumeInfo) {
             return volumeInfo.fileSystemMetadata;
           }))
-    }
+    };
     tests_helper.volumesInformation.forEach(function(volume) {
       chrome.fileSystemProvider.mount
           .withArgs({fileSystemId: volume.fileSystemId,
@@ -214,13 +212,13 @@ var tests_helper = {
     // Chrome app window API. Used for the passphrase dialog only.
     chrome.app.window = {
       create: tests_helper.createAppWindow
-    }
+    };
   },
 
   /**
    * Initializes the tests helper. Should call Promise.then to finish
    * initialization as it is done asynchronously.
-   * @param {Array.<Object>} archivesToTest A list with data about
+   * @param {!Array<!Object>} archivesToTest A list with data about
    *     archives to test. The archives should be present in 'test-files/'
    *     directory. It has 4 properties: 'name', a string representing the
    *     archive's name which has the same value as the file system id,
@@ -274,7 +272,7 @@ var tests_helper = {
         /**
          * File system metadata to be returned as part of chrome.
          * fileSystemProvider.getAll() and get().
-         * @type {Object}
+         * @type {!Object}
          */
         fileSystemMetadata: {
           fileSystemId: fileSystemId,
@@ -295,12 +293,12 @@ var tests_helper = {
 
   /**
    * Create a read file request promise.
-   * @param {string} fileSystemId The file system id.
-   * @param {number} readRequestid The read request id.
-   * @param {number} openRequestId The open request id.
+   * @param {!unpacker.types.FileSystemId} fileSystemId
+   * @param {!unpacker.types.RequestId} readRequestid The read request id.
+   * @param {!unpacker.types.RequestId} openRequestId The open request id.
    * @param {number} offset The offset from where read should be done.
    * @param {number} length The number of bytes to read.
-   * @return {Promise} A read file request promise. It fulfills with an
+   * @return {!Promise} A read file request promise. It fulfills with an
    *     Int8Array buffer containing the requested data or rejects with
    *     ProviderError.
    */
@@ -317,7 +315,7 @@ var tests_helper = {
     var result = new Int8Array(length);
     var resultOffset = 0;
     return new Promise(function(fulfill, reject) {
-      app.onReadFileRequested(options, function(arrayBuffer, hasMore) {
+      unpacker.app.onReadFileRequested(options, function(arrayBuffer, hasMore) {
         result.set(new Int8Array(arrayBuffer), resultOffset);
         resultOffset += arrayBuffer.byteLength;
 

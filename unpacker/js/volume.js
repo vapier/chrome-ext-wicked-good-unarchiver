@@ -7,7 +7,7 @@
 /**
  * Converts a c/c++ time_t variable to Date.
  * @param {number} timestamp A c/c++ time_t variable.
- * @return {Date}
+ * @return {!Date}
  */
 function DateFromTimeT(timestamp) {
   return new Date(1000 * timestamp);
@@ -16,11 +16,12 @@ function DateFromTimeT(timestamp) {
 /**
  * Corrects metadata entries fields in order for them to be sent to Files.app.
  * This function runs recursively for every entry in a directory.
- * @param {Object} entryMetadata The metadata to correct.
+ * @param {!Object<string, !EntryMetadata>} entryMetadata The metadata to
+ *     correct.
  */
 function correctMetadata(entryMetadata) {
-  entryMetadata.index = parseInt(entryMetadata.index);
-  entryMetadata.size = parseInt(entryMetadata.size);
+  entryMetadata.index = parseInt(entryMetadata.index, 10);
+  entryMetadata.size = parseInt(entryMetadata.size, 10);
   entryMetadata.modificationTime =
       DateFromTimeT(entryMetadata.modificationTime);
   if (entryMetadata.isDirectory) {
@@ -36,20 +37,19 @@ function correctMetadata(entryMetadata) {
  * Defines a volume object that contains information about archives' contents
  * and performs operations on these contents.
  * @constructor
- * @param {Decompressor} decompressor The decompressor used to obtain data from
- *     archives.
- * @param {Entry} entry The entry corresponding to the volume's archive.
+ * @param {!unpacker.Decompressor} decompressor The decompressor used to obtain
+ *     data from archives.
+ * @param {!Entry} entry The entry corresponding to the volume's archive.
  */
-function Volume(decompressor, entry) {
+unpacker.Volume = function(decompressor, entry) {
   /**
    * Used for restoring the opened file entry after resuming the event page.
-   * @type {Entry}
+   * @type {!Entry}
    */
   this.entry = entry;
 
   /**
-   * The decompressor used to obtain data from archives.
-   * @type {Decompressor}
+   * @type {!unpacker.Decompressor}
    */
   this.decompressor = decompressor;
 
@@ -57,14 +57,15 @@ function Volume(decompressor, entry) {
    * The volume's metadata. The key is the full path to the file on this volume.
    * For more details see
    * https://developer.chrome.com/apps/fileSystemProvider#type-EntryMetadata
-   * @type {Object.<string, EntryMetadata>}
+   * @type {?Object<string, !EntryMetadata>}
    */
   this.metadata = null;
 
   /**
    * A map with currently opened files. The key is a requestId value from the
    * openFileRequested event and the value is the open file options.
-   * @type {Object.<number, fileSystemProvider.OpenFileRequestedOptions>}
+   * @type {!Object<!unpacker.types.RequestId,
+   *                !fileSystemProvider.OpenFileRequestedOptions>}
    */
   this.openedFiles = {};
 
@@ -72,7 +73,8 @@ function Volume(decompressor, entry) {
    * Default encoding set for this archive. If empty, then not known.
    * @type {string}
    */
-  this.encoding = Volume.ENCODING_TABLE[chrome.i18n.getUILanguage()] || '';
+  this.encoding =
+      unpacker.Volume.ENCODING_TABLE[chrome.i18n.getUILanguage()] || '';
 
   /**
    * The default read metadata request id. -1 is ok as the request ids used by
@@ -80,22 +82,20 @@ function Volume(decompressor, entry) {
    * @type {number}
    */
   this.DEFAULT_READ_METADATA_REQUEST_ID = -1;
-}
+};
 
 /**
  * The default read metadata request id. -1 is ok as the request ids used by
  * flleSystemProvider are greater than 0.
- * @type {number}
- * @const
+ * @const {number}
  */
-Volume.DEFAULT_READ_METADATA_REQUEST_ID = -1;
+unpacker.Volume.DEFAULT_READ_METADATA_REQUEST_ID = -1;
 
 /**
  * Map from language codes to default charset encodings.
- * @type {Object.<string, string>}
- * @const
+ * @const {!Object<string, string>}
  */
-Volume.ENCODING_TABLE = {
+unpacker.Volume.ENCODING_TABLE = {
   ar: 'CP1256',
   bg: 'CP1251',
   ca: 'CP1252',
@@ -134,7 +134,7 @@ Volume.ENCODING_TABLE = {
   sl: 'CP1250',
   sr: 'CP1251',
   sv: 'CP1252',
-  th: 'CP874', // Confirm!
+  th: 'CP874',  // Confirm!
   tr: 'CP1254',
   uk: 'CP1251',
   vi: 'CP1258',
@@ -145,14 +145,14 @@ Volume.ENCODING_TABLE = {
 /**
  * @return {boolean} True if volume is ready to be used.
  */
-Volume.prototype.isReady = function() {
+unpacker.Volume.prototype.isReady = function() {
   return !!this.metadata;
 };
 
 /**
  * @return {boolean} True if volume is in use.
  */
-Volume.prototype.inUse = function() {
+unpacker.Volume.prototype.inUse = function() {
   return this.decompressor.hasRequestsInProgress() ||
          Object.keys(this.openedFiles).length > 0;
 };
@@ -160,13 +160,14 @@ Volume.prototype.inUse = function() {
 /**
  * Initializes the volume by reading its metadata.
  * @param {function()} onSuccess Callback to execute on success.
- * @param {function(ProviderError)} onError Callback to execute on error.
+ * @param {function(!ProviderError)} onError Callback to execute on error.
  */
-Volume.prototype.initialize = function(onSuccess, onError) {
-  var requestId = Volume.DEFAULT_READ_METADATA_REQUEST_ID;
+unpacker.Volume.prototype.initialize = function(onSuccess, onError) {
+  var requestId = unpacker.Volume.DEFAULT_READ_METADATA_REQUEST_ID;
   this.decompressor.readMetadata(requestId, this.encoding, function(metadata) {
     // Make a deep copy of metadata.
-    this.metadata = JSON.parse(JSON.stringify(metadata));
+    this.metadata = /** @type {!Object<string, !EntryMetadata>} */ (JSON.parse(
+            JSON.stringify(metadata)));
     correctMetadata(this.metadata);
 
     onSuccess();
@@ -176,13 +177,13 @@ Volume.prototype.initialize = function(onSuccess, onError) {
 /**
  * Obtains the metadata for a single entry in the archive. Assumes metadata is
  * loaded.
- * @param {fileSystemProvider.GetMetadataRequestedOptions} options Options for
+ * @param {!fileSystemProvider.GetMetadataRequestedOptions} options Options for
  *     getting the metadata of an entry.
- * @param {function(EntryMetadata)} onSuccess Callback to execute on success.
- * @param {function(ProviderError)} onError Callback to execute on error.
+ * @param {function(!EntryMetadata)} onSuccess Callback to execute on success.
+ * @param {function(!ProviderError)} onError Callback to execute on error.
  */
-Volume.prototype.onGetMetadataRequested = function(options, onSuccess,
-                                                   onError) {
+unpacker.Volume.prototype.onGetMetadataRequested = function(options, onSuccess,
+                                                            onError) {
   console.assert(this.isReady(), 'Metadata must be loaded.');
   var entryMetadata = this.getEntryMetadata_(options.entryPath);
   if (!entryMetadata)
@@ -193,14 +194,14 @@ Volume.prototype.onGetMetadataRequested = function(options, onSuccess,
 
 /**
  * Reads a directory contents from metadata. Assumes metadata is loaded.
- * @param {fileSystemProvider.ReadDirectoryRequestedOptions>} options Options
+ * @param {!fileSystemProvider.ReadDirectoryRequestedOptions} options Options
  *     for reading the contents of a directory.
- * @param {function(Array.<EntryMetadata>, boolean)} onSuccess Callback to
+ * @param {function(!Array<!EntryMetadata>, boolean)} onSuccess Callback to
  *     execute on success.
- * @param {function(ProviderError)} onError Callback to execute on error.
+ * @param {function(!ProviderError)} onError Callback to execute on error.
  */
-Volume.prototype.onReadDirectoryRequested = function(options, onSuccess,
-                                                     onError) {
+unpacker.Volume.prototype.onReadDirectoryRequested = function(
+    options, onSuccess, onError) {
   console.assert(this.isReady(), 'Metadata must be loaded.');
   var directoryMetadata = this.getEntryMetadata_(options.directoryPath);
   if (!directoryMetadata) {
@@ -223,12 +224,13 @@ Volume.prototype.onReadDirectoryRequested = function(options, onSuccess,
 
 /**
  * Opens a file for read or write.
- * @param {fileSystemProvider.OpenFileRequestedOptions} options Options for
+ * @param {!fileSystemProvider.OpenFileRequestedOptions} options Options for
  *     opening a file.
  * @param {function()} onSuccess Callback to execute on success.
- * @param {function(ProviderError)} onError Callback to execute on error.
+ * @param {function(!ProviderError)} onError Callback to execute on error.
  */
-Volume.prototype.onOpenFileRequested = function(options, onSuccess, onError) {
+unpacker.Volume.prototype.onOpenFileRequested = function(options, onSuccess,
+                                                         onError) {
   console.assert(this.isReady(), 'Metadata must be loaded.');
   if (options.mode != 'READ') {
     onError('INVALID_OPERATION');
@@ -254,12 +256,13 @@ Volume.prototype.onOpenFileRequested = function(options, onSuccess, onError) {
 
 /**
  * Closes a file identified by options.openRequestId.
- * @param {fileSystemProvider.CloseFileRequestedOptions} options Options for
+ * @param {!fileSystemProvider.CloseFileRequestedOptions} options Options for
  *     closing a file.
  * @param {function()} onSuccess Callback to execute on success.
- * @param {function(ProviderError)} onError Callback to execute on error.
+ * @param {function(!ProviderError)} onError Callback to execute on error.
  */
-Volume.prototype.onCloseFileRequested = function(options, onSuccess, onError) {
+unpacker.Volume.prototype.onCloseFileRequested = function(options, onSuccess,
+                                                          onError) {
   console.assert(this.isReady(), 'Metadata must be loaded.');
   var openRequestId = options.openRequestId;
   var openOptions = this.openedFiles[openRequestId];
@@ -276,13 +279,14 @@ Volume.prototype.onCloseFileRequested = function(options, onSuccess, onError) {
 
 /**
  * Reads the contents of a file identified by options.openRequestId.
- * @param {fileSystemProvider.ReadFileRequestedOptions} options Options for
+ * @param {!fileSystemProvider.ReadFileRequestedOptions} options Options for
  *     reading a file's contents.
- * @param {function(ArrayBuffer, boolean)} onSuccess Callback to execute on
+ * @param {function(!ArrayBuffer, boolean)} onSuccess Callback to execute on
  *     success.
- * @param {function(ProviderError)} onError Callback to execute on error.
+ * @param {function(!ProviderError)} onError Callback to execute on error.
  */
-Volume.prototype.onReadFileRequested = function(options, onSuccess, onError) {
+unpacker.Volume.prototype.onReadFileRequested = function(options, onSuccess,
+                                                         onError) {
   console.assert(this.isReady(), 'Metadata must be loaded.');
   var openOptions = this.openedFiles[options.openRequestId];
   if (!openOptions) {
@@ -310,10 +314,10 @@ Volume.prototype.onReadFileRequested = function(options, onSuccess, onError) {
 /**
  * Gets the metadata for an entry based on its path.
  * @param {string} entryPath The full path to the entry.
- * @return {Object} the correspondent metadata.
+ * @return {?Object} The correspondent metadata.
  * @private
  */
-Volume.prototype.getEntryMetadata_ = function(entryPath) {
+unpacker.Volume.prototype.getEntryMetadata_ = function(entryPath) {
   var pathArray = entryPath.split('/');
 
   // Remove empty strings resulted after split. As paths start with '/' we will

@@ -4,13 +4,16 @@
 
 'use strict';
 
-// Force to show stack trace for assertions.
+/**
+ * Force to show stack trace for assertions.
+ * @type {boolean}
+ */
 chai.config.includeStack = true;
 
 describe('Volume', function() {
   /**
    * Fake metadata used to test volume's methods.
-   * @type {Object.<string, Object>}
+   * @const {!Object<string, !Object>}
    */
   var METADATA = {
     index: -1,
@@ -47,44 +50,37 @@ describe('Volume', function() {
 
   /**
    * A fake entry. Will be used outside for restore purposes.
-   * @type {Entry}
-   * @const
+   * @const {Entry}
    */
   var ENTRY = null;
 
   /**
-   * @type {number}
-   * @const
+   * @const {number}
    */
   var METADATA_REQUEST_ID = 1;
 
   /**
-   * @type {number}
-   * @const
+   * @const {number}
    */
   var OPEN_REQUEST_ID = 2;
 
   /**
-   * @type {number}
-   * @const
+   * @const {number}
    */
   var READ_REQUEST_ID = 3;
 
   /**
-   * @type {number}
-   * @const
+   * @const {number}
    */
   var CLOSE_REQUEST_ID = 4;
 
   /**
-   * @type {string}
-   * @const
+   * @const {string}
    */
   var ENCODING = 'CP932';
 
   /**
-   * @type {number}
-   * @const
+   * @const {number}
    */
   var INDEX = 0;
 
@@ -105,7 +101,7 @@ describe('Volume', function() {
     onInitializeSuccessSpy = sinon.spy();
     onInitializeErrorSpy = sinon.spy();
 
-    volume = new Volume(decompressor, ENTRY);
+    volume = new unpacker.Volume(decompressor, ENTRY);
   });
 
   it('should have null metadata before calling initialize', function() {

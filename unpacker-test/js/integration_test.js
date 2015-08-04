@@ -6,17 +6,17 @@
 
 /**
  * Simulates extension unload in case of suspend or restarts by clearing
- * 'app' members. No need to remove the NaCl module. The reason is that we have
- * to load the NaCl module manually by ourself anyway (in real scenarios the
- * browser does it), so this will only take extra time without really testing
- * anything.
+ * 'unpacker.app' members. No need to remove the NaCl module. The reason is
+ * that we have to load the NaCl module manually by ourself anyway (in real
+ * scenarios the browser does it), so this will only take extra time without
+ * really testing anything.
  */
 var unloadExtension = function() {
-  for (var fileSystemId in app.volumes) {
-    app.cleanupVolume(fileSystemId);
+  for (var fileSystemId in unpacker.app.volumes) {
+    unpacker.app.cleanupVolume(fileSystemId);
   }
-  expect(Object.keys(app.volumes).length).to.equal(0);
-  expect(Object.keys(app.volumeLoadedPromises).length).to.equal(0);
+  expect(Object.keys(unpacker.app.volumes).length).to.equal(0);
+  expect(Object.keys(unpacker.app.volumeLoadedPromises).length).to.equal(0);
 };
 
 // Init helper.
@@ -68,23 +68,25 @@ describe('The unpacker', function() {
     // even though 'before' is in another 'describe'. But 'before' gets
     // correctly executed for every 'describe'. So below workaround solves
     // this problem.
-    if (app.naclModuleIsLoaded())
-      app.unloadNaclModule();
-    expect(app.naclModuleIsLoaded()).to.be.false;
+    if (unpacker.app.naclModuleIsLoaded())
+      unpacker.app.unloadNaclModule();
+    expect(unpacker.app.naclModuleIsLoaded()).to.be.false;
 
     // Load the module.
-    app.loadNaclModule('base/module.nmf', 'application/x-pnacl');
+    unpacker.app.loadNaclModule('base/module.nmf', 'application/x-pnacl');
 
-    Promise.all([initPromise, app.moduleLoadedPromise]).then(function() {
-      // In case below is not printed probably 5000 ms for this.timeout wasn't
-      // enough for PNaCl to load during first time run.
-      console.debug('Initialization and module loading finished.');
-      done();
-    }).catch(tests_helper.forceFailure);
+    Promise.all([initPromise, unpacker.app.moduleLoadedPromise])
+        .then(function() {
+          // In case below is not printed probably 5000 ms for this.timeout
+          // wasn't enough for PNaCl to load during first time run.
+          console.debug('Initialization and module loading finished.');
+          done();
+        })
+        .catch(tests_helper.forceFailure);
   });
 
   beforeEach(function(done) {
-    expect(app.naclModuleIsLoaded()).to.be.true;
+    expect(unpacker.app.naclModuleIsLoaded()).to.be.true;
 
     // Called on beforeEach() in order for spies and stubs to reset registered
     // number of calls to methods.
@@ -96,14 +98,17 @@ describe('The unpacker', function() {
     });
 
     var successfulVolumeLoads = 0;
-    app.onLaunched(launchData, function(fileSystemId) {
-      successfulVolumeLoads++;
-      if (successfulVolumeLoads == tests_helper.volumesInformation.length)
-        done();
-    }, function(fileSystemId) {
-      tests_helper.forceFailure(
-          'Could not load volume <' + fileSystemId + '>.');
-    });
+    unpacker.app.onLaunched(
+        launchData,
+        function(fileSystemId) {
+          successfulVolumeLoads++;
+          if (successfulVolumeLoads == tests_helper.volumesInformation.length)
+            done();
+        },
+        function(fileSystemId) {
+          tests_helper.forceFailure('Could not load volume <' + fileSystemId +
+                                    '>.');
+        });
   });
 
   afterEach(function() {
@@ -132,7 +137,8 @@ describe('The unpacker', function() {
     it('by storing the volumes state', function() {
       tests_helper.volumesInformation.forEach(function(volumeInformation) {
         var fileSystemId = volumeInformation.fileSystemId;
-        expect(tests_helper.localStorageState[app.STORAGE_KEY][fileSystemId])
+        expect(tests_helper
+                   .localStorageState[unpacker.app.STORAGE_KEY][fileSystemId])
             .to.not.be.undefined;
       });
       expect(chrome.storage.local.set.called).to.be.true;
@@ -146,7 +152,7 @@ describe('The unpacker', function() {
       // and not before it.
       tests_helper.initChromeApis();
 
-      app.onSuspend();  // This gets called before suspend.
+      unpacker.app.onSuspend();  // This gets called before suspend.
       unloadExtension();
 
       // Remember the state before suspend. Used to test correct restoring
@@ -155,8 +161,8 @@ describe('The unpacker', function() {
         var fileSystemId = volumeInformation.fileSystemId;
         volumeInformation.fileSystemMetadata.openedFiles =
             getOpenedFilesBeforeSuspend(fileSystemId);
-        tests_helper.localStorageState[app.STORAGE_KEY][fileSystemId].
-            passphrase = ENCRYPTED_ZIP_PASSPHRASE;
+        tests_helper.localStorageState[unpacker.app.STORAGE_KEY][fileSystemId]
+            .passphrase = ENCRYPTED_ZIP_PASSPHRASE;
       });
     });
 
@@ -168,7 +174,8 @@ describe('The unpacker', function() {
     it('should store the volumes state for all mounted volumes', function() {
       tests_helper.volumesInformation.forEach(function(volumeInformation) {
         var fileSystemId = volumeInformation.fileSystemId;
-        expect(tests_helper.localStorageState[app.STORAGE_KEY][fileSystemId])
+        expect(tests_helper
+                   .localStorageState[unpacker.app.STORAGE_KEY][fileSystemId])
             .to.not.be.undefined;
       });
       expect(chrome.storage.local.set.called).to.be.true;
@@ -189,8 +196,8 @@ describe('The unpacker', function() {
         var fileSystemId = volumeInformation.fileSystemId;
         volumeInformation.fileSystemMetadata.openedFiles =
             getOpenedFilesBeforeSuspend(fileSystemId);
-        tests_helper.localStorageState[app.STORAGE_KEY][fileSystemId].
-            passphrase = ENCRYPTED_ZIP_PASSPHRASE;
+        tests_helper.localStorageState[unpacker.app.STORAGE_KEY][fileSystemId]
+            .passphrase = ENCRYPTED_ZIP_PASSPHRASE;
       });
 
       unloadExtension();
@@ -211,6 +218,7 @@ describe('The unpacker', function() {
   // Check unmount.
   tests_helper.volumesInformation.forEach(function(volumeInformation) {
     var fileSystemId = volumeInformation.fileSystemId;
+    var storageKey = unpacker.app.STORAGE_KEY;
 
     describe('that unmounts volume <' + fileSystemId + '>', function() {
       beforeEach(function(done) {
@@ -218,17 +226,17 @@ describe('The unpacker', function() {
         // suspend and not before it.
         tests_helper.initChromeApis();
 
-        expect(app.volumes[fileSystemId]).to.not.be.undefined;
-        expect(tests_helper.localStorageState[app.STORAGE_KEY][fileSystemId])
+        expect(unpacker.app.volumes[fileSystemId]).to.not.be.undefined;
+        expect(tests_helper.localStorageState[storageKey][fileSystemId])
             .to.not.be.undefined;
 
-        app.onUnmountRequested({fileSystemId: fileSystemId}, function() {
-          done();
-        }, tests_helper.forceFailure);
+        unpacker.app.onUnmountRequested({fileSystemId: fileSystemId},
+                                        function() { done(); },
+                                        tests_helper.forceFailure);
       });
 
-      it('should remove volume from app.volumes', function() {
-        expect(app.volumes[fileSystemId]).to.be.undefined;
+      it('should remove volume from unpacker.app.volumes', function() {
+        expect(unpacker.app.volumes[fileSystemId]).to.be.undefined;
       });
 
       it('should not call retainEntry', function() {
@@ -236,7 +244,7 @@ describe('The unpacker', function() {
       });
 
       it('should remove volume from local storage', function() {
-        expect(tests_helper.localStorageState[app.STORAGE_KEY][fileSystemId])
+        expect(tests_helper.localStorageState[storageKey][fileSystemId])
             .to.be.undefined;
         expect(chrome.storage.local.set.called).to.be.true;
       });

@@ -6,62 +6,52 @@
 
 describe('Decompressor', function() {
   /**
-   * @type {string}
-   * @const
+   * @const {string}
    */
   var FILE_SYSTEM_ID = 'fileSystemId';
 
   /**
-   * @type {number}
-   * @const
+   * @const {number}
    */
   var METADATA_REQUEST_ID = 0;
 
   /**
-   * @type {number}
-   * @const
+   * @const {number}
    */
   var OPEN_REQUEST_ID = 1;
 
   /**
-   * @type {number}
-   * @const
+   * @const {number}
    */
   var READ_REQUEST_ID = 2;
 
   /**
-   * @type {number}
-   * @const
+   * @const {number}
    */
   var CLOSE_REQUEST_ID = 3;
 
   /**
-   * @type {string}
-   * @const
+   * @const {string}
    */
   var FILE_PATH = '/dummy';
 
   /**
-   * @type {number}
-   * @const
+   * @const {number}
    */
   var OFFSET = 50;
 
   /**
-   * @type {number}
-   * @const
+   * @const {number}
    */
   var LENGTH = 200;
 
   /**
-   * @type {string}
-   * @const
+   * @const {string}
    */
   var ENCODING = 'CP1250';
 
   /**
-   * @type {Blob}
-   * @const
+   * @const {!Blob}
    */
   var BLOB = new Blob([new Uint8Array(100)],
                       {type: 'application/octet-stream'});
@@ -74,7 +64,7 @@ describe('Decompressor', function() {
 
   beforeEach(function(done) {
     naclModule = {postMessage: sinon.spy()};
-    decompressor = new Decompressor(naclModule, FILE_SYSTEM_ID, BLOB);
+    decompressor = new unpacker.Decompressor(naclModule, FILE_SYSTEM_ID, BLOB);
     onSuccessSpy = sinon.spy();
     onErrorSpy = sinon.spy();
 
@@ -109,25 +99,27 @@ describe('Decompressor', function() {
     });
 
     it('should call naclModule.postMessage with read metadata request',
-        function() {
-      var readMetadataRequest = request.createReadMetadataRequest(
-          FILE_SYSTEM_ID, METADATA_REQUEST_ID, ENCODING, BLOB.size);
-      expect(naclModule.postMessage.calledWith(readMetadataRequest)).to.be.true;
-    });
+       function() {
+         var readMetadataRequest = unpacker.request.createReadMetadataRequest(
+             FILE_SYSTEM_ID, METADATA_REQUEST_ID, ENCODING, BLOB.size);
+         expect(naclModule.postMessage.calledWith(readMetadataRequest))
+             .to.be.true;
+       });
 
     // Test READ_METADATA_DONE.
     describe('and receives a processMessage with READ_METADATA_DONE',
              function() {
       var data = {};
       beforeEach(function() {
-        data[request.Key.METADATA] = 'metadata';  // Not important.
-        decompressor.processMessage(data,
-                                    request.Operation.READ_METADATA_DONE,
-                                    METADATA_REQUEST_ID);
+        data[unpacker.request.Key.METADATA] = 'metadata';  // Not important.
+        decompressor.processMessage(
+            data, unpacker.request.Operation.READ_METADATA_DONE,
+            METADATA_REQUEST_ID);
       });
 
       it('should call onSuccess with the metadata', function() {
-        expect(onSuccessSpy.calledWith(data[request.Key.METADATA])).to.be.true;
+        expect(onSuccessSpy.calledWith(data[unpacker.request.Key.METADATA]))
+            .to.be.true;
         expect(onSuccessSpy.calledOnce).to.be.true;
       });
 
@@ -147,36 +139,42 @@ describe('Decompressor', function() {
 
       describe('that has length < file.size - offset', function() {
         it('should call naclModule.postMessage with READ_CHUNK_DONE response',
-            function(done) {
-          var expectedResponse = request.createReadChunkDoneResponse(
-              FILE_SYSTEM_ID, METADATA_REQUEST_ID, blobContents, 0);
-          data[request.Key.OFFSET] = '0';  // Received as string from NaCl.
-          data[request.Key.LENGTH] = BLOB.size / 2;
+           function(done) {
+             var expectedResponse =
+                 unpacker.request.createReadChunkDoneResponse(
+                     FILE_SYSTEM_ID, METADATA_REQUEST_ID, blobContents, 0);
+             data[unpacker.request.Key.OFFSET] =
+                 '0';  // Received as string from NaCl.
+             data[unpacker.request.Key.LENGTH] = BLOB.size / 2;
 
-          naclModule.postMessage = function(response) {
-            expect(response).to.deep.equal(expectedResponse);
-            done();
-          };
-          decompressor.processMessage(data, request.Operation.READ_CHUNK,
-                                      METADATA_REQUEST_ID);
-        });
+             naclModule.postMessage = function(response) {
+               expect(response).to.deep.equal(expectedResponse);
+               done();
+             };
+             decompressor.processMessage(data,
+                                         unpacker.request.Operation.READ_CHUNK,
+                                         METADATA_REQUEST_ID);
+           });
       });
 
       describe('that has length > file.size - offset', function() {
         it('should call naclModule.postMessage with READ_CHUNK_DONE response',
-            function(done) {
-          var expectedResponse = request.createReadChunkDoneResponse(
-              FILE_SYSTEM_ID, METADATA_REQUEST_ID, blobContents, 0);
-          data[request.Key.OFFSET] = '0';  // Received as string from NaCl.
-          data[request.Key.LENGTH] = BLOB.size * 2;
+           function(done) {
+             var expectedResponse =
+                 unpacker.request.createReadChunkDoneResponse(
+                     FILE_SYSTEM_ID, METADATA_REQUEST_ID, blobContents, 0);
+             data[unpacker.request.Key.OFFSET] =
+                 '0';  // Received as string from NaCl.
+             data[unpacker.request.Key.LENGTH] = BLOB.size * 2;
 
-          naclModule.postMessage = function(response) {
-            expect(response).to.deep.equal(expectedResponse);
-            done();
-          };
-          decompressor.processMessage(data, request.Operation.READ_CHUNK,
-                                      METADATA_REQUEST_ID);
-        });
+             naclModule.postMessage = function(response) {
+               expect(response).to.deep.equal(expectedResponse);
+               done();
+             };
+             decompressor.processMessage(data,
+                                         unpacker.request.Operation.READ_CHUNK,
+                                         METADATA_REQUEST_ID);
+           });
       });
     });
 
@@ -185,10 +183,11 @@ describe('Decompressor', function() {
              function() {
       beforeEach(function() {
         var data = {};
-        data[request.Key.ERROR] = 'Expected error at reading metadata.';
-        decompressor.processMessage(data,
-                                    request.Operation.FILE_SYSTEM_ERROR,
-                                    METADATA_REQUEST_ID);
+        data[unpacker.request.Key.ERROR] =
+            'Expected error at reading metadata.';
+        decompressor.processMessage(
+            data, unpacker.request.Operation.FILE_SYSTEM_ERROR,
+            METADATA_REQUEST_ID);
       });
 
       it('should not call onSuccess', function() {
@@ -222,19 +221,17 @@ describe('Decompressor', function() {
       expect(naclModule.postMessage.calledOnce).to.be.true;
     });
 
-    it('should call naclModule.postMessage with open file request',
-        function() {
-      var openFileRequest = request.createOpenFileRequest(
+    it('should call naclModule.postMessage with open file request', function() {
+      var openFileRequest = unpacker.request.createOpenFileRequest(
           FILE_SYSTEM_ID, OPEN_REQUEST_ID, FILE_PATH, ENCODING, BLOB.size);
       expect(naclModule.postMessage.calledWith(openFileRequest)).to.be.true;
     });
 
     // Test OPEN_FILE_DONE.
-    describe('and receives a processMessage with OPEN_FILE_DONE',
-             function() {
+    describe('and receives a processMessage with OPEN_FILE_DONE', function() {
       beforeEach(function() {
         decompressor.processMessage({} /* Not important. */,
-                                    request.Operation.OPEN_FILE_DONE,
+                                    unpacker.request.Operation.OPEN_FILE_DONE,
                                     OPEN_REQUEST_ID);
       });
 
@@ -274,19 +271,20 @@ describe('Decompressor', function() {
       });
 
       it('should call naclModule.postMessage with close file request',
-          function() {
-        var closeFileRequest = request.createCloseFileRequest(
-            FILE_SYSTEM_ID, CLOSE_REQUEST_ID, OPEN_REQUEST_ID);
-        expect(naclModule.postMessage.calledWith(closeFileRequest)).to.be.true;
-      });
+         function() {
+           var closeFileRequest = unpacker.request.createCloseFileRequest(
+               FILE_SYSTEM_ID, CLOSE_REQUEST_ID, OPEN_REQUEST_ID);
+           expect(naclModule.postMessage.calledWith(closeFileRequest))
+               .to.be.true;
+         });
 
       describe('and receives a processMessage with CLOSE_FILE_DONE',
                function() {
         var data = {};
         beforeEach(function() {
-          data[request.Key.OPEN_REQUEST_ID] = OPEN_REQUEST_ID;
-          decompressor.processMessage(data,
-              request.Operation.CLOSE_FILE_DONE,
+          data[unpacker.request.Key.OPEN_REQUEST_ID] = OPEN_REQUEST_ID;
+          decompressor.processMessage(
+              data, unpacker.request.Operation.CLOSE_FILE_DONE,
               CLOSE_REQUEST_ID);
         });
 
@@ -334,20 +332,22 @@ describe('Decompressor', function() {
       });
 
       it('should call naclModule.postMessage with read file request',
-          function() {
-        var readFileRequest = request.createReadFileRequest(
-            FILE_SYSTEM_ID, READ_REQUEST_ID, OPEN_REQUEST_ID, OFFSET, LENGTH);
-        expect(naclModule.postMessage.calledWith(readFileRequest)).to.be.true;
-      });
+         function() {
+           var readFileRequest = unpacker.request.createReadFileRequest(
+               FILE_SYSTEM_ID, READ_REQUEST_ID, OPEN_REQUEST_ID, OFFSET,
+               LENGTH);
+           expect(naclModule.postMessage.calledWith(readFileRequest))
+               .to.be.true;
+         });
 
       describe('and receives a processMessage with READ_FILE_DONE', function() {
         describe('that has more data to read', function() {
           var data = {};
           beforeEach(function() {
-            data[request.Key.READ_FILE_DATA] = 'data';  // Not important.
-            data[request.Key.HAS_MORE_DATA] = true;
-            decompressor.processMessage(data,
-                request.Operation.READ_FILE_DONE,
+            data[unpacker.request.Key.READ_FILE_DATA] = 'data';
+            data[unpacker.request.Key.HAS_MORE_DATA] = true;
+            decompressor.processMessage(
+                data, unpacker.request.Operation.READ_FILE_DONE,
                 READ_REQUEST_ID);
           });
 
@@ -377,10 +377,10 @@ describe('Decompressor', function() {
         describe('that doesn\'t have any more data to read', function() {
           var data = {};
           beforeEach(function() {
-            data[request.Key.READ_FILE_DATA] = 'data';  // Not important.
-            data[request.Key.HAS_MORE_DATA] = false;
-            decompressor.processMessage(data,
-                request.Operation.READ_FILE_DONE,
+            data[unpacker.request.Key.READ_FILE_DATA] = 'data';
+            data[unpacker.request.Key.HAS_MORE_DATA] = false;
+            decompressor.processMessage(
+                data, unpacker.request.Operation.READ_FILE_DONE,
                 READ_REQUEST_ID);
           });
 

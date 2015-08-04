@@ -17,7 +17,7 @@ module.exports = function(config) {
     basePath: '../unpacker/debug',
 
     /**
-     * @type {Object.<string, string>}
+     * @type {!Object<string, string>}
      */
     proxies: {
       // Hack for a bug in Karma, which doesn't allow to access static files
@@ -34,7 +34,7 @@ module.exports = function(config) {
     /**
      * Frameworks to use. Available frameworks:
      * https://npmjs.org/browse/keyword/karma-adapter
-     * @type {Array.<string>}
+     * @type {!Array<string>}
      */
     frameworks: ['mocha', 'chai', 'sinon'],
 
@@ -42,23 +42,50 @@ module.exports = function(config) {
      * List of files / patterns to load in the browser.
      * In case any file that is not a .js is changed, the tests must be run
      * again.
-     * @type {Array.<string>}
+     * @type {!Array<string>}
      */
     files: [
       // Application files. Only *.js files are included as <script>, the rest
       // only served.
       {pattern: 'module.nmf', watched: false, included: false, served: true},
       {pattern: 'module.pexe', watched: false, included: false, served: true},
-      {pattern: 'js/passphrase-dialog.js', watched: true, included: false,
-                served: true},
-      {pattern: 'js/*.js', watched: true, included: true, served: true},
+      // unpacker.js served before as it contains the main namespace.
+      {pattern: 'js/unpacker.js', watched: true, included: true, served: true},
+      {pattern: 'js/app.js', watched: true, included: true, served: true},
+      {
+        pattern: 'js/decompressor.js',
+        watched: true,
+        included: true,
+        served: true
+      },
+      {
+        pattern: 'js/passphrase-manager.js',
+        watched: true,
+        included: true,
+        served: true
+      },
+      {pattern: 'js/request.js', watched: true, included: true, served: true},
+      {pattern: 'js/types.js', watched: true, included: true, served: true},
+      {pattern: 'js/volume.js', watched: true, included: true, served: true},
+      // Not included as Polymer is undefined at this moment. Polymer will be
+      // loaded at a later time.
+      {
+        pattern: 'js/passphrase-dialog.js',
+        watched: true,
+        included: false,
+        served: true
+      },
       {pattern: 'html/*.html', watched: true, included: false, served: true},
       {pattern: 'css/*.css', watched: true, included: false, served: true},
       {pattern: 'third-party/*', watched: true, included: false, served: true},
 
       // Test files.
-      {pattern: '../../unpacker-test/test-files/**/*', watched: false,
-                included: false, served: true},
+      {
+        pattern: '../../unpacker-test/test-files/**/*',
+        watched: false,
+        included: false,
+        served: true
+      },
 
       // These 2 files must be included before integration_test.js. They define
       // helper functions for the integration tests so by the time
@@ -72,17 +99,9 @@ module.exports = function(config) {
     ],
 
     /**
-     * List of files to exclude.
-     * @type {Array.<string>}
-     */
-    exclude: [
-      'js/background.js'  // Contains direct calls to Chrome API.
-    ],
-
-    /**
      * Test results reporter to use. Possible values: 'dots', 'progress'.
      * available reporters: https://npmjs.org/browse/keyword/karma-reporter
-     * @type {Array.<string>}
+     * @type {!Array<string>}
      */
     reporters: ['progress'],
 
@@ -122,22 +141,22 @@ module.exports = function(config) {
      * installed from the Chrome market.
      * DO NOT use '--enable-nacl-debug'. The module will block until typing
      * 'continue' in the gdb console, but tests have a timeout limit.
-     * @type {Object.<string, Object>}
+     * @type {!Object<string, !Object>}
      */
     customLaunchers: {
       'Chrome-dev': {
         base: 'Chrome',
         flags: [
-            '--disable-setuid-sandbox',
-            '--enable-nacl',
-            '--enable-pnacl',
-            '--user-data-dir=user-data-dir-karma',
-            // Required for redirecting NaCl module stdout and stderr outputs
-            // using NACL_EXE_STDOUT and NACL_EXE_STDERR environment variables.
-            // See run_js_tests.js.
-            '--no-sandbox',
-            '--enable-logging',
-            '--v=1'
+          '--disable-setuid-sandbox',
+          '--enable-nacl',
+          '--enable-pnacl',
+          '--user-data-dir=user-data-dir-karma',
+          // Required for redirecting NaCl module stdout and stderr outputs
+          // using NACL_EXE_STDOUT and NACL_EXE_STDERR environment variables.
+          // See run_js_tests.js.
+          '--no-sandbox',
+          '--enable-logging',
+          '--v=1'
         ]
       }
     },
@@ -145,7 +164,7 @@ module.exports = function(config) {
     /**
      * The browsers to start. Only 'Chrome-dev' defined above is required
      * for the unpacker extension.
-     * @type {Array.<string>}
+     * @type {!Array<string>}
      */
     browsers: ['Chrome-dev'],
 

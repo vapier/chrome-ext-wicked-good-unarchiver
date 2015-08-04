@@ -35,12 +35,12 @@ describe('PassphraseManager', function() {
           }
         });
       }
-    }
+    };
   });
 
   describe('that has an initial passphrase', function() {
     var TEST_PASSPHRASE = 'hello-world';
-    var passphraseManager = new PassphraseManager(TEST_PASSPHRASE);
+    var passphraseManager = new unpacker.PassphraseManager(TEST_PASSPHRASE);
 
     afterEach(function() {
       passphraseWindowLoadCallback = null;
@@ -73,7 +73,7 @@ describe('PassphraseManager', function() {
 
   describe('without an initial passphrase', function() {
     var USER_PASSPHRASE = 'hello-kitty';
-    var passphraseManager = new PassphraseManager(null);
+    var passphraseManager = new unpacker.PassphraseManager(null);
 
     afterEach(function() {
       passphraseWindowLoadCallback = null;

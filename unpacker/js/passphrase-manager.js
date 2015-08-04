@@ -3,25 +3,29 @@
 // found in the LICENSE file.
 
 /**
- * @param {?string} Initial passphrase for the first passphrase request or NULL
- *     if not available. In such case, call to getPassphrase() will invoke a
- *     dialog.
+ * @constructor
+ * @param {?string} initPassphrase Initial passphrase for the first passphrase
+ *     request or NULL if not available. In such case, call to getPassphrase()
+ *     will invoke a dialog.
  */
-function PassphraseManager(initPassphrase) {
+unpacker.PassphraseManager = function(initPassphrase) {
+  /**
+   * @private {?string}
+   */
   this.initPassphrase_ = initPassphrase;
 
   /**
    * @public {?string}
    */
   this.rememberedPassphrase = initPassphrase;
-}
+};
 
 /**
  * Requests a passphrase from the user. If a passphrase was previously
  * remembered, then tries it first. Otherwise shows a passphrase dialog.
  * @return {!Promise.<string>}
  */
-PassphraseManager.prototype.getPassphrase = function() {
+unpacker.PassphraseManager.prototype.getPassphrase = function() {
   return new Promise(function(fulfill, reject) {
     // For the first passphrase request try the init passphrase (which may be
     // incorrect though, so do it only once).
