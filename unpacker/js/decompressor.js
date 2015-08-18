@@ -71,7 +71,7 @@ unpacker.Decompressor.prototype.hasRequestsInProgress = function() {
 unpacker.Decompressor.prototype.addRequest_ = function(requestId, onSuccess,
                                                        onError, naclRequest) {
   console.assert(!this.requestsInProgress[requestId],
-                 'There is already a request with the id ', requestId, '.');
+                 'There is already a request with the id ' + requestId + '.');
 
   this.requestsInProgress[requestId] = {
     onSuccess: onSuccess,
@@ -163,7 +163,7 @@ unpacker.Decompressor.prototype.processMessage = function(data, operation,
   // some requestsInProgress from this.requestsInProgress.
   var requestInProgress = this.requestsInProgress[requestId];
   console.assert(requestInProgress, 'No request with id <', requestId,
-                 '> for: ', this.fileSystemId_, '.');
+                 '> for: ' + this.fileSystemId_ + '.');
 
   switch (operation) {
     case unpacker.request.Operation.READ_METADATA_DONE:
@@ -261,6 +261,10 @@ unpacker.Decompressor.prototype.readChunk_ = function(data, requestId) {
     console.error('Failed to read a chunk of data from the archive.');
     this.naclModule_.postMessage(unpacker.request.createReadChunkErrorResponse(
         this.fileSystemId_, requestId));
+    // Reading from the source file failed. Assume that the file is gone and
+    // unmount the archive.
+    // TODO(523195): Show a notification that the source file is gone.
+    unpacker.app.unmountVolume(this.fileSystemId_, true);
   }.bind(this);
 
   fileReader.readAsArrayBuffer(blob);

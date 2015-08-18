@@ -51,16 +51,6 @@ unpacker.app = {
   moduleLoadedPromise: null,
 
   /**
-   * A Promise used to postpone all calls to fileSystemProvider API after
-   * onStartup event is processed. This Promise is used only after restarts
-   * because onStartup event is fired only in this case scenario. By default
-   * it successfully resolves (e.g. after onSuspend event or when installing
-   * the extension).
-   * @type {!Promise}
-   */
-  onStartupPromise: Promise.resolve(),
-
-  /**
    * The NaCl module containing the logic for decompressing archives.
    * @type {?Object}
    */
@@ -76,7 +66,7 @@ unpacker.app = {
     // Get mandatory fields in a message.
     var operation = message.data[unpacker.request.Key.OPERATION];
     console.assert(operation != undefined,  // Operation can be 0.
-                   'No NaCl operation: ', operation, '.');
+                   'No NaCl operation: ' + operation + '.');
 
     var fileSystemId = message.data[unpacker.request.Key.FILE_SYSTEM_ID];
     console.assert(fileSystemId, 'No NaCl file system id.');
@@ -87,7 +77,7 @@ unpacker.app = {
     var volume = unpacker.app.volumes[fileSystemId];
     if (!volume) {
       // The volume is gone, which can happen.
-      console.info('No volume for: ', fileSystemId, '.');
+      console.info('No volume for: ' + fileSystemId + '.');
       return;
     }
 
@@ -155,14 +145,14 @@ unpacker.app = {
 
         var volumeState = result[unpacker.app.STORAGE_KEY][fileSystemId];
         if (!volumeState) {
-          console.error('No state for: ', fileSystemId, '.');
+          console.error('No state for: ' + fileSystemId + '.');
           reject('FAILED');
           return;
         }
 
         chrome.fileSystem.restoreEntry(volumeState.entryId, function(entry) {
           if (chrome.runtime.lastError) {
-            console.error('Restore entry error for <', fileSystemId, '>: ',
+            console.error('Restore entry error for <', fileSystemId, '>: ' +
                           chrome.runtime.lastError.message);
             reject('FAILED');
             return;
@@ -220,7 +210,9 @@ unpacker.app = {
 
         unpacker.app.volumes[fileSystemId] = volume;
         volume.initialize(onLoadVolumeSuccess, reject);
-      }, reject);
+      }, function(error) {
+        reject('FAILED');
+      });
     });
   },
 
@@ -274,6 +266,7 @@ unpacker.app = {
           console.error(error.stack || error);
           // Force unmount in case restore failed. All resources related to the
           // volume will be cleanup from both memory and local storage.
+          // TODO(523195): Show a notification that the source file is gone.
           return unpacker.app.unmountVolume(fileSystemId, true)
               .then(function() { return Promise.reject('FAILED'); });
         });
@@ -289,28 +282,18 @@ unpacker.app = {
    * @private
    */
   ensureVolumeLoaded_: function(fileSystemId) {
-    return unpacker.app.onStartupPromise
-        .then(function() {
-          return unpacker.app.moduleLoadedPromise.then(function() {
-            // In case there is no volume promise for fileSystemId then we
-            // received a call after restart / suspend as load promises are
-            // created on launched. In this case we will restore volume state
-            // from local storage and create a new load promise.
-            if (!unpacker.app.volumeLoadedPromises[fileSystemId]) {
-              unpacker.app.volumeLoadedPromises[fileSystemId] =
-                  unpacker.app.restoreSingleVolume_(fileSystemId);
-            }
+    return unpacker.app.moduleLoadedPromise.then(function() {
+      // In case there is no volume promise for fileSystemId then we
+      // received a call after restart / suspend as load promises are
+      // created on launched. In this case we will restore volume state
+      // from local storage and create a new load promise.
+      if (!unpacker.app.volumeLoadedPromises[fileSystemId]) {
+        unpacker.app.volumeLoadedPromises[fileSystemId] =
+            unpacker.app.restoreSingleVolume_(fileSystemId);
+      }
 
-            return unpacker.app.volumeLoadedPromises[fileSystemId];
-          });
-        })
-        .catch(function(error) {
-          console.error(error.stack || error);
-          // Promise normally would reject with ProviderError, but in case of
-          // error.stack we have a programmer error. In this case is ok to
-          // return anything as this scenario shouldn't happen.
-          return Promise.reject(error);
-        });
+      return unpacker.app.volumeLoadedPromises[fileSystemId];
+    });
   },
 
   /**
@@ -380,14 +363,14 @@ unpacker.app = {
    * the extension and the local storage state.
    * @param {!unpacker.types.FileSystemId} fileSystemId
    * @param {boolean=} opt_forceUnmount True if unmount should be forced even if
-   *     volume might be in use.
+   *     volume might be in use, or is not restored yet.
    * @return {!Promise} A promise that fulfills if volume is unmounted or
    *     rejects with ProviderError in case of any errors.
    */
   unmountVolume: function(fileSystemId, opt_forceUnmount) {
     return new Promise(function(fulfill, reject) {
       var volume = unpacker.app.volumes[fileSystemId];
-      console.assert(!opt_forceUnmount && volume,
+      console.assert(volume || opt_forceUnmount,
                      'Unmount that is not forced must not be called for ',
                      'volumes that are not restored.');
 
@@ -401,8 +384,8 @@ unpacker.app = {
       };
       chrome.fileSystemProvider.unmount(options, function() {
         if (chrome.runtime.lastError) {
-          console.error('Unmount error: ', chrome.runtime.lastError.message,
-                        '.');
+          console.error('Unmount error: ' + chrome.runtime.lastError.message +
+              '.');
           reject('FAILED');
           return;
         }
@@ -595,8 +578,8 @@ unpacker.app = {
                 },
                 function() {
                   if (chrome.runtime.lastError) {
-                    console.error('Mount error: ',
-                                  chrome.runtime.lastError.message, '.');
+                    console.error('Mount error: ' +
+                                  chrome.runtime.lastError.message + '.');
                     onError('FAILED', fileSystemId);
                     return;
                   }
