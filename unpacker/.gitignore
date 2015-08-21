@@ -4,3 +4,4 @@ gdb_script
 user-data-dir
 user-data-dir-gdb
 unpacker-release
+node_modules

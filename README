@@ -64,3 +64,9 @@ Chai for assertions (http://chaijs.com/) and Sinon for spies and stubs
 > cd unpacker-test
 > ./run_js_tests.sh  # JavaScript tests.
 > ./run_cpp_tests.sh  # C++ tests.
+
+# Check JavaScript code using the Closure JS Compiler.
+# See https://www.npmjs.com/package/closurecompiler
+> cd unpacker
+> npm install google-closure-compiler
+> bash check_js_for_errors.sh
