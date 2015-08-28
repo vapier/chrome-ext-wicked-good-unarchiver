@@ -7,7 +7,6 @@
 /**
  * The main namespace for the extension.
  * @namespace
- * TODO(cmihail): Enforce type check by using the Closure compiler.
  */
 unpacker.app = {
   /**
@@ -171,7 +170,7 @@ unpacker.app = {
    * @param {!unpacker.types.FileSystemId} fileSystemId
    * @param {!Entry} entry The volume's archive entry.
    * @param {!Object<!unpacker.types.RequestId,
-   *                 !fileSystemProvider.OpenFileRequestedOptions>}
+   *                 !unpacker.types.OpenFileRequestedOptions>}
    *     openedFiles Previously opened files before a suspend.
    * @param {string} passphrase Previously used passphrase before a suspend.
    * @return {!Promise} Promise fulfilled on success and rejected on failure.
@@ -198,8 +197,13 @@ unpacker.app = {
 
           // Restore opened files on NaCl side.
           var openFilePromises = [];
-          for (var openRequestId in openedFiles) {
-            var options = openedFiles[openRequestId];
+          for (var key in openedFiles) {
+            // 'key' is always a number but JS compiler complains that it is
+            // a string.
+            var openRequestId = Number(key);
+            var options =
+                /** @type {!unpacker.types.OpenFileRequestedOptions} */
+                (openedFiles[openRequestId]);
             openFilePromises.push(new Promise(function(resolve, reject) {
               volume.onOpenFileRequested(options, resolve, reject);
             }));
@@ -409,7 +413,7 @@ unpacker.app = {
 
   /**
    * Handles an unmount request received from File System Provider API.
-   * @param {!FileSystemProvider.unmountRequestedOptions} options
+   * @param {!unpacker.types.UnmountRequestedOptions} options
    * @param {function()} onSuccess Callback to execute on success.
    * @param {function(!ProviderError)} onError Callback to execute on error.
    */
@@ -419,12 +423,12 @@ unpacker.app = {
           return unpacker.app.unmountVolume(options.fileSystemId);
         })
         .then(onSuccess)
-        .catch(onError);
+        .catch(/** @type {function(*)} */ (onError));
   },
 
   /**
    * Obtains metadata about a file system entry.
-   * @param {!fileSystemProvider.GetMetadataRequestedOptions} options
+   * @param {!unpacker.types.GetMetadataRequestedOptions} options
    * @param {function(!EntryMetadata)} onSuccess Callback to execute on success.
    *     The parameter is the EntryMetadata obtained by this function.
    * @param {function(!ProviderError)} onError Callback to execute on error.
@@ -435,12 +439,12 @@ unpacker.app = {
           unpacker.app.volumes[options.fileSystemId].onGetMetadataRequested(
               options, onSuccess, onError);
         })
-        .catch(onError);
+        .catch(/** @type {function(*)} */ (onError));
   },
 
   /**
    * Reads a directory entries.
-   * @param {!fileSystemProvider.ReadDirectoryRequestedOptions} options
+   * @param {!unpacker.types.ReadDirectoryRequestedOptions} options
    * @param {function(!Array<!EntryMetadata>, boolean)} onSuccess Callback to
    *     execute on success. The first parameter is an array with directory
    *     entries. The second parameter is 'hasMore', and if it's set to true,
@@ -453,12 +457,12 @@ unpacker.app = {
           unpacker.app.volumes[options.fileSystemId].onReadDirectoryRequested(
               options, onSuccess, onError);
         })
-        .catch(onError);
+        .catch(/** @type {function(*)} */ (onError));
   },
 
   /**
    * Opens a file for read or write.
-   * @param {!fileSystemProvider.OpenFileRequestedOptions} options
+   * @param {!unpacker.types.OpenFileRequestedOptions} options
    * @param {function()} onSuccess Callback to execute on success.
    * @param {function(!ProviderError)} onError Callback to execute on error.
    */
@@ -468,12 +472,12 @@ unpacker.app = {
           unpacker.app.volumes[options.fileSystemId].onOpenFileRequested(
               options, onSuccess, onError);
         })
-        .catch(onError);
+        .catch(/** @type {function(*)} */ (onError));
   },
 
   /**
    * Closes a file identified by options.openRequestId.
-   * @param {!fileSystemProvider.CloseFileRequestedOptions} options
+   * @param {!unpacker.types.CloseFileRequestedOptions} options
    * @param {function()} onSuccess Callback to execute on success.
    * @param {function(!ProviderError)} onError Callback to execute on error.
    */
@@ -483,12 +487,12 @@ unpacker.app = {
           unpacker.app.volumes[options.fileSystemId].onCloseFileRequested(
               options, onSuccess, onError);
         })
-        .catch(onError);
+        .catch(/** @type {function(*)} */ (onError));
   },
 
   /**
    * Reads the contents of a file identified by options.openRequestId.
-   * @param {!fileSystemProvider.ReadFileRequestedOptions} options
+   * @param {!unpacker.types.ReadFileRequestedOptions} options
    * @param {function(!ArrayBuffer, boolean)} onSuccess Callback to execute on
    *     success. The first parameter is the read data and the second parameter
    *     is 'hasMore'. If it's set to true, then onSuccess must be called again
@@ -501,7 +505,7 @@ unpacker.app = {
           unpacker.app.volumes[options.fileSystemId].onReadFileRequested(
               options, onSuccess, onError);
         })
-        .catch(onError);
+        .catch(/** @type {function(*)} */ (onError));
   },
 
   /**

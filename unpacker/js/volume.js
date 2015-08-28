@@ -65,7 +65,7 @@ unpacker.Volume = function(decompressor, entry) {
    * A map with currently opened files. The key is a requestId value from the
    * openFileRequested event and the value is the open file options.
    * @type {!Object<!unpacker.types.RequestId,
-   *                !fileSystemProvider.OpenFileRequestedOptions>}
+   *                !unpacker.types.OpenFileRequestedOptions>}
    */
   this.openedFiles = {};
 
@@ -177,7 +177,7 @@ unpacker.Volume.prototype.initialize = function(onSuccess, onError) {
 /**
  * Obtains the metadata for a single entry in the archive. Assumes metadata is
  * loaded.
- * @param {!fileSystemProvider.GetMetadataRequestedOptions} options Options for
+ * @param {!unpacker.types.GetMetadataRequestedOptions} options Options for
  *     getting the metadata of an entry.
  * @param {function(!EntryMetadata)} onSuccess Callback to execute on success.
  * @param {function(!ProviderError)} onError Callback to execute on error.
@@ -194,7 +194,7 @@ unpacker.Volume.prototype.onGetMetadataRequested = function(options, onSuccess,
 
 /**
  * Reads a directory contents from metadata. Assumes metadata is loaded.
- * @param {!fileSystemProvider.ReadDirectoryRequestedOptions} options Options
+ * @param {!unpacker.types.ReadDirectoryRequestedOptions} options Options
  *     for reading the contents of a directory.
  * @param {function(!Array<!EntryMetadata>, boolean)} onSuccess Callback to
  *     execute on success.
@@ -224,7 +224,7 @@ unpacker.Volume.prototype.onReadDirectoryRequested = function(
 
 /**
  * Opens a file for read or write.
- * @param {!fileSystemProvider.OpenFileRequestedOptions} options Options for
+ * @param {!unpacker.types.OpenFileRequestedOptions} options Options for
  *     opening a file.
  * @param {function()} onSuccess Callback to execute on success.
  * @param {function(!ProviderError)} onError Callback to execute on error.
@@ -256,7 +256,7 @@ unpacker.Volume.prototype.onOpenFileRequested = function(options, onSuccess,
 
 /**
  * Closes a file identified by options.openRequestId.
- * @param {!fileSystemProvider.CloseFileRequestedOptions} options Options for
+ * @param {!unpacker.types.CloseFileRequestedOptions} options Options for
  *     closing a file.
  * @param {function()} onSuccess Callback to execute on success.
  * @param {function(!ProviderError)} onError Callback to execute on error.
@@ -279,7 +279,7 @@ unpacker.Volume.prototype.onCloseFileRequested = function(options, onSuccess,
 
 /**
  * Reads the contents of a file identified by options.openRequestId.
- * @param {!fileSystemProvider.ReadFileRequestedOptions} options Options for
+ * @param {!unpacker.types.ReadFileRequestedOptions} options Options for
  *     reading a file's contents.
  * @param {function(!ArrayBuffer, boolean)} onSuccess Callback to execute on
  *     success.
