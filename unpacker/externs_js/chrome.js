@@ -76,7 +76,7 @@ chrome.fileSystemProvider.onReadFileRequested;
 
 /**
  * @see https://developer.chrome.com/apps/fileSystemProvider#type-FileSystemInfo
- * @typedef {Object}
+ * @typedef {!Object}
  */
 var FileSystemInfo;
 

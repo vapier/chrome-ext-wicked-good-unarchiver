@@ -38,13 +38,13 @@ unpacker.PassphraseManager.prototype.getPassphrase = function() {
     // Ask user for a passphrase.
     chrome.app.window.create(
         '../html/passphrase.html',
-        {
+        /** @type {!chrome.app.window.CreateWindowOptions} */ ({
           innerBounds: {width: 320, height: 160},
           alwaysOnTop: true,
           resizable: false,
           frame: 'none',
           hidden: true
-        },
+        }),
         function(passphraseWindow) {
           var passphraseSucceeded = false;
 

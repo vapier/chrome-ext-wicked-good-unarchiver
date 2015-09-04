@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(cmihail): Fix JS compiler complaints in regard to 'this' and '$'.
+/**
+ * @fileoverview
+ * @suppress {globalThis|missingProperties}
+ */
 
 Polymer({
   i18n: function(name) {

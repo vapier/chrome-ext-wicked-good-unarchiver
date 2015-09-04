@@ -19,56 +19,56 @@ unpacker.types.RequestId;
 /**
  * @see
  * https://developer.chrome.com/apps/fileSystemProvider#event-onUnmountRequested
- * @typedef {Object<{fileSystemId: !unpacker.types.FileSystemId,
- *                   requestId: !unpacker.types.RequestId}>}
+ * @typedef {!Object<{fileSystemId: !unpacker.types.FileSystemId,
+ *                    requestId: !unpacker.types.RequestId}>}
  */
 unpacker.types.UnmountRequestedOptions;
 
 /**
  * @see
  * https://developer.chrome.com/apps/fileSystemProvider#event-onGetMetadataRequested
- * @typedef {Object<{fileSystemId: !unpacker.types.FileSystemId,
- *                   requestId: !unpacker.types.RequestId,
- *                   entryPath: string,
- *                   thumbnail: boolean}>}
+ * @typedef {!Object<{fileSystemId: !unpacker.types.FileSystemId,
+ *                    requestId: !unpacker.types.RequestId,
+ *                    entryPath: string,
+ *                    thumbnail: boolean}>}
  */
 unpacker.types.GetMetadataRequestedOptions;
 
 /**
  * @see
  * https://developer.chrome.com/apps/fileSystemProvider#event-onReadDirectoryRequested
- * @typedef {Object<{fileSystemId: !unpacker.types.FileSystemId,
- *                   requestId: !unpacker.types.RequestId,
- *                   directoryPath: string}>}
+ * @typedef {!Object<{fileSystemId: !unpacker.types.FileSystemId,
+ *                    requestId: !unpacker.types.RequestId,
+ *                    directoryPath: string}>}
  */
 unpacker.types.ReadDirectoryRequestedOptions;
 
 /**
  * @see
  * https://developer.chrome.com/apps/fileSystemProvider#event-onOpenFileRequested
- * @typedef {Object<{fileSystemId: !unpacker.types.FileSystemId,
- *                   requestId: !unpacker.types.RequestId,
- *                   filePath: string,
- *                   mode: OpenFileMode}>}
+ * @typedef {!Object<{fileSystemId: !unpacker.types.FileSystemId,
+ *                    requestId: !unpacker.types.RequestId,
+ *                    filePath: string,
+ *                    mode: !OpenFileMode}>}
  */
 unpacker.types.OpenFileRequestedOptions;
 
 /**
  * @see
  * https://developer.chrome.com/apps/fileSystemProvider#event-onCloseFileRequested
- * @typedef {Object<{fileSystemId: !unpacker.types.FileSystemId,
- *                   requestId: !unpacker.types.RequestId,
- *                   openRequestId: !unpacker.types.RequestId}>}
+ * @typedef {!Object<{fileSystemId: !unpacker.types.FileSystemId,
+ *                    requestId: !unpacker.types.RequestId,
+ *                    openRequestId: !unpacker.types.RequestId}>}
  */
 unpacker.types.CloseFileRequestedOptions;
 
 /**
  * @see
  * https://developer.chrome.com/apps/fileSystemProvider#event-onReadFileRequested
- * @typedef {Object<{fileSystemId: !unpacker.types.FileSystemId,
- *                   requestId: !unpacker.types.RequestId,
- *                   openRequestId: !unpacker.types.RequestId,
- *                   offset: number,
- *                   length: number}>}
+ * @typedef {!Object<{fileSystemId: !unpacker.types.FileSystemId,
+ *                    requestId: !unpacker.types.RequestId,
+ *                    openRequestId: !unpacker.types.RequestId,
+ *                    offset: number,
+ *                    length: number}>}
  */
 unpacker.types.ReadFileRequestedOptions;
