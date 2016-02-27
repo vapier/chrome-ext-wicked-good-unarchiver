@@ -1,3 +1,4 @@
 third-party/polymer/bower_components
 unpacker/release
 unpacker/vulcanized-polymer
+/node_modules/

@@ -5,57 +5,96 @@ unpacking of zip archives.
 
 ## Build steps
 
-First of all you will need [naclports](https://code.google.com/p/naclports/).
-See https://code.google.com/p/naclports/wiki/HowTo_Checkout?tm=4
+### NaCl SDK
+
+Since the code is built with NaCl, you'll need its toolchain.  See the
+[download page](https://developer.chrome.com/native-client/sdk/download).
+The install location does not matter as it'll be set via ``NACL_SDK_ROOT``.
+
+You should install the current stable version.
+
+```
+$ wget https://storage.googleapis.com/nativeclient-mirror/nacl/nacl_sdk/nacl_sdk.zip
+$ unzip -u nacl_sdk.zip
+$ ./nacl_sdk/naclsdk install
+```
+
+Then configure the path to the root of the specific SDK version.
+
+```
+# This assumes there's only one version of the SDK.
+$ export NACL_SDK_ROOT=$(echo ${PWD}/nacl_sdk/pepper_*)
+```
+
+### Webports (a.k.a. NaCl ports)
+
+We'll use libraries from [webports](https://chromium.googlesource.com/webports/).
+See [How to Checkout](https://chromium.googlesource.com/webports/#How-to-Checkout).
+
+The install location does not matter as it'll be set via ``NACLPORTS_PATH``.
+
+Make sure to checkout the branch that matches the version of the SDK you're
+using.  If you're using ``pepper_47``, then check out the ``pepper_47`` branch.
+
+```
+$ cd src
+$ branch=$(basename "${NACL_SDK_ROOT}")
+$ git checkout -b ${branch} remotes/origin/${branch}
+$ cd ..
+$ export NACLPORTS_PATH=${PWD}
+```
+
+### npm Setup
+
+First install [npm](https://www.npmjs.com/) using your normal packaging system.
+On Debian, you'll want something like:
+
+```
+$ sudo apt-get install npm
+```
+
+Then install the npm modules that we require.  Do this in the root of the
+unpacker repo.
+
+```
+$ npm install bower 'vulcanize@<0.8'
+```
+
+### Unpacker Build
 
 Once done, install the libarchive-fork from third-party of the unpacker
 project. Note that you cannot use libarchive nor libarchive-dev packages from
-naclports at this moment, as not all patches in the fork are upstreamed.
+webports at this moment, as not all patches in the fork are upstreamed.
 
 ```
 $ cd third-party
-$ NACLPORTS_PATH=[path-to-your-naclports] make libarchive-fork
+$ make libarchive-fork
 ```
 
 Polymer is used for UI. In order to fetch it, in the same directory type:
 
 ```
-$ NACLPORTS_PATH=[path-to-your-naclports] make polymer
+$ make polymer
 ```
-
-Note, that you'll need npm and bower installed in the system.
 
 Build the PNaCl module.
-
-```
-$ cd unpacker
-$ make  # For Release.
-$ make debug_for_tests  # For Debug.
-```
-
-In order to use Release / Debug see
-[js/background.js](/unpacker/js/background.js) for instructions.
-
-## Steps for obtaining the extention code for releasing on Chrome store
-
-Note, that you need vulcanizer to be installed:
-
-```
-$ npm install vulcanize
-```
-
-Then you can create the package with:
 
 ```
 $ cd unpacker
 $ make [debug]
 ```
 
-The package will be available in the release or debug directory.
-
 ## Use
 
-Load unpacked extension and open rar / zip archives.
+The package can be found in the release or debug directory.  You can run it
+directly from there using Chrome's "Load unpacked extension" feature, or you
+can zip it up for posting to the Chrome Web Store.
+
+```
+$ zip -r release.zip release/
+```
+
+Once it's loaded, you should be able to open ZIP archives in the Files app.
 
 ## Debugging
 
