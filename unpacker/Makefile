@@ -10,7 +10,7 @@ debug: pnacl_for_debug vulcanized-polymer
 
 vulcanized-polymer: third-party/polymer.html
 	mkdir vulcanized-polymer
-	vulcanize third-party/polymer.html --inline --csp -o \
+	`npm bin`/vulcanize third-party/polymer.html --inline --csp -o \
 	vulcanized-polymer/polymer.html
 
 .PHONY: pnacl_for_release
