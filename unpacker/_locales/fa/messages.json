@@ -1,10 +1,10 @@
 {
   "name": {
-    "message": "بازکننده ZIP",
+    "message": "Wicked Good Unarchiver",
     "description": "Name of the ZIP unpacker app."
   },
   "description": {
-    "message": "فایل‌های ZIP را در برنامه Files باز کنید.",
+    "message": "فایل‌های 7z/ar/CAB/CPIO/deb/ISO/jar/lha/pax/rpm/tar/warc را در برنامه Files باز کنید.",
     "description": "Short description of the ZIP unpacker app."
   },
   "mountErrorTitle": {

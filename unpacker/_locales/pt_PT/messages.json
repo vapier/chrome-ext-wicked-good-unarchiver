@@ -1,10 +1,10 @@
 {
   "name": {
-    "message": "ZIP unpacker",
+    "message": "Wicked Good Unarchiver",
     "description": "Name of the ZIP unpacker app."
   },
   "description": {
-    "message": "Abre ficheiros ZIP na aplicação Ficheiros.",
+    "message": "Abre ficheiros 7z/ar/CAB/CPIO/deb/ISO/jar/lha/pax/rpm/tar/warc na aplicação Ficheiros.",
     "description": "Short description of the ZIP unpacker app."
   },
   "mountErrorTitle": {
