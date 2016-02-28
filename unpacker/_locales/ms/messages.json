@@ -1,10 +1,10 @@
 {
   "name": {
-    "message": "Penyahpadat ZIP",
+    "message": "Wicked Good Unarchiver",
     "description": "Name of the ZIP unpacker app."
   },
   "description": {
-    "message": "Buka fail ZIP dalam apl Fail.",
+    "message": "Buka fail 7z/CAB/CPIO/ISO/pax/rpm/tar dalam apl Fail.",
     "description": "Short description of the ZIP unpacker app."
   },
   "mountErrorTitle": {
