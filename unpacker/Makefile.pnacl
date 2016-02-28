@@ -15,7 +15,7 @@ include $(TOP_SRCDIR)/third-party/settings.mk
 include $(NACL_SDK_ROOT)/tools/common.mk
 
 TARGET = module
-LIBS = ppapi_cpp ppapi pthread archive z iconv crypto
+LIBS = ppapi_cpp ppapi pthread archive iconv crypto lz4 lzma lzo2 z zstd bz2
 
 CFLAGS = -Wall
 SOURCES = \
