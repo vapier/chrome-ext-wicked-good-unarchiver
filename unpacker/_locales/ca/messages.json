@@ -1,10 +1,10 @@
 {
   "name": {
-    "message": "Descompressor ZIP",
+    "message": "Wicked Good Unarchiver",
     "description": "Name of the ZIP unpacker app."
   },
   "description": {
-    "message": "Obriu els fitxers ZIP a l'aplicació Fitxers.",
+    "message": "Obriu els fitxers 7z/CAB/CPIO/ISO/pax/rpm/tar a l'aplicació Fitxers.",
     "description": "Short description of the ZIP unpacker app."
   },
   "mountErrorTitle": {

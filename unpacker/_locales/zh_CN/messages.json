@@ -1,10 +1,10 @@
 {
   "name": {
-    "message": "ZIP 解压缩程序",
+    "message": "Wicked Good Unarchiver",
     "description": "Name of the ZIP unpacker app."
   },
   "description": {
-    "message": "在“文件”应用中打开 ZIP 文件。",
+    "message": "在“文件”应用中打开 7z/CAB/CPIO/ISO/pax/rpm/tar 文件。",
     "description": "Short description of the ZIP unpacker app."
   },
   "mountErrorTitle": {
