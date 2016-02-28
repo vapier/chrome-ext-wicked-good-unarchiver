@@ -1,5 +1,5 @@
-diff --git a/libarchive/archive_random.c b/libarchive/archive_random.c
-index 7786323..7b807d1 100644
+https://github.com/libarchive/libarchive/commit/345be3839ebc45a15c02e1db5abd0fa3fa70e403
+
 --- a/libarchive/archive_random.c
 +++ b/libarchive/archive_random.c
 @@ -34,6 +34,10 @@ __FBSDID("$FreeBSD$");
@@ -13,3 +13,58 @@ index 7786323..7b807d1 100644
  #endif
  #ifdef HAVE_LIMITS_H
  #include <limits.h>
+
+https://github.com/libarchive/libarchive/commit/844b006283d1dfbc4256f7c26434459040dad5d4
+
+--- a/libarchive/archive_random.c
++++ b/libarchive/archive_random.c
+@@ -142,11 +142,10 @@ struct arc4_stream {
+ 	u_int8_t s[256];
+ };
+ 
+-static pthread_mutex_t	arc4random_mtx = PTHREAD_MUTEX_INITIALIZER;
+-
+ #define	RANDOMDEV	"/dev/urandom"
+ #define	KEYSIZE		128
+ #ifdef HAVE_PTHREAD_H
++static pthread_mutex_t	arc4random_mtx = PTHREAD_MUTEX_INITIALIZER;
+ #define	_ARC4_LOCK()	pthread_mutex_lock(&arc4random_mtx);
+ #define	_ARC4_UNLOCK()  pthread_mutex_unlock(&arc4random_mtx);
+ #else
+
+https://github.com/libarchive/libarchive/pull/663
+
+--- a/libarchive/archive_read_disk_posix.c
++++ b/libarchive/archive_read_disk_posix.c
+@@ -1559,6 +1559,7 @@ setup_current_filesystem(struct archive_read_disk *a)
+ #if defined(HAVE_STRUCT_STATFS_F_NAMEMAX)
+ 	t->current_filesystem->name_max = sfs.f_namemax;
+ #else
++# if defined(_PC_NAME_MAX)
+ 	/* Mac OS X does not have f_namemax in struct statfs. */
+ 	if (tree_current_is_symblic_link_target(t)) {
+ 		if (tree_enter_working_dir(t) != 0) {
+@@ -1568,6 +1569,9 @@ setup_current_filesystem(struct archive_read_disk *a)
+ 		nm = pathconf(tree_current_access_path(t), _PC_NAME_MAX);
+ 	} else
+ 		nm = fpathconf(tree_current_dir_fd(t), _PC_NAME_MAX);
++# else
++	nm = -1;
++# endif
+ 	if (nm == -1)
+ 		t->current_filesystem->name_max = NAME_MAX;
+ 	else
+
+--- a/libarchive/archive_read_disk_posix.c
++++ b/libarchive/archive_read_disk_posix.c
+@@ -109,6 +109,10 @@ __FBSDID("$FreeBSD$");
+ #define O_CLOEXEC	0
+ #endif
+ 
++/* NaCl defines these, but doesn't provide pathconf.  */
++#undef _PC_REC_INCR_XFER_SIZE
++#undef _PC_NAME_MAX
++
+ /*-
+  * This is a new directory-walking system that addresses a number
+  * of problems I've had with fts(3).  In particular, it has no
