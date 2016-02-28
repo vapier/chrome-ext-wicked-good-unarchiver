@@ -385,18 +385,32 @@ void Volume::OpenFileCallback(int32_t /*result*/,
   job_lock_.Release();
 
   if (!volume_archive_->SeekHeader(args.index)) {
-    message_sender_->SendFileSystemError(
-        file_system_id_, args.request_id, volume_archive_->error_message());
-    ClearJob();
-    return;
+    // Maybe we're dealing with a streaming archive format (e.g. tar).
+    // We need to re-read this thing everytime.
+    if (volume_archive_->curr_index > args.index) {
+      volume_archive_->Cleanup();
+      delete volume_archive_;
+      volume_archive_ = volume_archive_factory_->Create(
+          volume_reader_factory_->Create(args.archive_size));
+      static_cast<VolumeReaderJavaScriptStream*>(volume_archive_->reader())->
+          SetRequestId(reader_request_id_);
+      if (!volume_archive_->Init(args.encoding)) {
+        message_sender_->SendFileSystemError(
+            file_system_id_, args.request_id, volume_archive_->error_message());
+        ClearJob();
+        return;
+      }
+    }
   }
 
+  do {
   if (!volume_archive_->GetNextHeader()) {
     message_sender_->SendFileSystemError(
         file_system_id_, args.request_id, volume_archive_->error_message());
     ClearJob();
     return;
   }
+  } while (volume_archive_->curr_index <= args.index);
 
   // Send successful opened file response to NaCl.
   message_sender_->SendOpenFileDone(file_system_id_, args.request_id);

@@ -81,6 +81,10 @@ class VolumeArchive {
   VolumeReader* reader() const { return reader_; }
   std::string error_message() const { return error_message_; }
 
+  // The last index we scanned to.  Used when the archive lacks such an index
+  // so we can only scan forward.  Avoids reloading all the time.
+  int64_t curr_index;
+
  protected:
   // Cleans up the reader. Can be called multiple times, but once called reader
   // cannot be reinitialized.

@@ -105,11 +105,16 @@ bool VolumeArchiveLibarchive::Init(const std::string& encoding) {
     return false;
   }
 
+  if (archive_read_support_filter_all(archive_) != ARCHIVE_OK) {
+    set_error_message(ArchiveError(
+        volume_archive_constants::kArchiveSupportErrorPrefix, archive_));
+    return false;
+  }
+
   // TODO(cmihail): Once the bug mentioned at
   // https://github.com/libarchive/libarchive/issues/373 is resolved
   // add RAR file handler to manifest.json.
-  if (archive_read_support_format_rar(archive_) != ARCHIVE_OK ||
-      archive_read_support_format_zip_seekable(archive_) != ARCHIVE_OK) {
+  if (archive_read_support_format_all(archive_) != ARCHIVE_OK) {
     set_error_message(ArchiveError(
         volume_archive_constants::kArchiveSupportErrorPrefix, archive_));
     return false;
@@ -141,6 +146,8 @@ bool VolumeArchiveLibarchive::Init(const std::string& encoding) {
     return false;
   }
 
+  curr_index = 0;
+
   return true;
 }
 
@@ -153,6 +160,8 @@ VolumeArchive::Result VolumeArchiveLibarchive::GetNextHeader() {
   // Reset to 0 for new VolumeArchive::ReadData operation.
   last_read_data_offset_ = 0;
   decompressed_data_size_ = 0;
+
+  ++curr_index;
 
   // Archive data is skipped automatically by next call to
   // archive_read_next_header.
@@ -195,6 +204,8 @@ bool VolumeArchiveLibarchive::SeekHeader(int64_t index) {
         volume_archive_constants::kArchiveNextHeaderErrorPrefix, archive_));
     return false;
   }
+
+  curr_index = index;
 
   return true;
 }
