@@ -1,10 +1,10 @@
 {
   "name": {
-    "message": "Razširitev za odpiranje arhivov ZIP",
+    "message": "Wicked Good Unarchiver",
     "description": "Name of the ZIP unpacker app."
   },
   "description": {
-    "message": "Odpiranje datotek ZIP v aplikaciji Datoteke.",
+    "message": "Odpiranje datotek 7z/CAB/CPIO/ISO/pax/rpm/tar v aplikaciji Datoteke.",
     "description": "Short description of the ZIP unpacker app."
   },
   "mountErrorTitle": {
