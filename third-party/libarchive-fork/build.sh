@@ -27,10 +27,12 @@ ConfigureStep() {
 
     # Disable compression libs we don't use in case they were built and
     # installed in the NaCl toolchain for other projects.
-    --without-bz2lib
-    --without-lzma
     --without-lzmadec
     --without-lzo2
+
+    # Enable compression libs we use.
+    --with-bz2lib
+    --with-lzma
 
     # Temporary xml2 support cannot be added because the patch used in
     # ports/libarchve doesn't apply correctly here due. The reason is that
