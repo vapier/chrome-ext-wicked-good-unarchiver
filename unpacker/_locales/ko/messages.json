@@ -1,10 +1,10 @@
 {
   "name": {
-    "message": "ZIP 압축 해제 프로그램",
+    "message": "Wicked Good Unarchiver",
     "description": "Name of the ZIP unpacker app."
   },
   "description": {
-    "message": "파일 앱에서 ZIP 파일 열기",
+    "message": "파일 앱에서 7z/CAB/CPIO/ISO/pax/rpm/tar 파일 열기",
     "description": "Short description of the ZIP unpacker app."
   },
   "mountErrorTitle": {

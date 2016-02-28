@@ -1,10 +1,10 @@
 {
   "name": {
-    "message": "ZIP-åbning",
+    "message": "Wicked Good Unarchiver",
     "description": "Name of the ZIP unpacker app."
   },
   "description": {
-    "message": "Åbn ZIP-filer i appen Filer.",
+    "message": "Åbn 7z/CAB/CPIO/ISO/pax/rpm/tar-filer i appen Filer.",
     "description": "Short description of the ZIP unpacker app."
   },
   "mountErrorTitle": {

@@ -1,10 +1,10 @@
 {
   "name": {
-    "message": "ZIP izguvējs",
+    "message": "Wicked Good Unarchiver",
     "description": "Name of the ZIP unpacker app."
   },
   "description": {
-    "message": "Atveriet ZIP failus lietotnē Faili.",
+    "message": "Atveriet 7z/CAB/CPIO/ISO/pax/rpm/tar failus lietotnē Faili.",
     "description": "Short description of the ZIP unpacker app."
   },
   "mountErrorTitle": {
