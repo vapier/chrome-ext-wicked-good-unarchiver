@@ -15,7 +15,7 @@ libarchive-fork:
 
 .PHONY: polymer
 polymer:
-	cd polymer; bower update
+	cd polymer; `npm bin`/bower update -F
 
 .PHONY: clean
 clean:
