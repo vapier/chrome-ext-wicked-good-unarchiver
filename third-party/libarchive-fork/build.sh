@@ -13,6 +13,10 @@ AutogenStep() {
 ConfigureStep() {
   AutogenStep
 
+  # Disable pthread detection.  The toolchain includes the headers, but we
+  # don't actually link it (nor need it), so we end up with link failures.
+  export ac_cv_header_pthread_h=no
+
   EXTRA_CONFIGURE_ARGS="--disable-bsdtar --disable-bsdcpio --without-nettle"
 
   # Temporary xml2 support cannot be added because the patch used in
