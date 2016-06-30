@@ -318,13 +318,26 @@ void Volume::ReadMetadataCallback(int32_t /*result*/,
   reader_request_id_ = request_id;
   job_lock_.Release();
 
-  if (!volume_archive_->Init(encoding)) {
+  // First we try the non-raw format.
+  if (!volume_archive_->Init(encoding, false)) {
+    volume_archive_->Cleanup();
+    delete volume_archive_;
+    volume_archive_ = volume_archive_factory_->Create(
+        volume_reader_factory_->Create(archive_size));
+    static_cast<VolumeReaderJavaScriptStream*>(volume_archive_->reader())->
+        SetRequestId(reader_request_id_);
+
+    // If that failed, retry with the raw format.
+    if (!volume_archive_->Init(encoding, true)) {
+
     message_sender_->SendFileSystemError(
         file_system_id_, request_id, volume_archive_->error_message());
     ClearJob();
     delete volume_archive_;
     volume_archive_ = NULL;
     return;
+
+    }
   }
 
   // Read and construct metadata.
@@ -348,6 +361,20 @@ void Volume::ReadMetadataCallback(int32_t /*result*/,
       return;
     } else if (ret == VolumeArchive::RESULT_EOF)
       break;
+
+    // If the file name didn't exist, construct one.
+    std::string new_path_name;
+    size_t pos;
+    if (path_name == NULL) {
+      new_path_name = file_system_id_;
+      pos = new_path_name.rfind("/");
+      if (pos != std::string::npos)
+        new_path_name.erase(0, pos + 1);
+      pos = new_path_name.rfind(".");
+      if (pos != std::string::npos)
+        new_path_name.erase(pos);
+      path_name = new_path_name.c_str();
+    }
 
     ConstructMetadata(index, path_name, size, is_directory, modification_time,
         &root_metadata);
@@ -387,14 +414,15 @@ void Volume::OpenFileCallback(int32_t /*result*/,
   if (!volume_archive_->SeekHeader(args.index)) {
     // Maybe we're dealing with a streaming archive format (e.g. tar).
     // We need to re-read this thing everytime.
-    if (volume_archive_->curr_index > args.index) {
+    bool raw = volume_archive_->raw_;
+    if (volume_archive_->curr_index > args.index || raw) {
       volume_archive_->Cleanup();
       delete volume_archive_;
       volume_archive_ = volume_archive_factory_->Create(
           volume_reader_factory_->Create(args.archive_size));
       static_cast<VolumeReaderJavaScriptStream*>(volume_archive_->reader())->
           SetRequestId(reader_request_id_);
-      if (!volume_archive_->Init(args.encoding)) {
+      if (!volume_archive_->Init(args.encoding, raw)) {
         message_sender_->SendFileSystemError(
             file_system_id_, args.request_id, volume_archive_->error_message());
         ClearJob();
@@ -404,7 +432,7 @@ void Volume::OpenFileCallback(int32_t /*result*/,
   }
 
   do {
-  if (!volume_archive_->GetNextHeader()) {
+  if (volume_archive_->GetNextHeader() == VolumeArchive::RESULT_FAIL) {
     message_sender_->SendFileSystemError(
         file_system_id_, args.request_id, volume_archive_->error_message());
     ClearJob();
