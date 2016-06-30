@@ -98,7 +98,7 @@ VolumeArchiveLibarchive::~VolumeArchiveLibarchive() {
   Cleanup();
 }
 
-bool VolumeArchiveLibarchive::Init(const std::string& encoding) {
+bool VolumeArchiveLibarchive::Init(const std::string& encoding, bool raw) {
   archive_ = archive_read_new();
   if (!archive_) {
     set_error_message(volume_archive_constants::kArchiveReadNewError);
@@ -114,7 +114,12 @@ bool VolumeArchiveLibarchive::Init(const std::string& encoding) {
   // TODO(cmihail): Once the bug mentioned at
   // https://github.com/libarchive/libarchive/issues/373 is resolved
   // add RAR file handler to manifest.json.
-  if (archive_read_support_format_all(archive_) != ARCHIVE_OK) {
+  int ret;
+  if (raw)
+    ret = archive_read_support_format_raw(archive_);
+  else
+    ret = archive_read_support_format_all(archive_);
+  if (ret != ARCHIVE_OK) {
     set_error_message(ArchiveError(
         volume_archive_constants::kArchiveSupportErrorPrefix, archive_));
     return false;
@@ -147,6 +152,7 @@ bool VolumeArchiveLibarchive::Init(const std::string& encoding) {
   }
 
   curr_index = 0;
+  raw_ = raw;
 
   return true;
 }
@@ -186,7 +192,23 @@ VolumeArchive::Result VolumeArchiveLibarchive::GetNextHeader(
 
   if (ret == RESULT_SUCCESS) {
     *pathname = archive_entry_pathname(current_archive_entry_);
+    if (raw_) {
+      if (strcmp(*pathname, "data") == 0) {
+        // Tell the higher layers to re-use the name from the archive.
+        *pathname = NULL;
+      }
+    }
+
     *size = archive_entry_size(current_archive_entry_);
+    if (raw_ && !archive_entry_size_is_set(current_archive_entry_)) {
+      // We weren't able to quickly locate the filesize.  Brute force!
+      size_t block_size;
+      const void *buf;
+      int64_t offset;
+      while (archive_read_data_block(archive_, &buf, &block_size, &offset) != ARCHIVE_EOF)
+        *size += block_size;
+    }
+
     *modification_time = archive_entry_mtime(current_archive_entry_);
     *is_directory = archive_entry_filetype(current_archive_entry_) == AE_IFDIR;
   }
