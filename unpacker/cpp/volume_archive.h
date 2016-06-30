@@ -29,7 +29,7 @@ class VolumeArchive {
   // be obtained with VolumeArchive::error_message(). Encoding is the default
   // encoding. Note, that other encoding may be used if specified in the
   // archive file.
-  virtual bool Init(const std::string& encoding) = 0;
+  virtual bool Init(const std::string& encoding, bool raw) = 0;
 
   // Gets the next header.  In case of failure the error message can be
   // obtained with VolumeArchive::error_message().
@@ -84,6 +84,8 @@ class VolumeArchive {
   // The last index we scanned to.  Used when the archive lacks such an index
   // so we can only scan forward.  Avoids reloading all the time.
   int64_t curr_index;
+
+  bool raw_;
 
  protected:
   // Cleans up the reader. Can be called multiple times, but once called reader
