@@ -5,13 +5,13 @@
 export NACL_ARCH ?= pnacl
 export TOOLCHAIN ?= pnacl
 
-ifndef NACLPORTS_PATH
-  $(error NACLPORTS_PATH is not set. Install naclports and set NACLPORTS_PATH)
+ifndef WEBPORTS_PATH
+  $(error WEBPORTS_PATH is not set. Install webports and set WEBPORTS_PATH)
 endif
 
 .PHONY: libarchive-fork
 libarchive-fork:
-	$(NACLPORTS_PATH)/src/bin/naclports -f install libarchive-fork
+	$(WEBPORTS_PATH)/src/bin/webports -f install libarchive-fork
 
 .PHONY: polymer
 polymer:
@@ -19,7 +19,7 @@ polymer:
 
 .PHONY: clean
 clean:
-	$(NACLPORTS_PATH)/src/bin/naclports clean libarchive-fork
+	$(WEBPORTS_PATH)/src/bin/webports clean libarchive-fork
 	rm -rf polymer/bower_components
 
 .PHONY: all

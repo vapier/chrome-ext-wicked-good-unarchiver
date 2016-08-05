@@ -31,7 +31,7 @@ $ export NACL_SDK_ROOT=$(echo ${PWD}/nacl_sdk/pepper_*)
 We'll use libraries from [webports](https://chromium.googlesource.com/webports/).
 See [How to Checkout](https://chromium.googlesource.com/webports/#How-to-Checkout).
 
-The install location does not matter as it'll be set via ``NACLPORTS_PATH``.
+The install location does not matter as it'll be set via ``WEBPORTS_PATH``.
 
 Make sure to checkout the branch that matches the version of the SDK you're
 using.  If you're using ``pepper_47``, then check out the ``pepper_47`` branch.
@@ -41,7 +41,7 @@ $ cd src
 $ branch=$(basename "${NACL_SDK_ROOT}")
 $ git checkout -b ${branch} remotes/origin/${branch}
 $ cd ..
-$ export NACLPORTS_PATH=${PWD}
+$ export WEBPORTS_PATH=${PWD}
 ```
 
 ### npm Setup

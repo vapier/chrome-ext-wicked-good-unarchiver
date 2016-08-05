@@ -3,5 +3,4 @@ VERSION=0.1  # Custom version.
 URL=https://github.com/mtomasz-chromium/libarchive.git@ca1615b
 LICENSE=BSD
 DEPENDS=(zlib libiconv openssl)
-DISABLED_LIBC=(bionic)
 CONFLICTS=(libarchive libarchive-dev)

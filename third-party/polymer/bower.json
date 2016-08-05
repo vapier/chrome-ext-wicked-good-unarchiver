@@ -7,6 +7,6 @@
     "paper-elements": "Polymer/paper-elements#~0.5.2"
   },
   "resolutions": {
-    "webcomponentsjs": "0.7.21"
+    "webcomponentsjs": "0.7.22"
   }
 }
