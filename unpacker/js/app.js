@@ -541,18 +541,24 @@ unpacker.app = {
 
               var onError = function(error, fileSystemId) {
                 clearTimeout(deferredNotificationTimer);
+                console.error('Mount error: ' + error.message + '.');
+                if (error.message === 'EXISTS') {
+                  if (opt_onError)
+                    opt_onError(fileSystemId);
+                  return;
+                }
                 chrome.notifications.create(fileSystemId, {
                   type: 'basic',
                   iconUrl: chrome.runtime.getManifest().icons[128],
                   title: entry.name,
-                  message: chrome.i18n.getMessage(error == 'EXISTS' ?
-                      'existsErrorMessage' : 'otherErrorMessage')
+                  message: chrome.i18n.getMessage('otherErrorMessage')
                 }, function() {});
-                console.error(error);
                 if (opt_onError)
                   opt_onError(fileSystemId);
                 // Cleanup volume resources in order to allow future attempts
-                // to mount the volume.
+                // to mount the volume. The volume can't be cleaned up in
+                // case of 'EXIST' because we should not clean the other
+                // already mounted volume.
                 unpacker.app.cleanupVolume(fileSystemId);
               };
 
@@ -562,12 +568,6 @@ unpacker.app = {
                 if (opt_onSuccess)
                   opt_onSuccess(fileSystemId);
               };
-
-              if (unpacker.app.volumeLoadedPromises[fileSystemId]) {
-                console.error('ALREADY EXISTS, COME ON!');
-                onError('EXISTS', fileSystemId);
-                return;
-              }
 
               var loadPromise = unpacker.app.loadVolume_(
                   fileSystemId, entry, {}, '' /* passphrase */);
@@ -582,9 +582,7 @@ unpacker.app = {
                 },
                 function() {
                   if (chrome.runtime.lastError) {
-                    console.error('Mount error: ' +
-                                  chrome.runtime.lastError.message + '.');
-                    onError('FAILED', fileSystemId);
+                    onError(chrome.runtime.lastError, fileSystemId);
                     return;
                   }
                   // Save state so in case of restarts we are able to correctly
