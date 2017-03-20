@@ -1,0 +1,15 @@
+<link rel="import" href="../third-party/polymer.html">
+
+<polymer-element name="standalone-dialog">
+  <template>
+    <link rel="stylesheet" href="../css/standalone-dialog.css">
+    <h3>{{ 'name' | i18n }}: {{ 'standaloneTitle' | i18n }}</h3>
+    <div>{{ 'standaloneText' | i18n }}</div>
+    <div id="buttons">
+      <paper-button on-click="{{accept}}" id="acceptButton">
+          {{ 'standaloneAccept' | i18n }}
+      </paper-button>
+    </div>
+  </template>
+  <script src="../js/standalone-dialog.js"></script>
+</polymer-element>
