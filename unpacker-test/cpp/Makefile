@@ -9,7 +9,8 @@
 # "newlib pnacl" or use make VAILD_TOOLCHAINS=newlib.
 VALID_TOOLCHAINS := pnacl newlib
 
-NACL_SDK_ROOT ?= $(abspath $(CURDIR)/../../..)
+TOP_SRCDIR = $(CURDIR)/../..
+include $(TOP_SRCDIR)/third-party/settings.mk
 
 # The directory where the NaCl code to test is.
 CODE_DIR = ../../unpacker/cpp
