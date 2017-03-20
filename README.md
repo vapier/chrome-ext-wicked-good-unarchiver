@@ -7,41 +7,22 @@ unpacking of zip archives.
 
 ### NaCl SDK
 
-Since the code is built with NaCl, you'll need its toolchain.  See the
-[download page](https://developer.chrome.com/native-client/sdk/download).
-The install location does not matter as it'll be set via ``NACL_SDK_ROOT``.
-
-You should install the current stable version.
+Since the code is built with [NaCl](https://developer.chrome.com/native-client/),
+you'll need its toolchain.
 
 ```
-$ wget https://storage.googleapis.com/nativeclient-mirror/nacl/nacl_sdk/nacl_sdk.zip
-$ unzip -u nacl_sdk.zip
-$ ./nacl_sdk/naclsdk install
-```
-
-Then configure the path to the root of the specific SDK version.
-
-```
-# This assumes there's only one version of the SDK.
-$ export NACL_SDK_ROOT=$(echo ${PWD}/nacl_sdk/pepper_*)
+$ cd third-party
+$ make nacl_sdk
 ```
 
 ### Webports (a.k.a. NaCl ports)
 
 We'll use libraries from [webports](https://chromium.googlesource.com/webports/).
-See [How to Checkout](https://chromium.googlesource.com/webports/#How-to-Checkout).
-
-The install location does not matter as it'll be set via ``WEBPORTS_PATH``.
-
-Make sure to checkout the branch that matches the version of the SDK you're
-using.  If you're using ``pepper_47``, then check out the ``pepper_47`` branch.
 
 ```
-$ cd src
-$ branch=$(basename "${NACL_SDK_ROOT}")
-$ git checkout -b ${branch} remotes/origin/${branch}
-$ cd ..
-$ export WEBPORTS_PATH=${PWD}
+$ cd third-party
+$ make depot_tools
+$ make webports
 ```
 
 ### npm Setup
