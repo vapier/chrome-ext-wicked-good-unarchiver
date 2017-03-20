@@ -582,7 +582,15 @@ unpacker.app = {
   onLaunched: function(launchData, opt_onSuccess, opt_onError) {
     if (launchData.items == null) {
       // The user tried to launch us directly.
-      console.log('Ignoring launch request w/out items field', {launchData});
+      chrome.app.window.create(
+        '../html/standalone.html',
+        /** @type {!chrome.app.window.CreateWindowOptions} */ ({
+          innerBounds: {width: 320, height: 140},
+          alwaysOnTop: true,
+          resizable: false,
+          frame: 'none',
+          hidden: true
+        }));
       return;
     }
 
