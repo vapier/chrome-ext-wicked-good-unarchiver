@@ -219,6 +219,8 @@ var testOpenReadClose = function(fileSystemId, expectedMetadata, filePath,
   // Test onOpenFileRequested.
   describe('and then opens file <' + filePath + '> for <' + fileSystemId + '>',
            function() {
+    var mountProcessCounterBefore;
+
     beforeEach(function(done) {
       var options = {
         fileSystemId: fileSystemId,
@@ -227,8 +229,16 @@ var testOpenReadClose = function(fileSystemId, expectedMetadata, filePath,
         filePath: filePath,
         requestId: openRequestId
       };
-
+      mountProcessCounterBefore = unpacker.app.mountProcessCounter;
       unpacker.app.onOpenFileRequested(options, done, test_utils.forceFailure);
+    });
+
+    // Test mountProcessCounter for onOpenFileRequested.
+    it('should have the same mountProcessCounter value before and after ' +
+       'onOpenFileRequested call',
+        function() {
+            expect(mountProcessCounterBefore)
+                .to.equal(unpacker.app.mountProcessCounter);
     });
 
     it('should load the volume metadata', function() {
@@ -248,7 +258,6 @@ var testOpenReadClose = function(fileSystemId, expectedMetadata, filePath,
         requestId: closeRequestId,
         openRequestId: openRequestId
       };
-
       unpacker.app.onCloseFileRequested(options, done, test_utils.forceFailure);
     });
   });
@@ -282,6 +291,8 @@ var smallArchiveCheck = function(
 
   // Test onGetMetatadaRequested.
   describe('and then calls onGetMetadataRequested ' + suffix, function() {
+    var mountProcessCounterBefore;
+
     var createGetMetadataRequestPromise = function(requestId, entryPath) {
       var options = {
         fileSystemId: fileSystemId,
@@ -296,6 +307,7 @@ var smallArchiveCheck = function(
     var rootMetadataResult;
 
     beforeEach(function(done) {
+      mountProcessCounterBefore = unpacker.app.mountProcessCounter;
       var promises = [
         createGetMetadataRequestPromise(1, '/'),
         createGetMetadataRequestPromise(2, '/'),
@@ -309,6 +321,12 @@ var smallArchiveCheck = function(
       }, test_utils.forceFailure);
     });
 
+    // Test mountProcessCounter for onGetMetadataRequested.
+    it('should have the same mountProcessCounter value before and after the call',
+        function() {
+            expect(mountProcessCounterBefore)
+                .to.equal(unpacker.app.mountProcessCounter);
+    });
 
     it('should load the volume metadata', function() {
       testMetadata(unpacker.app.volumes[fileSystemId].metadata,
@@ -329,6 +347,7 @@ var smallArchiveCheck = function(
   // Test onReadDirectoryRequested.
   describe('and then calls onReadDirectoryRequested ' + suffix, function() {
     var directoryEntries;
+    var mountProcessCounterBefore;
 
     beforeEach(function(done) {
       var options = {
@@ -336,11 +355,18 @@ var smallArchiveCheck = function(
         requestId: 1,
         directoryPath: '/'  // Ask for root directory entries.
       };
-
+      mountProcessCounterBefore = unpacker.app.mountProcessCounter;
       unpacker.app.onReadDirectoryRequested(options, function(entries) {
         directoryEntries = entries;
         done();
       }, test_utils.forceFailure);
+    });
+
+    // Test mountProcessCounter for onReadDirectoryRequested.
+    it('should have the same mountProcessCounter value before and after the call',
+        function() {
+            expect(mountProcessCounterBefore)
+                .to.equal(unpacker.app.mountProcessCounter);
     });
 
     it('should load the volume metadata', function() {

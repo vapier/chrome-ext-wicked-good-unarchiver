@@ -19,8 +19,8 @@ var unloadExtension = function() {
   expect(Object.keys(unpacker.app.volumeLoadedPromises).length).to.equal(0);
 };
 
-// Init helper.
-var initPromise = tests_helper.init([
+// We need at least two zip files for all the tests to run correctly.
+var zip_list = [
   {
     name: 'small_zip.zip',
     afterOnLaunchTests: function() {
@@ -52,9 +52,14 @@ var initPromise = tests_helper.init([
       smallArchiveCheck('encrypted.zip', SMALL_ZIP_METADATA, true, null);
     }
   }
-]);
+];
+
+// Init helper.
+var initPromise = tests_helper.init(zip_list);
 
 describe('The unpacker', function() {
+  var mountProcessCounterBefore;
+
   before(function(done) {
     // Modify the default timeout until Karma kills the test and marks it as
     // failed in order to give enough time to the browser to load the PNaCl
@@ -72,11 +77,17 @@ describe('The unpacker', function() {
       unpacker.app.unloadNaclModule();
     expect(unpacker.app.naclModuleIsLoaded()).to.be.false;
 
+    // Rewrite the path of .nmf file.
+    unpacker.app.DEFAULT_MODULE_NMF = 'base/module.nmf';
+
     // Load the module.
     unpacker.app.loadNaclModule('base/module.nmf', 'application/x-pnacl');
 
     Promise.all([initPromise, unpacker.app.moduleLoadedPromise])
         .then(function() {
+          // Here, loadNaclModule() should unload the NaCL module immediately
+          // after the loading.
+          expect(unpacker.app.naclModuleIsLoaded()).to.be.false;
           // In case below is not printed probably 5000 ms for this.timeout
           // wasn't enough for PNaCl to load during first time run.
           console.debug('Initialization and module loading finished.');
@@ -86,8 +97,6 @@ describe('The unpacker', function() {
   });
 
   beforeEach(function(done) {
-    expect(unpacker.app.naclModuleIsLoaded()).to.be.true;
-
     // Called on beforeEach() in order for spies and stubs to reset registered
     // number of calls to methods.
     tests_helper.initChromeApis();
@@ -98,6 +107,7 @@ describe('The unpacker', function() {
     });
 
     var successfulVolumeLoads = 0;
+    mountProcessCounterBefore = unpacker.app.mountProcessCounter;
     unpacker.app.onLaunched(
         launchData,
         function(fileSystemId) {
@@ -121,6 +131,13 @@ describe('The unpacker', function() {
         function() {
           volumeInformation.afterOnLaunchTests();
         });
+  });
+
+  // Test mountProcessCounter for onLaunched.
+  it('should have the same mountProcessCounter before and after onLaunched call',
+      function() {
+          expect(mountProcessCounterBefore)
+              .to.equal(unpacker.app.mountProcessCounter);
   });
 
   // Test state save.
@@ -229,7 +246,6 @@ describe('The unpacker', function() {
         expect(unpacker.app.volumes[fileSystemId]).to.not.be.undefined;
         expect(tests_helper.localStorageState[storageKey][fileSystemId])
             .to.not.be.undefined;
-
         unpacker.app.onUnmountRequested({fileSystemId: fileSystemId},
                                         function() { done(); },
                                         tests_helper.forceFailure);
@@ -248,6 +264,52 @@ describe('The unpacker', function() {
             .to.be.undefined;
         expect(chrome.storage.local.set.called).to.be.true;
       });
+    });
+  });
+
+  // Check if NaCL module is NOT unloaded when one volume is unloaded and
+  // Zip Unpacker still has other mounted volumes.
+  describe('that unmounts a volume and still has unmounted volumes', function() {
+    beforeEach(function(done) {
+      // We need at least 2 zip files mounted to run this test.
+      expect(tests_helper.volumesInformation.length >= 2).to.be.true;
+      // Only unload the first volume.
+      var volumeInformation = tests_helper.volumesInformation[0];
+      var fileSystemId = volumeInformation.fileSystemId;
+      tests_helper.initChromeApis();
+      unpacker.app.onUnmountRequested({fileSystemId: fileSystemId}, function() {
+        // Make sure that there is at least one volume that is not unmounted.
+        expect(Object.keys(unpacker.app.volumes).length > 0).to.be.true;
+        done();
+      }.bind(this), tests_helper.forceFailure);
+    });
+
+    it('should not unload the NaCL module', function() {
+      expect(unpacker.app.naclModule).to.not.be.null;
+      expect(unpacker.app.moduleLoadedPromise).to.not.be.null;
+    });
+  });
+
+  // Check if NaCL module is unloaded after all the volumes are unloaded.
+  describe('that unmounts all the volumes', function() {
+    beforeEach(function(done) {
+      // The number of mounted volumes.
+      var volumeListSize = zip_list.length;
+      tests_helper.volumesInformation.forEach(function(volumeInformation) {
+        var fileSystemId = volumeInformation.fileSystemId;
+        tests_helper.initChromeApis();
+        unpacker.app.onUnmountRequested({fileSystemId: fileSystemId}, function() {
+          // Wait for all the volumes to be unloaded.
+          volumeListSize--;
+          if (volumeListSize == 0)
+            done();
+        }, tests_helper.forceFailure);
+      });
+    });
+
+    it('should unload the NaCL module', function() {
+      expect(unpacker.app.naclModule).to.be.null;
+      expect(unpacker.app.moduleLoadedPromise).to.be.null;
     });
   });
 });

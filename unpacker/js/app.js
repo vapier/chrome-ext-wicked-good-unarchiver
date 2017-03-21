@@ -28,6 +28,19 @@ unpacker.app = {
   MOUNTING_NOTIFICATION_DELAY: 1000,
 
   /**
+   * The default filename for .nmf file.
+   * This value must not be const because it is overwritten in tests.
+   * @type {string}
+   */
+  DEFAULT_MODULE_NMF: 'module.nmf',
+
+  /**
+   * The default MIME type for .nmf file.
+   * @const {string}
+   */
+  DEFAULT_MODULE_TYPE: 'application/x-pnacl',
+
+  /**
    * Multiple volumes can be opened at the same time.
    * @type {!Object<!unpacker.types.FileSystemId, !unpacker.Volume>}
    */
@@ -54,6 +67,14 @@ unpacker.app = {
    * @type {?Object}
    */
   naclModule: null,
+
+  /**
+   * The number of mount process in progress. NaCL module is unloaded if
+   * app.unpacker.volumes is empty and this counter is 0. This is incremented
+   * when a mounting process starts and decremented when it ends.
+   * @type {number}
+   */
+  mountProcessCounter: 0,
 
   /**
    * Function called on receiving a message from NaCl module. Registered by
@@ -286,6 +307,14 @@ unpacker.app = {
    * @private
    */
   ensureVolumeLoaded_: function(fileSystemId) {
+    // Increment the counter so that the NaCl module won't be unloaded until
+    // the mounting process ends.
+    unpacker.app.mountProcessCounter++;
+    // Create a promise to load the NaCL module.
+    if (!unpacker.app.moduleLoadedPromise)
+      unpacker.app.loadNaclModule(unpacker.app.DEFAULT_MODULE_NMF,
+                                  unpacker.app.DEFAULT_MODULE_TYPE);
+
     return unpacker.app.moduleLoadedPromise.then(function() {
       // In case there is no volume promise for fileSystemId then we
       // received a call after restart / suspend as load promises are
@@ -295,6 +324,13 @@ unpacker.app = {
         unpacker.app.volumeLoadedPromises[fileSystemId] =
             unpacker.app.restoreSingleVolume_(fileSystemId);
       }
+
+      // Decrement the counter when the mounting process ends.
+      unpacker.app.volumeLoadedPromises[fileSystemId].then(function() {
+        unpacker.app.mountProcessCounter--;
+      }).catch(function(error) {
+        unpacker.app.mountProcessCounter--;
+      });
 
       return unpacker.app.volumeLoadedPromises[fileSystemId];
     });
@@ -321,6 +357,18 @@ unpacker.app = {
 
       // Promise fulfills only after NaCl module has been loaded.
       elementDiv.addEventListener('load', function() {
+        // Since the first load of the NaCL module is slow, the module is loaded
+        // once in background.js in advance. If there is no mounted volume and
+        // ongoing mounting process, the module is just unloaded. This is the
+        // workaround for crbug.com/699930.
+        if (Object.keys(unpacker.app.volumes).length === 0 &&
+            unpacker.app.mountProcessCounter === 0) {
+          elementDiv.parentNode.removeChild(elementDiv);
+          // This is necessary for tests.
+          fulfill();
+          unpacker.app.moduleLoadedPromise = null;
+          return;
+        }
         unpacker.app.naclModule = document.getElementById(moduleId);
         fulfill();
       }, true);
@@ -336,6 +384,10 @@ unpacker.app = {
       elementDiv.appendChild(elementEmbed);
 
       document.body.appendChild(elementDiv);
+      // Request the offsetTop property to force a relayout. As of Apr 10, 2014
+      // this is needed if the module is being loaded on a Chrome App's
+      // background page (see crbug.com/350445).
+      elementEmbed.offsetTop;
     });
   },
 
@@ -355,11 +407,17 @@ unpacker.app = {
    * @param {!unpacker.types.FileSystemId} fileSystemId
    */
   cleanupVolume: function(fileSystemId) {
-    unpacker.app.naclModule.postMessage(
-        unpacker.request.createCloseVolumeRequest(fileSystemId));
     delete unpacker.app.volumes[fileSystemId];
     // Allow mount after clean.
     delete unpacker.app.volumeLoadedPromises[fileSystemId];
+
+    if (Object.keys(unpacker.app.volumes).length === 0 &&
+        unpacker.app.mountProcessCounter === 0) {
+      unpacker.app.unloadNaclModule();
+    } else {
+      unpacker.app.naclModule.postMessage(
+          unpacker.request.createCloseVolumeRequest(fileSystemId));
+    }
   },
 
   /**
@@ -522,9 +580,20 @@ unpacker.app = {
    *     times, depending on how many volumes must be loaded.
    */
   onLaunched: function(launchData, opt_onSuccess, opt_onError) {
+    // Increment the counter that indicates the number of ongoing mouot process.
+    unpacker.app.mountProcessCounter++;
+
+    // Create a promise to load the NaCL module.
+    if (!unpacker.app.moduleLoadedPromise) {
+      unpacker.app.loadNaclModule(unpacker.app.DEFAULT_MODULE_NMF,
+                                  unpacker.app.DEFAULT_MODULE_TYPE);
+    }
+
     unpacker.app.moduleLoadedPromise
         .then(function() {
+          unpacker.app.mountProcessCounter--;
           launchData.items.forEach(function(item) {
+            unpacker.app.mountProcessCounter++;
             chrome.fileSystem.getDisplayPath(item.entry, function(
                                                              entry,
                                                              fileSystemId) {
@@ -542,6 +611,9 @@ unpacker.app = {
               var onError = function(error, fileSystemId) {
                 clearTimeout(deferredNotificationTimer);
                 console.error('Mount error: ' + error.message + '.');
+                // Decrement the counter that indicates the number of ongoing
+                // mount process.
+                unpacker.app.mountProcessCounter--;
                 if (error.message === 'EXISTS') {
                   if (opt_onError)
                     opt_onError(fileSystemId);
@@ -565,6 +637,9 @@ unpacker.app = {
               var onSuccess = function(fileSystemId) {
                 clearTimeout(deferredNotificationTimer);
                 chrome.notifications.clear(fileSystemId, function() {});
+                // Decrement the counter that indicates the number of ongoing
+                // mount process.
+                unpacker.app.mountProcessCounter--;
                 if (opt_onSuccess)
                   opt_onSuccess(fileSystemId);
               };
