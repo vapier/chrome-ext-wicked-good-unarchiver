@@ -42,5 +42,17 @@
   "passphraseRemember": {
     "message": "Zapamatovat",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "Není samostatná aplikace",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Tato aplikace integruje s aplikací programu Soubory systému Chrome OS.  Není spustit přímo.  Pokud jej chcete použít, najít nějaké archivy, pak je otevřít v aplikaci Soubory.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "OK",
+    "description": "Short name for the OK/acceptance button."
   }
 }
