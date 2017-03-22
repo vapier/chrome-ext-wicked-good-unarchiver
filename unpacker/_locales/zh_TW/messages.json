@@ -42,5 +42,17 @@
   "passphraseRemember": {
     "message": "記住密碼",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "不是一個獨立的應用程序",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "此應用程序與Chrome操作系統文件應用程序集成。 它不是直接運行 要使用它，找到一些檔案，然後在文件應用程序中打開它們。",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "好",
+    "description": "Short name for the OK/acceptance button."
   }
 }

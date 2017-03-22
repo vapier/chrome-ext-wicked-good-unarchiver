@@ -42,5 +42,17 @@
   "passphraseRemember": {
     "message": "Husk",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "Ikke en frittstående applikasjon",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Dette programmet integreres med Chrome OS Filer-appen program.  Det er ikke kjøre direkte.  For å bruke det, finne noen arkiver, og deretter åpne dem i Filer-appen.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "OK",
+    "description": "Short name for the OK/acceptance button."
   }
 }

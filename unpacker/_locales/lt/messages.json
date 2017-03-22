@@ -42,5 +42,17 @@
   "passphraseRemember": {
     "message": "Prisiminti",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "Nėra atskira programa",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Ši programa sujungia su\"Chrome OS\"programą\"Failai\"programą.  Ji yra ne paleisti tiesiogiai.  Norėdami jį naudoti, rasti keletą archyvus, tada juos atidaryti programą\"Failai\".",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "Gerai",
+    "description": "Short name for the OK/acceptance button."
   }
 }

@@ -42,5 +42,17 @@
   "passphraseRemember": {
     "message": "Memorizar",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "Não é um aplicativo autônomo",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Este aplicativo integra-se ao programa de aplicativos de Arquivos do SO Chrome.  Não é executado diretamente.  Para usá-lo, localize alguns arquivos e abra-os na aplicação Ficheiros.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "Está bem",
+    "description": "Short name for the OK/acceptance button."
   }
 }

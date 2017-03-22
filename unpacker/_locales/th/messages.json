@@ -42,5 +42,17 @@
   "passphraseRemember": {
     "message": "จำ",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "ไม่ใช่แอปสแตนด์อโลน",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "แอปนี้ทำงานร่วมกับโปรแกรมแอปพลิเคชัน Chrome OS Files  ไม่ได้ทำงานโดยตรง  ในการใช้งานให้ค้นหาคลังข้อมูลบางแห่งจากนั้นเปิดที่ไฟล์แอป",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "ตกลง",
+    "description": "Short name for the OK/acceptance button."
   }
 }
