@@ -580,6 +580,12 @@ unpacker.app = {
    *     times, depending on how many volumes must be loaded.
    */
   onLaunched: function(launchData, opt_onSuccess, opt_onError) {
+    if (launchData.items == null) {
+      // The user tried to launch us directly.
+      console.log('Ignoring launch request w/out items field', {launchData});
+      return;
+    }
+
     // Increment the counter that indicates the number of ongoing mouot process.
     unpacker.app.mountProcessCounter++;
 
