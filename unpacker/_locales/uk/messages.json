@@ -42,5 +42,17 @@
   "passphraseRemember": {
     "message": "Запам’ятати",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "Чи не автономне додаток",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Ця програма інтегрується з програмою додатки Chrome OS Files.  Він не працює безпосередньо.  Щоб використовувати його, знайти якісь архіви, а потім відкрити їх в додатку Files.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "добре",
+    "description": "Short name for the OK/acceptance button."
   }
 }

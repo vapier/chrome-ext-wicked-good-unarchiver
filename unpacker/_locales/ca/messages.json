@@ -42,5 +42,17 @@
   "passphraseRemember": {
     "message": "Recorda",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "No és una aplicació independent",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Aquesta aplicació s'integra amb el programa d'aplicació de Chrome US arxius.  No s'executa directament.  Per usar-lo, trobar alguns arxius, a continuació, els obrirà en l'aplicació Fitxers.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "D'acord",
+    "description": "Short name for the OK/acceptance button."
   }
 }

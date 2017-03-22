@@ -42,5 +42,17 @@
   "passphraseRemember": {
     "message": "Atcerēties",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "Nav savrupa App",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Šī app integrējas ar Chrome OS lietotnē Faili programmā.  Tas nav palaist tieši.  Lai to izmantotu, atrast kādu arhīvu, tad atveriet tos lietotnē Faili.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "labi",
+    "description": "Short name for the OK/acceptance button."
   }
 }

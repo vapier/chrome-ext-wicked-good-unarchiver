@@ -42,5 +42,17 @@
   "passphraseRemember": {
     "message": "Mémoriser",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "Pas une application autonome",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Cette application s'intègre au programme de l'application Chrome OS Files.  Il n'est pas exécuté directement.  Pour l'utiliser, trouvez des archives, puis ouvrez-les dans l'application Fichiers.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "D'accord",
+    "description": "Short name for the OK/acceptance button."
   }
 }
