@@ -42,5 +42,21 @@
   "passphraseRemember": {
     "message": "Jegyezze meg",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "Nem egy önálló alkalmazás",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Ez az alkalmazás integrálja a Chrome OS Fájlok alkalmazás programot.  Nem közvetlenül futtatható.  Ahhoz, hogy használni, meg néhány levéltár, majd nyissa meg azokat a Fájlok alkalmazásban.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "rendben",
+    "description": "Short name for the OK/acceptance button."
+  },
+  "standaloneUninstall": {
+    "message": "Ha el akarja távolítani, kattintson a jobb gombbal az ikonjára, és válassza az 'Eltávolítás' lehetőséget. Ha nincs ilyen lehetőség, és Ön nem a Chromebook tulajdonosa (például egy iskolához tartozik, vagy beiratkozott), akkor a rendszergazda kényszerítette ezt az alkalmazást az Ön számára. Úgy döntöttek, hogy nem engedik, hogy eltávolítsd, ezért kérjük, panaszkodj nekik.",
+    "description": "Blurb explaining to people how to uninstall (if they're allowed)."
   }
 }

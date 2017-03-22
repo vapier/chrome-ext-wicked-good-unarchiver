@@ -42,5 +42,21 @@
   "passphraseRemember": {
     "message": "Reține",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "Nu este o aplicație autonomă",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Această aplicație se integrează cu programul de aplicație Chrome OS Fișiere.  Aceasta nu este rulat în mod direct.  Pentru a-l utiliza, găsi unele arhive, apoi le puteți deschide în aplicația Fișiere.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "O.K",
+    "description": "Short name for the OK/acceptance button."
+  },
+  "standaloneUninstall": {
+    "message": "Dacă doriți să dezinstalați, faceți clic dreapta pe pictograma acestuia și selectați „Dezinstalare”. Dacă nu există o astfel de opțiune și nu dețineți Chromebookul dvs. (de exemplu, aparține unei școli sau este înscris), atunci administratorul forțat a instalat această aplicație pentru dvs. Au decis să nu vă permită să îl eliminați, așa că vă rog să vă plângeți.",
+    "description": "Blurb explaining to people how to uninstall (if they're allowed)."
   }
 }

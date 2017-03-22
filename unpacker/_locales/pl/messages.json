@@ -42,5 +42,21 @@
   "passphraseRemember": {
     "message": "Pamiętaj",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "Nie Standalone App",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Ta aplikacja integruje się z programem aplikacji Chrome OS Files.  Nie jest uruchamiana bezpośrednio.  Aby go użyć, znajdź archiwa, a następnie otwórz je w aplikacji Pliki.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "ok",
+    "description": "Short name for the OK/acceptance button."
+  },
+  "standaloneUninstall": {
+    "message": "Jeśli chcesz odinstalować, kliknij prawym przyciskiem myszy jego ikonę i wybierz „Odinstaluj”. Jeśli nie ma takiej opcji i nie jesteś właścicielem swojego Chromebooka (np. Należy do szkoły lub jest zarejestrowany), administrator wymusił zainstalowanie tej aplikacji za Ciebie. Postanowili nie pozwolić Ci go usunąć, więc złóż mu skargę.",
+    "description": "Blurb explaining to people how to uninstall (if they're allowed)."
   }
 }

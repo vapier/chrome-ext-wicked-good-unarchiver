@@ -42,5 +42,21 @@
   "passphraseRemember": {
     "message": "Recordar",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "No es una aplicación independiente",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Esta aplicación se integra con el programa de aplicación de Archivos del SO de Chrome.  No se ejecuta directamente.  Para usarlo, busque algunos archivos y ábralos en la aplicación Archivos.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "DE ACUERDO",
+    "description": "Short name for the OK/acceptance button."
+  },
+  "standaloneUninstall": {
+    "message": "Si desea desinstalar, haga clic derecho en su icono y seleccione 'Desinstalar'. Si no existe tal opción, y no posee su Chromebook (por ejemplo, pertenece a una escuela o está inscrito), entonces su Administrador forzó la instalación de esta aplicación por usted. Han decidido no permitirle que lo elimine, por lo que debe presentar una queja.",
+    "description": "Blurb explaining to people how to uninstall (if they're allowed)."
   }
 }

@@ -42,5 +42,21 @@
   "passphraseRemember": {
     "message": "זכור",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "App יאמצע אל",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": ".'םיצבק' םושייב םתוא חתפ ןכמ רחאלו םינויכרא המכ אצמ ,וב שמתשהל ידכ  .תורישי לעופ וניא אוה  .Chrome OS OS לש תויצקילפאה תינכות םע בלתשמ הז םושיי",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "רדסב",
+    "description": "Short name for the OK/acceptance button."
+  },
+  "standaloneUninstall": {
+    "message": ".םהינפב ןנולתה אנא זא ,ותוא ריסהל ךל רשפאל אל וטילחה םה .ךרובע וזה היצקילפאה תא ןיקתה ךלש לוהינה חוכ זא ,(םושר וא רפס תיבל ךייש אוה ,לשמל) ךלש Chromeb",
+    "description": "Blurb explaining to people how to uninstall (if they're allowed)."
   }
 }

@@ -42,5 +42,21 @@
   "passphraseRemember": {
     "message": "به خاطر سپردن",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "ﺖﺴﯿﻧ ﻞﻘﺘﺴﻣ ﻪﻣﺎﻧﺮﺑ ﮏﯾ",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": ".ﺪﯿﻨﮐ ﺯﺎﺑ ﺍﺭ Files ﻪﻣﺎﻧﺮﺑ ﺭﺩ ﺍﺭ ﺎﻬﻧﺁ ﺲﭙﺳ ،ﻮﯿﺷﺭﺁ ﯽﺧﺮﺑ ﻥﺩﺮﮐ ﺍﺪﯿﭘ ،ﻥﺁ ﺯﺍ ﻩﺩﺎﻔﺘﺳﺍ ﯼﺍﺮﺑ  .ﺪﯿﻨﮐ ﺍﺮﺟﺍ ﻢﯿﻘﺘﺴﻣ ﺭﻮﻃ ﻪﺑ ﻪﮐ ﺖﺳﺍ ﻦﯾﺍ  .Chrome OS ﺭﺩ Files ﻪﻣﺎﻧﺮﺑ ﻪﻣﺎﻧﺮﺑ ﺎﺑ ﻡﺎﻏﺩﺍ ﻪﻣﺎﻧﺮﺑ ﻦﯾ",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "ﺏﻮﺧ",
+    "description": "Short name for the OK/acceptance button."
+  },
+  "standaloneUninstall": {
+    "message": ".ﺪﯿﻨﮐ ﺖﯾﺎﮑﺷ ﺎﻬﻧﺁ ﺯﺍ ًﺎﻔﻄﻟ ﻦﯾﺍﺮﺑﺎﻨﺑ ، ﺪﻨﻫﺪﻧ ﺎﻤﺷ ﻪﺑ ﺍﺭ ﻥﺁ ﻑﺬﺣ ﻩﺯﺎﺟﺍ ﺪﻧﺍ ﻪﺘﻓﺮﮔ ﻢﯿﻤﺼﺗ ﺎﻬﻧﺁ .ﺖﺳﺍ ﻩﺩﺮﮐ ﺐﺼﻧ ﺎﻤﺷ ﯼﺍﺮﺑ ﺍﺭ ﻪﻣﺎﻧﺮﺑ ﻦﯾﺍ ﻢﺘﺴﯿﺳ ﺖﺳﺮﭘﺮﺳ ﺲﭙﺳ ، (ﺖﺳﺍ ﻩﺩﺮ",
+    "description": "Blurb explaining to people how to uninstall (if they're allowed)."
   }
 }

@@ -42,5 +42,21 @@
   "passphraseRemember": {
     "message": "Ingat",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "Bukan App Standalone",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Aplikasi ini terintegrasi dengan program aplikasi Files Chrome OS.  Hal ini tidak dijalankan secara langsung.  Untuk menggunakannya, menemukan beberapa arsip, kemudian membukanya di aplikasi File.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "baik",
+    "description": "Short name for the OK/acceptance button."
+  },
+  "standaloneUninstall": {
+    "message": "Jika Anda ingin menghapus instalasi, klik kanan ikonnya dan pilih 'Uninstall'. Jika tidak ada opsi seperti itu, dan Anda tidak memiliki Chromebook (mis. Chromebook milik sekolah atau terdaftar), maka Administrator Anda memasang paksa aplikasi ini untuk Anda. Mereka telah memutuskan untuk tidak mengizinkan Anda menghapusnya, jadi silakan komplain kepada mereka.",
+    "description": "Blurb explaining to people how to uninstall (if they're allowed)."
   }
 }

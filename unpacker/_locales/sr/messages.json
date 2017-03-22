@@ -42,5 +42,21 @@
   "passphraseRemember": {
     "message": "Запамти",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "Не представљају самосталну апликација",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Ова апликација се интегрише са програмом апп Цхроме ОС Филес.  То не води директно.  Да бисте га користили, наћи неке архиве, а затим их отворите у апликацији Датотеке.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "ок",
+    "description": "Short name for the OK/acceptance button."
+  },
+  "standaloneUninstall": {
+    "message": "Ако желите да деинсталирате, кликните десним тастером миша на његову икону и изаберите „Деинсталирај“. Ако не постоји таква опција, а ви нисте власник свог Цхромебоок-а (нпр. Он припада школи или је уписан), тада је администраторска сила инсталирала ову апликацију уместо вас. Одлучили су да вам не дозволе да га уклоните, па вас молимо да им се жалите.",
+    "description": "Blurb explaining to people how to uninstall (if they're allowed)."
   }
 }

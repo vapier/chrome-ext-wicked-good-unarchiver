@@ -42,5 +42,21 @@
   "passphraseRemember": {
     "message": "Husk",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "Not A Standalone App",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Deze app integreert met het Chrome OS app Bestanden programma.  Het is niet direct uit te voeren.  Om het te gebruiken, vinden sommige archieven, dan openen in de app Bestanden.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "OK",
+    "description": "Short name for the OK/acceptance button."
+  },
+  "standaloneUninstall": {
+    "message": "Hvis du vil afinstallere, skal du højreklikke på ikonet og vælge 'Afinstaller'. Hvis der ikke er en sådan mulighed, og du ikke ejer din Chromebook (f.eks. Tilhører den en skole eller er tilmeldt), installerede din administratorkraft denne app til dig. De har besluttet ikke at tillade dig at fjerne det, så bedes du klage til dem.",
+    "description": "Blurb explaining to people how to uninstall (if they're allowed)."
   }
 }

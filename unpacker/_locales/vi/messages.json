@@ -42,5 +42,21 @@
   "passphraseRemember": {
     "message": "Nhớ",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "Không phải ứng dụng độc lập",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Ứng dụng này tích hợp với chương trình ứng dụng tệp Chrome OS.  Nó không chạy trực tiếp.  Để sử dụng, tìm một số lưu trữ, sau đó mở chúng trong ứng dụng Tệp.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "được",
+    "description": "Short name for the OK/acceptance button."
+  },
+  "standaloneUninstall": {
+    "message": "Nếu bạn muốn gỡ cài đặt, hãy nhấp chuột phải vào biểu tượng của nó và chọn 'Gỡ cài đặt'. Nếu không có tùy chọn như vậy và bạn không sở hữu Chromebook của mình (ví dụ: Chromebook của trường học hoặc đã được đăng ký), thì Quản trị viên buộc phải cài đặt ứng dụng này cho bạn. Họ đã quyết định không cho phép bạn xóa nó, vì vậy hãy khiếu nại với họ.",
+    "description": "Blurb explaining to people how to uninstall (if they're allowed)."
   }
 }

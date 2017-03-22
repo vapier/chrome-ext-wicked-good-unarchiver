@@ -42,5 +42,21 @@
   "passphraseRemember": {
     "message": "Hatırla",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "Bağımsız Bir Uygulama Değildir",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Bu uygulama, Chrome OS Dosyaları uygulama programı ile entegredir.  Doğrudan çalıştırılmaz.  Kullanmak için bazı arşivleri bulun ve daha sonra Dosyalar uygulamasında açın.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "tamam",
+    "description": "Short name for the OK/acceptance button."
+  },
+  "standaloneUninstall": {
+    "message": "Kaldırmak istiyorsanız, simgesine sağ tıklayın ve 'Kaldır'ı seçin. Böyle bir seçenek yoksa ve Chromebook'unuzun sahibi değilseniz (ör. Bir okula aitse veya kayıtlıysa), Yöneticiniz bu uygulamayı sizin için zorunlu olarak yüklemiştir. Kaldırmanıza izin vermemeye karar verdiler, bu yüzden lütfen onlara şikayette bulunun.",
+    "description": "Blurb explaining to people how to uninstall (if they're allowed)."
   }
 }
