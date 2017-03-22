@@ -42,5 +42,17 @@
   "passphraseRemember": {
     "message": "Απομνημόνευση",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "Δεν Μια αυτόνομη εφαρμογή",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Η εφαρμογή ενσωματώνει με το πρόγραμμα εφαρμογή Αρχεία του Chrome OS.  Δεν εκτελείται άμεσα.  Για να το χρησιμοποιήσετε, να βρουν κάποια αρχεία, στη συνέχεια, να τα ανοίξετε στην εφαρμογή Αρχεία.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "Εντάξει",
+    "description": "Short name for the OK/acceptance button."
   }
 }

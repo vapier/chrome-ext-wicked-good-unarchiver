@@ -42,5 +42,17 @@
   "passphraseRemember": {
     "message": "Shrani",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "Ni samostojen App",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Ta aplikacija združuje s programom aplikacije Chrome OS datotek.  To se ne vodijo neposredno.  Če ga želite uporabljati, našli nekaj arhivov, nato pa jih odprete v aplikaciji Datoteke.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "v redu",
+    "description": "Short name for the OK/acceptance button."
   }
 }
