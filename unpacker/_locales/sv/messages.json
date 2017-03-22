@@ -42,5 +42,17 @@
   "passphraseRemember": {
     "message": "Kom ihåg",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "Inte ett fristående program",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Denna app integreras med Chrome OS appen Filer program.  Det är inte köras direkt.  För att använda den, hitta några arkiv och öppna dem i appen Filer.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "ok",
+    "description": "Short name for the OK/acceptance button."
   }
 }

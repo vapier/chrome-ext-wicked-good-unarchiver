@@ -42,5 +42,17 @@
   "passphraseRemember": {
     "message": "저장",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "독립형 앱이 아닙니다.",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "이 앱은 Chrome OS 파일 앱 프로그램과 통합됩니다.  직접 실행되지는 않습니다.  그것을 사용하려면, 일부 아카이브를 찾아서 파일 앱에서 엽니 다.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "승인",
+    "description": "Short name for the OK/acceptance button."
   }
 }
