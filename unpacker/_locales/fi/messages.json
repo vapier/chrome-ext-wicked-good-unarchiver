@@ -42,5 +42,21 @@
   "passphraseRemember": {
     "message": "Muista",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "Ei ole erillinen sovellus",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Tämä sovellus integroituu Chrome-käyttöjärjestelmän Tiedostot-sovelluksen ohjelma.  Se ei toimi suoraan.  Voit käyttää sitä, löytää arkistojen, avaa ne Tiedostot-sovelluksessa.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "kunnossa",
+    "description": "Short name for the OK/acceptance button."
+  },
+  "standaloneUninstall": {
+    "message": "Jos haluat poistaa asennuksen, napsauta sen kuvaketta hiiren kakkospainikkeella ja valitse Poista. Jos sellaista ei ole, etkä omista Chromebookiasi (esim. Se kuuluu koululle tai on ilmoittautunut), järjestelmänvalvojasi asensi tämän sovelluksen puolestasi. He ovat päättäneet olla antamatta sinun poistaa sitä, joten tee valitus heille.",
+    "description": "Blurb explaining to people how to uninstall (if they're allowed)."
   }
 }

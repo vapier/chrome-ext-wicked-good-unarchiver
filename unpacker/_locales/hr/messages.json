@@ -42,5 +42,21 @@
   "passphraseRemember": {
     "message": "Zapamti",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "Ne zasebna aplikacija",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Ovaj app integrira s programom Chrome OS aplikaciji Datoteke.  To ne vodi izravno.  Da biste ga koristili, naći neke arhive, a zatim ih otvorite u aplikaciji Datoteke.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "u redu",
+    "description": "Short name for the OK/acceptance button."
+  },
+  "standaloneUninstall": {
+    "message": "Ako želite deinstalirati, kliknite desnu tipku miša na njegovu ikonu i odaberite 'Deinstaliraj'. Ako takva opcija ne postoji, a vi niste vlasnik svog Chromebooka (npr. On pripada školi ili je upisan), tada je vašu aplikaciju za vas instalirao vaš administrator. Odlučili su vam ne dopustiti da ga uklonite, pa vas molimo da im se požalite.",
+    "description": "Blurb explaining to people how to uninstall (if they're allowed)."
   }
 }

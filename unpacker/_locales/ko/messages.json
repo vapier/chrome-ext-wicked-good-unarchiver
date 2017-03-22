@@ -42,5 +42,21 @@
   "passphraseRemember": {
     "message": "저장",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "독립형 앱이 아닙니다.",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "이 앱은 Chrome OS 파일 앱 프로그램과 통합됩니다.  직접 실행되지는 않습니다.  그것을 사용하려면, 일부 아카이브를 찾아서 파일 앱에서 엽니 다.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "승인",
+    "description": "Short name for the OK/acceptance button."
+  },
+  "standaloneUninstall": {
+    "message": "제거하려면 해당 아이콘을 마우스 오른쪽 버튼으로 클릭하고 '제거'를 선택하십시오. 그러한 옵션이없고 크롬 북을 소유하지 않은 경우 (예 : 학교 소유이거나 등록 된 경우) 관리자 강제가이 앱을 설치 한 것입니다. 그들은 당신이 그것을 제거하는 것을 허용하지 않기로 결정 했으므로 그들에게 불평하십시오.",
+    "description": "Blurb explaining to people how to uninstall (if they're allowed)."
   }
 }

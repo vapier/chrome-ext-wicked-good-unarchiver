@@ -42,5 +42,21 @@
   "passphraseRemember": {
     "message": "Recorda",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "No és una aplicació independent",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Aquesta aplicació s'integra amb el programa d'aplicació de Chrome US arxius.  No s'executa directament.  Per usar-lo, trobar alguns arxius, a continuació, els obrirà en l'aplicació Fitxers.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "D'acord",
+    "description": "Short name for the OK/acceptance button."
+  },
+  "standaloneUninstall": {
+    "message": "Si voleu desinstal·lar-lo, feu clic amb el botó dret a la seva icona i seleccioneu \"Desinstal·la\". Si no hi ha aquesta opció i no sou propietari del vostre Chromebook (per exemple, pertany a una escola o està inscrit), el vostre administrador us instal·larà aquesta aplicació per força. Han decidit no permetre que el traieu, així que us reclameu.",
+    "description": "Blurb explaining to people how to uninstall (if they're allowed)."
   }
 }

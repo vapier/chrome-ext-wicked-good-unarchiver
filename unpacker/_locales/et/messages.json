@@ -42,5 +42,21 @@
   "passphraseRemember": {
     "message": "Pea meeles",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "Ole eraldiseisev App",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "See app ühendab Chrome OS-i rakenduses Failid programmi.  Seda ei jookse otse.  Et seda kasutada, leida mõned arhiivi, siis neid avada rakenduses Failid.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "Okei",
+    "description": "Short name for the OK/acceptance button."
+  },
+  "standaloneUninstall": {
+    "message": "Kui soovite desinstallida, paremklõpsake selle ikooni ja valige käsk „Desinstalli”. Kui sellist võimalust pole ja te ei oma oma Chromebooki (nt see kuulub kooli või on registreeritud), installis teie administraator selle rakenduse teie eest. Nad on otsustanud mitte lubada teil seda eemaldada, nii et palun kaebage neile.",
+    "description": "Blurb explaining to people how to uninstall (if they're allowed)."
   }
 }

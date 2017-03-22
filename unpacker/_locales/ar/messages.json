@@ -42,5 +42,21 @@
   "passphraseRemember": {
     "message": "تذكر",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "ﻞﻘﺘﺴﻣ ﻖﻴﺒﻄﺘﻟﺍ ﺲﻴﻟ",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": ".ﺕﺎﻔﻠﻤﻟﺍ ﻖﻴﺒﻄﺗ ﻲﻓ ﺎﻬﺤﺘﻓ ﻢﺛ ،ﺕﺎﻇﻮﻔﺤﻤﻟﺍ ﺾﻌﺑ ﻰﻠﻋ ﺭﻮﺜﻌﻟﺍ ﻚﻨﻜﻤﻳ ،ﺎﻬﻣﺍﺪﺨﺘﺳﻻ﻿  .ﺓﺮﺷﺎﺒﻣ ﻪﻠﻴﻐﺸﺗ ﻢﺘﻳ ﻻ﻿  .ﻡﻭﺮﻛ ﻞﻴﻐﺸﺘﻟﺍ ﻡﺎﻈﻧ ﺕﺎﻔﻠﻣ ﻖﻴﺒﻄﺗ ﺞﻣﺎﻧﺮﺑ ﻊﻣ ﻖﻴﺒﻄﺘﻟﺍ ﺍﺬﻫ ﻞﻣﺎﻜﺘﻳ",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "ﺎﻨﺴﺣ",
+    "description": "Short name for the OK/acceptance button."
+  },
+  "standaloneUninstall": {
+    "message": ".ﻢﻬﻟ ﻯﻮﻜﺷ ﻢﻳﺪﻘﺗ ﻰﺟﺮﻳ ﺍﺬﻟ ، ﻪﺘﻟﺍﺯﺈﺑ ﻚﻟ ﺡﺎﻤﺴﻟﺍ ﻡﺪﻋ ﺍﻭﺭﺮﻗ ﺪﻘﻟ .ﻚﻟ ﻖﻴﺒﻄﺘﻟﺍ ﺍﺬﻫ ﺖﻴﺒﺜﺘﺑ ﻝﻭﺆﺴﻤﻟﺍ ﻡﺎﻗ ٍﺬﺌﻨﻴﺤﻓ ، (ﻞﺠﺴﻣ ﻭﺃ ﺔﺳﺭﺪﻣ ﻰﻟﺇ ﻲﻤﺘﻨﻳ ، ﻝﺎﺜﻤﻟﺍ ﻞﻴﺒﺳ ﻰﻠﻋ) Chr",
+    "description": "Blurb explaining to people how to uninstall (if they're allowed)."
   }
 }

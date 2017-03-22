@@ -42,5 +42,21 @@
   "passphraseRemember": {
     "message": "Απομνημόνευση",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "Δεν Μια αυτόνομη εφαρμογή",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Η εφαρμογή ενσωματώνει με το πρόγραμμα εφαρμογή Αρχεία του Chrome OS.  Δεν εκτελείται άμεσα.  Για να το χρησιμοποιήσετε, να βρουν κάποια αρχεία, στη συνέχεια, να τα ανοίξετε στην εφαρμογή Αρχεία.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "Εντάξει",
+    "description": "Short name for the OK/acceptance button."
+  },
+  "standaloneUninstall": {
+    "message": "Εάν θέλετε να καταργήσετε την εγκατάσταση, κάντε δεξί κλικ στο εικονίδιο και επιλέξτε «Κατάργηση εγκατάστασης». Εάν δεν υπάρχει τέτοια επιλογή και δεν έχετε το Chromebook σας (π.χ. ανήκει σε σχολείο ή είναι εγγεγραμμένος), τότε η δύναμη διαχειριστή σας εγκατέστησε αυτήν την εφαρμογή για εσάς. Αποφάσισαν να μην σας επιτρέψουν να το αφαιρέσετε, γι 'αυτό παρακαλώ να τους παραπονεθείτε.",
+    "description": "Blurb explaining to people how to uninstall (if they're allowed)."
   }
 }

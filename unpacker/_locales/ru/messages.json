@@ -42,5 +42,21 @@
   "passphraseRemember": {
     "message": "Запомнить",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "Не автономное приложение",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Это приложение интегрируется с программой приложений для файлов Chrome OS.  Он не запускается напрямую.  Чтобы использовать его, найдите несколько архивов и откройте их в приложении «Файлы».",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "ОК",
+    "description": "Short name for the OK/acceptance button."
+  },
+  "standaloneUninstall": {
+    "message": "Если вы хотите удалить, щелкните его значок правой кнопкой мыши и выберите «Удалить». Если такой возможности нет и вы не являетесь владельцем Chromebook (например, он принадлежит школе или зарегистрирован), то это приложение было установлено вашим администратором. Они решили не позволять вам удалять его, поэтому пожалуются им.",
+    "description": "Blurb explaining to people how to uninstall (if they're allowed)."
   }
 }

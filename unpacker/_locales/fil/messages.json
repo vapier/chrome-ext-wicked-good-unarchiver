@@ -42,5 +42,21 @@
   "passphraseRemember": {
     "message": "Tandaan",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "Not A Standalone App",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Ang app na ito integrates sa programa Chrome OS Files app.  Ito ay hindi tumakbo nang direkta.  Upang gamitin ito, ang ilang mga archives, pagkatapos ay buksan ang mga ito sa Files app.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "OK",
+    "description": "Short name for the OK/acceptance button."
+  },
+  "standaloneUninstall": {
+    "message": "Kung nais mong i-uninstall, i-right click ang icon nito at piliin ang 'I-uninstall'. Kung walang ganoong pagpipilian, at hindi mo pag-aari ang iyong Chromebook (hal. Kabilang ito sa isang paaralan o naka-enrol), pagkatapos ay na-install ng puwersa ng iyong Administrator ang app na ito para sa iyo. Napagpasyahan nilang hindi ka payagan na alisin ito, kaya't mangyaring magreklamo sa kanila.",
+    "description": "Blurb explaining to people how to uninstall (if they're allowed)."
   }
 }

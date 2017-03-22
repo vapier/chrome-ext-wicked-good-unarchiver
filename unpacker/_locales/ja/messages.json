@@ -42,5 +42,21 @@
   "passphraseRemember": {
     "message": "パスワードを保存",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "スタンドアロンアプリではない",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "このアプリはChrome OSファイルアプリプログラムと統合されています。 それは直接実行されません。 それを使用するには、いくつかのアーカイブを見つけて、ファイルアプリで開きます。",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "[OK]",
+    "description": "Short name for the OK/acceptance button."
+  },
+  "standaloneUninstall": {
+    "message": "アンインストールする場合は、アイコンを右クリックして[アンインストール]を選択します。そのようなオプションがなく、Chromebookを所有していない場合（学校に所属している、登録されているなど）、管理者がこのアプリをインストールします。彼らはあなたがそれを取り除くことを許可しないことに決めたので、彼らに文句を言ってください。",
+    "description": "Blurb explaining to people how to uninstall (if they're allowed)."
   }
 }
