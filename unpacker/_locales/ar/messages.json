@@ -42,5 +42,17 @@
   "passphraseRemember": {
     "message": "تذكر",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "ﻞﻘﺘﺴﻣ ﻖﻴﺒﻄﺘﻟﺍ ﺲﻴﻟ",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": ".ﺕﺎﻔﻠﻤﻟﺍ ﻖﻴﺒﻄﺗ ﻲﻓ ﺎﻬﺤﺘﻓ ﻢﺛ ،ﺕﺎﻇﻮﻔﺤﻤﻟﺍ ﺾﻌﺑ ﻰﻠﻋ ﺭﻮﺜﻌﻟﺍ ﻚﻨﻜﻤﻳ ،ﺎﻬﻣﺍﺪﺨﺘﺳﻻ﻿  .ﺓﺮﺷﺎﺒﻣ ﻪﻠﻴﻐﺸﺗ ﻢﺘﻳ ﻻ﻿  .ﻡﻭﺮﻛ ﻞﻴﻐﺸﺘﻟﺍ ﻡﺎﻈﻧ ﺕﺎﻔﻠﻣ ﻖﻴﺒﻄﺗ ﺞﻣﺎﻧﺮﺑ ﻊﻣ ﻖﻴﺒﻄﺘﻟﺍ ﺍﺬﻫ ﻞﻣﺎﻜﺘﻳ",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "ﺎﻨﺴﺣ",
+    "description": "Short name for the OK/acceptance button."
   }
 }

@@ -42,5 +42,17 @@
   "passphraseRemember": {
     "message": "Запомняне",
     "description": "Title for of a checkbox whether the password should be remembered. Please keep it as short."
+  },
+  "standaloneTitle": {
+    "message": "Не е самостоятелно приложение",
+    "description": "Title of notice page explaining to the user the app should not be run directly."
+  },
+  "standaloneText": {
+    "message": "Това приложение се интегрира с програмата на приложението Chrome OS файлове.  Тя не се изпълнява директно.  За да го използвате, да намерите някои архиви, след това да ги отворите в приложението Файлове.",
+    "description": "Long text telling the user they should not run this app directly."
+  },
+  "standaloneAccept": {
+    "message": "Добре",
+    "description": "Short name for the OK/acceptance button."
   }
 }
