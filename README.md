@@ -110,14 +110,9 @@ runner, [Mocha](http://visionmedia.github.io/mocha/) for asynchronous testings,
 spies and stubs.
 
 ```
-$ npm install karma --save-dev
-$ npm install karma-chrome-launcher --save-dev
-$ npm install -g karma-cli
-$ npm install mocha --save-dev
-$ npm install karma-mocha --save-dev
-$ npm install karma-chai --save-dev
-$ npm install karma-sinon --save-dev
-$ npm install karma-chrome-launcher --save-dev
+$ npm install --save-dev \
+  karma karma-chrome-launcher karma-cli \
+  mocha karma-mocha karma-chai chai karma-sinon sinon
 
 # Run tests:
 $ cd unpacker-test

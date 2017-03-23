@@ -4,6 +4,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+export PATH="$(npm bin):${PATH}"
+
 # In case tests fail without a JavaScript error take also a look at these files.
 # NaCl module crash message is shown only in the JavaScript console within the
 # browser, and PP_DCHECK and other NaCl errors will appear only here.
