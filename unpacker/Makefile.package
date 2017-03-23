@@ -23,6 +23,8 @@ all:
 	cp pnacl/$(PNACL_TARGET)/module.pexe $(PACKAGE_DIR)/
 	mkdir -p $(PACKAGE_DIR)/third-party
 	cp vulcanized-polymer/* $(PACKAGE_DIR)/third-party/
+	zip -q -r $(PACKAGE_DIR).tmp.zip $(PACKAGE_DIR)/
+	mv $(PACKAGE_DIR).tmp.zip $(PACKAGE_DIR).zip
 
 .PHONY: clean
 clean:
