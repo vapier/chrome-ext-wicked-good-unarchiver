@@ -28,4 +28,4 @@ all:
 
 .PHONY: clean
 clean:
-	rm -rf $(PACKAGE_DIR)
+	rm -rf $(PACKAGE_DIR) $(PACKAGE_DIR).zip

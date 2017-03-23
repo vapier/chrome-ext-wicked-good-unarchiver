@@ -27,6 +27,4 @@ clean:
 	PNACL_TARGET=Release PACKAGE_DIR=release $(MAKE) -f Makefile.package clean
 	PNACL_TARGET=Debug PACKAGE_DIR=debug $(MAKE) -f Makefile.package clean
 	rm -rf vulcanized-polymer
-	rm -rf release
-	rm -rf debug
 	rm -rf pnacl
