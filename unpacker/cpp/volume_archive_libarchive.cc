@@ -167,7 +167,8 @@ bool VolumeArchiveLibarchive::GetNextHeader(const char** pathname,
       *pathname = archive_entry_pathname(current_archive_entry_);
       *size = archive_entry_size(current_archive_entry_);
       *modification_time = archive_entry_mtime(current_archive_entry_);
-      *is_directory = S_ISDIR(archive_entry_filetype(current_archive_entry_));
+      *is_directory =
+          archive_entry_filetype(current_archive_entry_) == AE_IFDIR;
       return true;
     default:
       set_error_message(ArchiveError(
