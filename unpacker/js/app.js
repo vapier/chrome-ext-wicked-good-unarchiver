@@ -387,7 +387,7 @@ unpacker.app = {
       // Request the offsetTop property to force a relayout. As of Apr 10, 2014
       // this is needed if the module is being loaded on a Chrome App's
       // background page (see crbug.com/350445).
-      elementEmbed.offsetTop;
+      /** @suppress {suspiciousCode} */ elementEmbed.offsetTop;
     });
   },
 
