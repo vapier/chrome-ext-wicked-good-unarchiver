@@ -28,10 +28,13 @@ TEST_PAGE_CONFIG = \
   "$(TEST_PAGE)?pathToNmfFile=pnacl/$(CONFIG)/main.nmf&mimeType=application/x-pnacl"
 
 TARGET = main
-LIBS = ppapi_simple_cpp nacl_io ppapi_cpp ppapi gtest pthread
+LIBS = ppapi_simple_cpp nacl_io ppapi_cpp ppapi pthread
 
-CFLAGS = -Wall -Wno-sign-compare -I$(CODE_DIR)
+GTEST_SRC = $(NACL_SDK_ROOT)/src/gtest
+
+CFLAGS = -Wall -Wno-sign-compare -I$(CODE_DIR) -I$(GTEST_SRC) -I$(GTEST_SRC)/include
 SOURCES = \
+  $(GTEST_SRC)/src/gtest-all.cc \
   fake_lib_archive.cc \
   fake_volume_reader.cc \
   main.cc \
