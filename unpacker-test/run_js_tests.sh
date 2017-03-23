@@ -4,6 +4,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+ncpus=$(getconf _NPROCESSORS_ONLN)
+
 export PATH="$(npm bin):${PATH}"
 
 # In case tests fail without a JavaScript error take also a look at these files.
@@ -25,6 +27,6 @@ fi
 
 cd ../unpacker/
 # Test only with the Debug build.
-make debug || { exit 1; }
+make -j${ncpus} debug || { exit 1; }
 cd ../unpacker-test
 karma start
