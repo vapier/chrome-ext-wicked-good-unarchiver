@@ -1,7 +1,9 @@
 #!/bin/bash
 
-PATH_TO_COMPILER=node_modules/google-closure-compiler/compiler.jar
-PATH_TO_EXTERNS_CHROME=node_modules/google-closure-compiler/contrib/externs/chrome_extensions.js
+NPM_ROOT=$(npm root)
+CLOSURE_DIR="${NPM_ROOT}/google-closure-compiler"
+PATH_TO_COMPILER="${CLOSURE_DIR}/compiler.jar"
+PATH_TO_EXTERNS_CHROME="${CLOSURE_DIR}/contrib/externs/chrome_extensions.js"
 
 java -jar $PATH_TO_COMPILER \
   --checks-only --language_in=ECMASCRIPT5  --warning_level=VERBOSE \
