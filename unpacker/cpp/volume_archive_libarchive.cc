@@ -322,7 +322,8 @@ int64_t VolumeArchiveLibarchive::ReadData(int64_t offset,
                                       // a programmer error.
 
   // End of archive.
-  if (archive_entry_size(current_archive_entry_) <= offset)
+  if (archive_entry_size_is_set(current_archive_entry_) &&
+      archive_entry_size(current_archive_entry_) <= offset)
     return 0;
 
   // In case of first read or no more available data in the internal buffer or
