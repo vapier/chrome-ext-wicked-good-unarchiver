@@ -144,7 +144,7 @@ bool VolumeArchiveLibarchive::Init(const std::string& encoding) {
   return true;
 }
 
-int VolumeArchiveLibarchive::StartGetNextHeader() {
+VolumeArchive::Result VolumeArchiveLibarchive::GetNextHeader() {
   // Headers are being read from the central directory (in the ZIP format), so
   // use a large block size to save on IPC calls. The headers in EOCD are
   // grouped one by one.
@@ -156,41 +156,33 @@ int VolumeArchiveLibarchive::StartGetNextHeader() {
 
   // Archive data is skipped automatically by next call to
   // archive_read_next_header.
-  return archive_read_next_header(archive_, &current_archive_entry_);
-}
-
-bool VolumeArchiveLibarchive::GetNextHeader() {
-  switch (StartGetNextHeader()) {
+  switch (archive_read_next_header(archive_, &current_archive_entry_)) {
     case ARCHIVE_EOF:
+      return RESULT_EOF;
     case ARCHIVE_OK:
-      return true;
+      return RESULT_SUCCESS;
     default:
       set_error_message(ArchiveError(
           volume_archive_constants::kArchiveNextHeaderErrorPrefix, archive_));
-      return false;
+      return RESULT_FAIL;
   }
 }
 
-bool VolumeArchiveLibarchive::GetNextHeader(const char** pathname,
-                                            int64_t* size,
-                                            bool* is_directory,
-                                            time_t* modification_time) {
-  switch (StartGetNextHeader()) {
-    case ARCHIVE_EOF:
-      *pathname = NULL;  // End of archive.
-      return true;
-    case ARCHIVE_OK:
-      *pathname = archive_entry_pathname(current_archive_entry_);
-      *size = archive_entry_size(current_archive_entry_);
-      *modification_time = archive_entry_mtime(current_archive_entry_);
-      *is_directory =
-          archive_entry_filetype(current_archive_entry_) == AE_IFDIR;
-      return true;
-    default:
-      set_error_message(ArchiveError(
-          volume_archive_constants::kArchiveNextHeaderErrorPrefix, archive_));
-      return false;
+VolumeArchive::Result VolumeArchiveLibarchive::GetNextHeader(
+    const char** pathname,
+    int64_t* size,
+    bool* is_directory,
+    time_t* modification_time) {
+  Result ret = GetNextHeader();
+
+  if (ret == RESULT_SUCCESS) {
+    *pathname = archive_entry_pathname(current_archive_entry_);
+    *size = archive_entry_size(current_archive_entry_);
+    *modification_time = archive_entry_mtime(current_archive_entry_);
+    *is_directory = archive_entry_filetype(current_archive_entry_) == AE_IFDIR;
   }
+
+  return ret;
 }
 
 bool VolumeArchiveLibarchive::SeekHeader(int64_t index) {
