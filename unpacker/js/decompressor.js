@@ -218,6 +218,17 @@ unpacker.Decompressor.prototype.processMessage = function(data, operation,
       requestInProgress.onError('FAILED');
       break;
 
+    case unpacker.request.Operation.CONSOLE_LOG:
+    case unpacker.request.Operation.CONSOLE_DEBUG:
+      var src_file = data[unpacker.request.Key.SRC_FILE];
+      var src_line = data[unpacker.request.Key.SRC_LINE];
+      var src_func = data[unpacker.request.Key.SRC_FUNC];
+      var msg = data[unpacker.request.Key.MESSAGE];
+      var log = operation == unpacker.request.Operation.CONSOLE_LOG ?
+                console.log : console.debug;
+      log(src_file + ':' + src_func + ':' + src_line + ': ' + msg);
+      break;
+
     default:
       console.error('Invalid NaCl operation: ' + operation + '.');
       requestInProgress.onError('FAILED');

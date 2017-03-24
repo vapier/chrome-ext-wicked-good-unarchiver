@@ -95,6 +95,22 @@ pp::VarDictionary request::CreateFileSystemError(
   return request;
 }
 
+pp::VarDictionary request::CreateConsoleLog(
+    const std::string& file_system_id,
+    const std::string& request_id,
+    const std::string& src_file,
+    int src_line,
+    const std::string& src_func,
+    const std::string& message) {
+  pp::VarDictionary request =
+      CreateBasicRequest(CONSOLE_LOG, file_system_id, request_id);
+  request.Set(request::key::kSrcFile, src_file);
+  request.Set(request::key::kSrcLine, src_line);
+  request.Set(request::key::kSrcFunc, src_func);
+  request.Set(request::key::kMessage, message);
+  return request;
+}
+
 int64_t request::GetInt64FromString(const pp::VarDictionary& dictionary,
                                     const std::string& request_key) {
   std::stringstream ss_int64(dictionary.Get(request_key).AsString());

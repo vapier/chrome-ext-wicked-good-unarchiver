@@ -39,6 +39,16 @@ class JavaScriptMessageSenderInterface {
                                 const std::string& request_id,
                                 const pp::VarArrayBuffer& array_buffer,
                                 bool has_more_data) = 0;
+
+  virtual void SendConsoleLog(const std::string& file_system_id,
+                              const std::string& request_id,
+                              const std::string& src_file,
+                              int src_line,
+                              const std::string& src_func,
+                              const std::string& message) = 0;
 };
+
+#define CONSOLE_LOG(fsid, rid, msg) \
+  SendConsoleLog(fsid, rid, __FILE__, __LINE__, __func__, msg)
 
 #endif  // JAVASCRIPT_MESSAGE_SENDER_INTERFACE_H_
