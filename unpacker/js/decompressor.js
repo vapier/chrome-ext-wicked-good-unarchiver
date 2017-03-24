@@ -162,7 +162,7 @@ unpacker.Decompressor.prototype.processMessage = function(data, operation,
   // Create a request reference for asynchronous calls as sometimes we delete
   // some requestsInProgress from this.requestsInProgress.
   var requestInProgress = this.requestsInProgress[requestId];
-  console.assert(requestInProgress, 'No request with id <', requestId,
+  console.assert(requestInProgress, 'No request with id <' + requestId +
                  '> for: ' + this.fileSystemId_ + '.');
 
   switch (operation) {
