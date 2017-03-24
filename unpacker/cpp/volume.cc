@@ -378,11 +378,6 @@ void Volume::OpenFileCallback(int32_t /*result*/,
   reader_request_id_ = args.request_id;
   job_lock_.Release();
 
-  const char* path_name = NULL;
-  int64_t size = 0;
-  bool is_directory = false;
-  time_t modification_time = 0;
-
   if (!volume_archive_->SeekHeader(args.index)) {
     message_sender_->SendFileSystemError(
         file_system_id_, args.request_id, volume_archive_->error_message());
@@ -390,8 +385,7 @@ void Volume::OpenFileCallback(int32_t /*result*/,
     return;
   }
 
-  if (!volume_archive_->GetNextHeader(
-          &path_name, &size, &is_directory, &modification_time)) {
+  if (!volume_archive_->GetNextHeader()) {
     message_sender_->SendFileSystemError(
         file_system_id_, args.request_id, volume_archive_->error_message());
     ClearJob();

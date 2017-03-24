@@ -144,10 +144,7 @@ bool VolumeArchiveLibarchive::Init(const std::string& encoding) {
   return true;
 }
 
-bool VolumeArchiveLibarchive::GetNextHeader(const char** pathname,
-                                            int64_t* size,
-                                            bool* is_directory,
-                                            time_t* modification_time) {
+int VolumeArchiveLibarchive::StartGetNextHeader() {
   // Headers are being read from the central directory (in the ZIP format), so
   // use a large block size to save on IPC calls. The headers in EOCD are
   // grouped one by one.
@@ -159,7 +156,26 @@ bool VolumeArchiveLibarchive::GetNextHeader(const char** pathname,
 
   // Archive data is skipped automatically by next call to
   // archive_read_next_header.
-  switch (archive_read_next_header(archive_, &current_archive_entry_)) {
+  return archive_read_next_header(archive_, &current_archive_entry_);
+}
+
+bool VolumeArchiveLibarchive::GetNextHeader() {
+  switch (StartGetNextHeader()) {
+    case ARCHIVE_EOF:
+    case ARCHIVE_OK:
+      return true;
+    default:
+      set_error_message(ArchiveError(
+          volume_archive_constants::kArchiveNextHeaderErrorPrefix, archive_));
+      return false;
+  }
+}
+
+bool VolumeArchiveLibarchive::GetNextHeader(const char** pathname,
+                                            int64_t* size,
+                                            bool* is_directory,
+                                            time_t* modification_time) {
+  switch (StartGetNextHeader()) {
     case ARCHIVE_EOF:
       *pathname = NULL;  // End of archive.
       return true;

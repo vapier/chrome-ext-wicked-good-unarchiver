@@ -28,6 +28,7 @@ class VolumeArchive {
   // available headers. Returns true if reading next header was successful.
   // In case of failure the error message can be obtained with
   // VolumeArchive::error_message().
+  virtual bool GetNextHeader() = 0;
   virtual bool GetNextHeader(const char** path_name,
                              int64_t* size,
                              bool* is_directory,

@@ -54,6 +54,7 @@ class VolumeArchiveLibarchive : public VolumeArchive {
   virtual bool Init(const std::string& encoding);
 
   // See volume_archive_interface.h.
+  virtual bool GetNextHeader();
   virtual bool GetNextHeader(const char** path_name,
                              int64_t* size,
                              bool* is_directory,
@@ -76,6 +77,9 @@ class VolumeArchiveLibarchive : public VolumeArchive {
   int64_t reader_data_size() const { return reader_data_size_; }
 
  private:
+  // Common helper for GetNextHeader() variants.
+  int StartGetNextHeader();
+
   // Decompress length bytes of data starting from offset.
   void DecompressData(int64_t offset, int64_t length);
 
