@@ -15,6 +15,14 @@ ifeq ($(wildcard $(WEBPORTS_PATH)/src),)
 endif
 endif
 
+.PHONY: libarchive-fork
+libarchive-fork:
+	$(WEBPORTS_PATH)/src/bin/webports -f install libarchive-fork
+
+.PHONY: polymer
+polymer:
+	cd polymer; `npm bin`/bower update -F
+
 nacl_sdk: nacl_sdk/$(NACL_SDK_PEPPER_VERSION)
 nacl_sdk/$(NACL_SDK_PEPPER_VERSION):
 	mkdir -p nacl_sdk
@@ -32,14 +40,6 @@ webports:
 
 depot_tools:
 	git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
-
-.PHONY: libarchive-fork
-libarchive-fork:
-	$(WEBPORTS_PATH)/src/bin/webports -f install libarchive-fork
-
-.PHONY: polymer
-polymer:
-	cd polymer; `npm bin`/bower update -F
 
 .PHONY: clean
 clean:
