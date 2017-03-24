@@ -81,6 +81,16 @@ class JavaScriptMessageSender : public JavaScriptMessageSenderInterface {
         file_system_id, request_id, array_buffer, has_more_data));
   }
 
+  virtual void SendConsoleLog(const std::string& file_system_id,
+                              const std::string& request_id,
+                              const std::string& src_file,
+                              int src_line,
+                              const std::string& src_func,
+                              const std::string& message) {
+    JavaScriptPostMessage(request::CreateConsoleLog(
+        file_system_id, request_id, src_file, src_line, src_func, message));
+  }
+
  private:
   // Posts a message to JavaScript. This is prone to races in case of using
   // NaCl instead of PNaCl. See crbug.com/413513.

@@ -40,6 +40,10 @@ const char kReadFileData[] = "read_file_data";    // Should be a
                                                   // pp::VarArrayBuffer.
 const char kHasMoreData[] = "has_more_data";      // Should be a bool.
 const char kPassphrase[] = "passphrase";          // Should be a string.
+const char kSrcFile[] = "src_file";               // Should be a string.
+const char kSrcLine[] = "src_line";               // Should be a string.
+const char kSrcFunc[] = "src_func";               // Should be a string.
+const char kMessage[] = "message";                // Should be a string.
 
 }  // namespace key
 
@@ -61,6 +65,8 @@ enum Operation {
   CLOSE_FILE_DONE = 12,
   READ_FILE = 13,
   READ_FILE_DONE = 14,
+  CONSOLE_LOG = 15,
+  CONSOLE_DEBUG = 16,
   FILE_SYSTEM_ERROR = -1,  // Errors specific to a file system.
 };
 
@@ -101,6 +107,14 @@ pp::VarDictionary CreateReadFileDoneResponse(
 pp::VarDictionary CreateFileSystemError(const std::string& file_system_id,
                                         const std::string& request_id,
                                         const std::string& error);
+
+pp::VarDictionary CreateConsoleLog(
+    const std::string& file_system_id,
+    const std::string& request_id,
+    const std::string& src_file,
+    int src_line,
+    const std::string& src_func,
+    const std::string& message);
 
 // Obtains a int64_t from a string value inside dictionary based on a
 // request::Key.
