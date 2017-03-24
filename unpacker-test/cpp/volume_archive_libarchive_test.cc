@@ -136,8 +136,9 @@ TEST_F(VolumeArchiveLibarchiveTest, GetNextHeaderSuccess) {
   fake_lib_archive_config::archive_entry_filetype_return_value =
       S_IFREG;  // Regular file.
 
-  EXPECT_TRUE(volume_archive->GetNextHeader(
-      &path_name, &size, &is_directory, &modification_time));
+  EXPECT_EQ(VolumeArchive::RESULT_SUCCESS,
+            volume_archive->GetNextHeader(
+                &path_name, &size, &is_directory, &modification_time));
   EXPECT_EQ(expected_path_name, path_name);
   EXPECT_EQ(fake_lib_archive_config::kSize, size);
   EXPECT_EQ(fake_lib_archive_config::kModificationTime, modification_time);
@@ -147,8 +148,9 @@ TEST_F(VolumeArchiveLibarchiveTest, GetNextHeaderSuccess) {
   fake_lib_archive_config::archive_entry_filetype_return_value =
       S_IFDIR;  // Directory.
 
-  EXPECT_TRUE(volume_archive->GetNextHeader(
-      &path_name, &size, &is_directory, &modification_time));
+  EXPECT_EQ(VolumeArchive::RESULT_SUCCESS,
+            volume_archive->GetNextHeader(
+                &path_name, &size, &is_directory, &modification_time));
   EXPECT_EQ(expected_path_name, path_name);
   EXPECT_EQ(fake_lib_archive_config::kSize, size);
   EXPECT_EQ(fake_lib_archive_config::kModificationTime, modification_time);
@@ -160,17 +162,24 @@ TEST_F(VolumeArchiveLibarchiveTest, GetNextHeaderEndOfArchive) {
 
   // Test GetNextHeader when at the end of archive.
   fake_lib_archive_config::archive_read_next_header_return_value = ARCHIVE_EOF;
-  const char* pathname = NULL;
-  int64_t size = 0;
-  bool is_directory = false;
-  time_t modification_time = 0;
-
-  EXPECT_TRUE(volume_archive->GetNextHeader(
-      &pathname, &size, &is_directory, &modification_time));
-  EXPECT_TRUE(pathname == NULL);
+  EXPECT_EQ(VolumeArchive::RESULT_EOF, volume_archive->GetNextHeader());
 }
 
 TEST_F(VolumeArchiveLibarchiveTest, GetNextHeaderFailure) {
+  EXPECT_TRUE(volume_archive->Init(kEncoding));
+
+  // Test failure GetNextHeader.
+  fake_lib_archive_config::archive_read_next_header_return_value =
+      ARCHIVE_FATAL;
+  EXPECT_EQ(VolumeArchive::RESULT_FAIL, volume_archive->GetNextHeader());
+
+  std::string next_header_error =
+      std::string(volume_archive_constants::kArchiveNextHeaderErrorPrefix) +
+      fake_lib_archive_config::kArchiveError;
+  EXPECT_EQ(next_header_error, volume_archive->error_message());
+}
+
+TEST_F(VolumeArchiveLibarchiveTest, GetNextHeaderFailureArgs) {
   EXPECT_TRUE(volume_archive->Init(kEncoding));
 
   // Test failure GetNextHeader.
@@ -181,8 +190,9 @@ TEST_F(VolumeArchiveLibarchiveTest, GetNextHeaderFailure) {
   bool is_directory = false;
   time_t modification_time = 0;
 
-  EXPECT_FALSE(volume_archive->GetNextHeader(
-      &pathname, &size, &is_directory, &modification_time));
+  EXPECT_EQ(VolumeArchive::RESULT_FAIL,
+            volume_archive->GetNextHeader(
+                &pathname, &size, &is_directory, &modification_time));
 
   std::string next_header_error =
       std::string(volume_archive_constants::kArchiveNextHeaderErrorPrefix) +
