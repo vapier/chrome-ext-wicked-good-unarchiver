@@ -36,6 +36,10 @@ unpacker.request = {
     READ_FILE_DATA: 'read_file_data',    // Should be an ArrayBuffer.
     HAS_MORE_DATA: 'has_more_data',      // Should be a boolean.
     PASSPHRASE: 'passphrase',            // Should be a string.
+    SRC_FILE: 'src_file',                // Should be a string.
+    SRC_LINE: 'src_line',                // Should be a int.
+    SRC_FUNC: 'src_func',                // Should be a string.
+    MESSAGE: 'message',                  // Should be a string.
   },
 
   /**
@@ -60,6 +64,8 @@ unpacker.request = {
     CLOSE_FILE_DONE: 12,
     READ_FILE: 13,
     READ_FILE_DONE: 14,
+    CONSOLE_LOG: 15,
+    CONSOLE_DEBUG: 16,
     FILE_SYSTEM_ERROR: -1
   },
 

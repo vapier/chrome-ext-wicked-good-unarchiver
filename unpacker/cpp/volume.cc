@@ -13,6 +13,13 @@
 
 namespace {
 
+#define LOG(x) \
+  do { \
+    std::stringstream fmt; \
+    fmt << x; \
+    message_sender_->CONSOLE_LOG(file_system_id_, request_id, fmt.str()); \
+  } while (0)
+
 typedef std::map<std::string, VolumeArchive*>::const_iterator
     volume_archive_iterator;
 
