@@ -16,21 +16,15 @@ namespace request {
 // on the JS side.
 namespace key {
 
-// Mandatory keys for all requests.
+// Mandatory keys for all unpacking requests.
 const char kOperation[] = "operation";  // Should be a request::Operation.
 const char kFileSystemId[] = "file_system_id";  // Should be a string.
 const char kRequestId[] = "request_id";         // Should be a string.
 
-// Optional keys depending on request operation.
-const char kError[] = "error";        // Should be a string.
+// Optional keys unique to unpacking operations.
 const char kMetadata[] = "metadata";  // Should be a pp:VarDictionary.
 const char kArchiveSize[] =
     "archive_size";  // Should be a string as int64_t is not support by pp::Var.
-const char kChunkBuffer[] = "chunk_buffer";  // Should be a pp::VarArrayBuffer.
-const char kOffset[] = "offset";       // Should be a string as int64_t is not
-                                       // supported by pp::Var.
-const char kLength[] = "length";       // Should be a string as int64_t is not
-                                       // supported by pp::Var.
 const char kIndex[] = "index";         // Should be a string as int64_t is not
                                        // supported by pp::Var.
 const char kEncoding[] = "encoding";   // Should be a string.
@@ -40,11 +34,30 @@ const char kReadFileData[] = "read_file_data";    // Should be a
                                                   // pp::VarArrayBuffer.
 const char kHasMoreData[] = "has_more_data";      // Should be a bool.
 const char kPassphrase[] = "passphrase";          // Should be a string.
+
+// Mandatory keys for all packing requests.
+const char kCompressorId[] = "compressor_id";         // Should be an int.
+
+// Optional keys unique to packing operations.
+const char kEntryId[] = "entry_id";                   // Should be an int.
+const char kPathname[] = "pathname";                  // Should be a string.
+const char kFileSize[] = "file_size";                 // Should be a string.
+const char kIsDirectory[] = "is_directory";           // Should be a bool.
+const char kModificationTime[] = "modification_time"; // Should be a string
+                                                      // (mm/dd/yy h:m:s).
+const char kHasError[] = "has_error";                 // Should be a bool.
+
+// Optional keys used for both packing and unpacking operations.
+const char kError[] = "error";        // Should be a string.
+const char kChunkBuffer[] = "chunk_buffer";  // Should be a pp::VarArrayBuffer.
+const char kOffset[] = "offset";       // Should be a string as int64_t is not
+                                       // supported by pp::Var.
+const char kLength[] = "length";       // Should be a string as int64_t is not
+                                       // supported by pp::Var.
 const char kSrcFile[] = "src_file";               // Should be a string.
 const char kSrcLine[] = "src_line";               // Should be a string.
 const char kSrcFunc[] = "src_func";               // Should be a string.
 const char kMessage[] = "message";                // Should be a string.
-
 }  // namespace key
 
 // Defines request operations. These operations should be the same as the
@@ -67,8 +80,25 @@ enum Operation {
   READ_FILE_DONE = 14,
   CONSOLE_LOG = 15,
   CONSOLE_DEBUG = 16,
+  CREATE_ARCHIVE = 17,
+  CREATE_ARCHIVE_DONE = 18,
+  ADD_TO_ARCHIVE = 19,
+  ADD_TO_ARCHIVE_DONE = 20,
+  READ_FILE_CHUNK = 21,
+  READ_FILE_CHUNK_DONE = 22,
+  WRITE_CHUNK = 23,
+  WRITE_CHUNK_DONE = 24,
+  CLOSE_ARCHIVE = 25,
+  CLOSE_ARCHIVE_DONE = 26,
   FILE_SYSTEM_ERROR = -1,  // Errors specific to a file system.
+  COMPRESSOR_ERROR = -2    // Errors specific to a compressor.
 };
+
+// Operations greater than or equal to this value are for packing.
+const int MINIMUM_PACK_REQUEST_VALUE = 17;
+
+// Return true if the given operation is related to packing.
+bool IsPackRequest(int operation);
 
 // Creates a response to READ_METADATA request.
 pp::VarDictionary CreateReadMetadataDoneResponse(
@@ -103,6 +133,19 @@ pp::VarDictionary CreateReadFileDoneResponse(
     const pp::VarArrayBuffer& array_buffer,
     bool has_more_data);
 
+pp::VarDictionary CreateCreateArchiveDoneResponse(int compressor_id);
+
+pp::VarDictionary CreateReadFileChunkRequest(int compressor_id,
+                                             int64_t length);
+
+pp::VarDictionary CreateWriteChunkRequest(int compressor_id,
+                                          const pp::VarArrayBuffer& array_buffer,
+                                          int64_t length);
+
+pp::VarDictionary CreateAddToArchiveDoneResponse(int compressor_id);
+
+pp::VarDictionary CreateCloseArchiveDoneResponse(int compressor_id);
+
 // Creates a file system error.
 pp::VarDictionary CreateFileSystemError(const std::string& file_system_id,
                                         const std::string& request_id,
@@ -115,6 +158,10 @@ pp::VarDictionary CreateConsoleLog(
     int src_line,
     const std::string& src_func,
     const std::string& message);
+
+// Creates a compressor error.
+pp::VarDictionary CreateCompressorError(int compressor_id,
+                                        const std::string& error);
 
 // Obtains a int64_t from a string value inside dictionary based on a
 // request::Key.

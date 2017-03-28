@@ -16,6 +16,9 @@ class JavaScriptMessageSenderInterface {
                                    const std::string& request_id,
                                    const std::string& message) = 0;
 
+  virtual void SendCompressorError(int compressor_id,
+                                   const std::string& message) = 0;
+
   virtual void SendFileChunkRequest(const std::string& file_system_id,
                                     const std::string& request_id,
                                     int64_t offset,
@@ -46,6 +49,19 @@ class JavaScriptMessageSenderInterface {
                               int src_line,
                               const std::string& src_func,
                               const std::string& message) = 0;
+
+  virtual void SendCreateArchiveDone(int compressor_id) = 0;
+
+  virtual void SendReadFileChunk(int compressor_id_,
+                                 int64_t file_size) = 0;
+
+  virtual void SendWriteChunk(int compressor_id,
+                              const pp::VarArrayBuffer& array_buffer,
+                              int64_t length) = 0;
+
+  virtual void SendAddToArchiveDone(int compressor_id) = 0;
+
+  virtual void SendCloseArchiveDone(int compressor_id) = 0;
 };
 
 #define CONSOLE_LOG(fsid, rid, msg) \

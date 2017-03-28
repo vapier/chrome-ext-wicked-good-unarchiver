@@ -16,6 +16,12 @@ unpacker.types.FileSystemId;
 /** @typedef {number} */
 unpacker.types.RequestId;
 
+/** @typedef {number} */
+unpacker.types.CompressorId;
+
+/** @typedef {number} */
+unpacker.types.EntryId;
+
 /**
  * @see
  * https://developer.chrome.com/apps/fileSystemProvider#event-onUnmountRequested

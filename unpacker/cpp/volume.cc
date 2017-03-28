@@ -391,7 +391,7 @@ void Volume::OpenFileCallback(int32_t /*result*/,
     return;
   }
 
-  if (!volume_archive_->GetNextHeader()) {
+  if (volume_archive_->GetNextHeader() == VolumeArchive::RESULT_FAIL) {
     message_sender_->SendFileSystemError(
         file_system_id_, args.request_id, volume_archive_->error_message());
     ClearJob();

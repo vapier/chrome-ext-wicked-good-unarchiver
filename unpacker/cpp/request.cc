@@ -21,6 +21,12 @@ pp::VarDictionary CreateBasicRequest(const int operation,
 
 }  // namespace
 
+// Return true if the given operation is related to packing.
+bool request::IsPackRequest(int operation) {
+  return request::MINIMUM_PACK_REQUEST_VALUE <= operation ||
+         operation == request::COMPRESSOR_ERROR;
+}
+
 pp::VarDictionary request::CreateReadMetadataDoneResponse(
     const std::string& file_system_id,
     const std::string& request_id,
@@ -85,6 +91,56 @@ pp::VarDictionary request::CreateReadFileDoneResponse(
   return response;
 }
 
+pp::VarDictionary request::CreateCreateArchiveDoneResponse(
+    const int compressor_id) {
+  pp::VarDictionary request;
+  request.Set(request::key::kOperation, CREATE_ARCHIVE_DONE);
+  request.Set(request::key::kCompressorId, compressor_id);
+  return request;
+}
+
+pp::VarDictionary request::CreateReadFileChunkRequest(
+    const int compressor_id,
+    const int64_t length) {
+  pp::VarDictionary request;
+  request.Set(request::key::kOperation, READ_FILE_CHUNK);
+  request.Set(request::key::kCompressorId, compressor_id);
+
+  std::stringstream ss_length;
+  ss_length << length;
+  request.Set(request::key::kLength, ss_length.str());
+  return request;
+}
+
+pp::VarDictionary request::CreateWriteChunkRequest(
+    int compressor_id,
+    const pp::VarArrayBuffer& array_buffer,
+    int64_t length) {
+  pp::VarDictionary request;
+  request.Set(request::key::kOperation, WRITE_CHUNK);
+  request.Set(request::key::kCompressorId, compressor_id);
+
+  request.Set(request::key::kChunkBuffer, array_buffer);
+  std::stringstream ss_length;
+  ss_length << length;
+  request.Set(request::key::kLength, ss_length.str());
+  return request;
+}
+
+pp::VarDictionary request::CreateAddToArchiveDoneResponse(int compressor_id) {
+  pp::VarDictionary request;
+  request.Set(request::key::kOperation, ADD_TO_ARCHIVE_DONE);
+  request.Set(request::key::kCompressorId, compressor_id);
+  return request;
+}
+
+pp::VarDictionary request::CreateCloseArchiveDoneResponse(int compressor_id) {
+  pp::VarDictionary request;
+  request.Set(request::key::kOperation, CLOSE_ARCHIVE_DONE);
+  request.Set(request::key::kCompressorId, compressor_id);
+  return request;
+}
+
 pp::VarDictionary request::CreateFileSystemError(
     const std::string& file_system_id,
     const std::string& request_id,
@@ -108,6 +164,16 @@ pp::VarDictionary request::CreateConsoleLog(
   request.Set(request::key::kSrcLine, src_line);
   request.Set(request::key::kSrcFunc, src_func);
   request.Set(request::key::kMessage, message);
+  return request;
+}
+
+pp::VarDictionary request::CreateCompressorError(
+    int compressor_id,
+    const std::string& error) {
+  pp::VarDictionary request;
+  request.Set(request::key::kOperation, COMPRESSOR_ERROR);
+  request.Set(request::key::kCompressorId, compressor_id);
+  request.Set(request::key::kError, error);
   return request;
 }
 

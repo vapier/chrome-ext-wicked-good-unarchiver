@@ -19,6 +19,9 @@ LIBS = ppapi_cpp ppapi pthread archive z iconv crypto
 
 CFLAGS = -Wall
 SOURCES = \
+  cpp/compressor.cc \
+  cpp/compressor_archive_libarchive.cc \
+  cpp/compressor_io_javascript_stream.cc \
   cpp/module.cc \
   cpp/request.cc \
   cpp/volume.cc \

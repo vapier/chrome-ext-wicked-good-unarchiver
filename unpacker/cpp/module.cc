@@ -13,12 +13,14 @@
 #include "ppapi/utility/threading/lock.h"
 #include "ppapi/utility/threading/simple_thread.h"
 
+#include "compressor.h"
 #include "request.h"
 #include "volume.h"
 
 namespace {
 
 typedef std::map<std::string, Volume*>::const_iterator volume_iterator;
+typedef std::map<int, Compressor*>::const_iterator compressor_iterator;
 
 // An internal implementation of JavaScriptMessageSenderInterface. This class
 // handles all communication from the module to the JavaScript code. Thread
@@ -35,6 +37,12 @@ class JavaScriptMessageSender : public JavaScriptMessageSenderInterface {
                                    const std::string& message) {
     JavaScriptPostMessage(
         request::CreateFileSystemError(file_system_id, request_id, message));
+  }
+
+  virtual void SendCompressorError(int compressor_id,
+                                   const std::string& message) {
+    JavaScriptPostMessage(
+        request::CreateCompressorError(compressor_id, message));
   }
 
   virtual void SendFileChunkRequest(const std::string& file_system_id,
@@ -91,6 +99,33 @@ class JavaScriptMessageSender : public JavaScriptMessageSenderInterface {
         file_system_id, request_id, src_file, src_line, src_func, message));
   }
 
+  virtual void SendCreateArchiveDone(int compressor_id) {
+    JavaScriptPostMessage(request::CreateCreateArchiveDoneResponse(
+        compressor_id));
+  }
+
+  virtual void SendReadFileChunk(int compressor_id, int64_t length) {
+    JavaScriptPostMessage(request::CreateReadFileChunkRequest(
+        compressor_id, length));
+  }
+
+  virtual void SendWriteChunk(int compressor_id,
+      const pp::VarArrayBuffer& array_buffer,
+      int64_t length) {
+    JavaScriptPostMessage(request::CreateWriteChunkRequest(
+        compressor_id, array_buffer, length));
+  }
+
+  virtual void SendAddToArchiveDone(int compressor_id) {
+    JavaScriptPostMessage(request::CreateAddToArchiveDoneResponse(
+        compressor_id));
+  }
+
+  virtual void SendCloseArchiveDone(int compressor_id) {
+    JavaScriptPostMessage(request::CreateCloseArchiveDoneResponse(
+        compressor_id));
+  }
+
  private:
   // Posts a message to JavaScript. This is prone to races in case of using
   // NaCl instead of PNaCl. See crbug.com/413513.
@@ -128,6 +163,18 @@ class NaclArchiveInstance : public pp::Instance {
     PP_DCHECK(var_dict.Get(request::key::kOperation).is_int());
     int operation = var_dict.Get(request::key::kOperation).AsInt();
 
+    if (request::IsPackRequest(operation))
+      HandlePackMessage(var_dict, operation);
+    else
+      HandleUnpackMessage(var_dict, operation);
+  }
+
+ private:
+
+  // Processes unpack messages.
+  void HandleUnpackMessage(const pp::VarDictionary& var_dict,
+      const int operation) {
+
     PP_DCHECK(var_dict.Get(request::key::kFileSystemId).is_string());
     std::string file_system_id =
         var_dict.Get(request::key::kFileSystemId).AsString();
@@ -135,7 +182,7 @@ class NaclArchiveInstance : public pp::Instance {
     PP_DCHECK(var_dict.Get(request::key::kRequestId).is_string());
     std::string request_id = var_dict.Get(request::key::kRequestId).AsString();
 
-    // Process operation.
+    // Processes operation.
     switch (operation) {
       case request::READ_METADATA: {
         ReadMetadata(var_dict, file_system_id, request_id);
@@ -183,7 +230,44 @@ class NaclArchiveInstance : public pp::Instance {
     }
   }
 
- private:
+  // Processes pack messages.
+  void HandlePackMessage(const pp::VarDictionary& var_dict,
+      const int operation) {
+    PP_DCHECK(var_dict.Get(request::key::kCompressorId).is_int());
+    int compressor_id =
+        var_dict.Get(request::key::kCompressorId).AsInt();
+
+    switch (operation) {
+      case request::CREATE_ARCHIVE: {
+        CreateArchive(compressor_id);
+        break;
+      }
+
+      case request::ADD_TO_ARCHIVE: {
+        AddToArchive(var_dict, compressor_id);
+        break;
+      }
+
+      case request::READ_FILE_CHUNK_DONE: {
+        ReadFileChunkDone(var_dict, compressor_id);
+        break;
+      }
+
+      case request::WRITE_CHUNK_DONE: {
+        WriteChunkDone(var_dict, compressor_id);
+        break;
+      }
+
+      case request::CLOSE_ARCHIVE: {
+        CloseArchive(var_dict, compressor_id);
+        break;
+      }
+
+      default:
+        PP_NOTREACHED();
+    }
+  }
+
   // Reads the metadata for the corresponding volume for file_system_id. This
   // should be called only once and before any other operation like OpenFile,
   // ReadFile, etc.
@@ -320,9 +404,62 @@ class NaclArchiveInstance : public pp::Instance {
     iterator->second->ReadFile(request_id, var_dict);
   }
 
+  // Requests libarchive to create an archive object for the given compressor_id.
+  void CreateArchive(int compressor_id) {
+    Compressor* compressor =
+        new Compressor(instance_handle_, compressor_id, &message_sender_);
+    if (!compressor->Init()) {
+      std::stringstream ss;
+      ss << compressor_id;
+      message_sender_.SendCompressorError(
+          compressor_id,
+          "Could not create a compressor for compressor id: " + ss.str() + ".");
+      delete compressor;
+      return;
+    }
+    compressors_[compressor_id] = compressor;
+
+    compressor->CreateArchive();
+  }
+
+  void AddToArchive(const pp::VarDictionary& var_dict,
+                    int compressor_id) {
+    compressor_iterator iterator = compressors_.find(compressor_id);
+    PP_DCHECK(iterator != compressors_.end());
+
+    iterator->second->AddToArchive(var_dict);
+  }
+
+  void ReadFileChunkDone(const pp::VarDictionary& var_dict,
+                         const int compressor_id) {
+    compressor_iterator iterator = compressors_.find(compressor_id);
+    PP_DCHECK(iterator != compressors_.end());
+
+    iterator->second->ReadFileChunkDone(var_dict);
+  }
+
+  void WriteChunkDone(const pp::VarDictionary& var_dict,
+                      int compressor_id) {
+    compressor_iterator iterator = compressors_.find(compressor_id);
+    PP_DCHECK(iterator != compressors_.end());
+
+    iterator->second->WriteChunkDone(var_dict);
+  }
+
+  void CloseArchive(const pp::VarDictionary& var_dict,
+                    int compressor_id) {
+    compressor_iterator iterator = compressors_.find(compressor_id);
+
+    if (iterator != compressors_.end())
+      iterator->second->CloseArchive(var_dict);
+  }
+
   // A map that holds for every opened archive its instance. The key is the file
   // system id of the archive.
   std::map<std::string, Volume*> volumes_;
+
+  // A map from compressor ids to compressors.
+  std::map<int, Compressor*> compressors_;
 
   // An pp::InstanceHandle used to create pp::SimpleThread in Volume.
   pp::InstanceHandle instance_handle_;

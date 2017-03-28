@@ -47,6 +47,13 @@ unpacker.app = {
   volumes: {},
 
   /**
+   * Each "Pack with" request from Files app creates a new compressor.
+   * Thus, multiple compressors can exist at the same time.
+   * @type {!Object<!unpacker.types.CompressorId, !unpacker.Compressor>}
+   */
+  compressors: {},
+
+  /**
    * A map with promises of loading a volume's metadata from NaCl.
    * Any call from fileSystemProvider API should work only on valid metadata.
    * These promises ensure that the fileSystemProvider API calls wait for the
@@ -79,15 +86,30 @@ unpacker.app = {
   /**
    * Function called on receiving a message from NaCl module. Registered by
    * common.js.
+   * Process pack message by getting compressor and passing the message to it.
    * @param {!Object} message The message received from NaCl module.
+   * @param {!unpacker.request.Operation} operation
    * @private
    */
-  handleMessage_: function(message) {
-    // Get mandatory fields in a message.
-    var operation = message.data[unpacker.request.Key.OPERATION];
-    console.assert(operation != undefined,  // Operation can be 0.
-                   'No NaCl operation: ' + operation + '.');
+  handlePackMessage_: function(message, operation) {
+    var compressorId = message.data[unpacker.request.Key.COMPRESSOR_ID];
+    console.assert(compressorId, 'No NaCl compressor id.');
 
+    var compressor = unpacker.app.compressors[compressorId];
+    if (!compressor) {
+      console.error('No compressor for compressor id: ' + compressorId + '.');
+      return;
+    }
+    compressor.processMessage(message.data, operation);
+  },
+
+  /**
+   * Process unpack message by getting volume and passing the message to it.
+   * @param {!Object} message The message received from NaCl module.
+   * @param {!unpacker.request.Operation} operation
+   * @private
+   */
+  handleUnpackMessage_: function(message, operation) {
     var fileSystemId = message.data[unpacker.request.Key.FILE_SYSTEM_ID];
     console.assert(fileSystemId, 'No NaCl file system id.');
 
@@ -103,6 +125,25 @@ unpacker.app = {
 
     volume.decompressor.processMessage(message.data, operation,
                                        Number(requestId));
+  },
+
+  /**
+   * Function called on receiving a message from NaCl module. Registered by
+   * common.js.
+   * @param {!Object} message The message received from NaCl module.
+   * @private
+   */
+  handleMessage_: function(message) {
+    // Get mandatory fields in a message.
+    var operation = message.data[unpacker.request.Key.OPERATION];
+    console.assert(operation != undefined,  // Operation can be 0.
+                   'No NaCl operation: ' + operation + '.');
+
+    // Assign the message to either module.
+    if (unpacker.request.isPackRequest(operation))
+      unpacker.app.handlePackMessage_(message, operation);
+    else
+      unpacker.app.handleUnpackMessage_(message, operation);
   },
 
   /**
@@ -421,6 +462,36 @@ unpacker.app = {
   },
 
   /**
+   * Cleans up the resources for a compressor.
+   * @param {!unpacker.types.CompressorId} compressorId
+   * @param {boolean} hasError
+   */
+  cleanupCompressor: function(compressorId, hasError) {
+    var compressor = unpacker.app.compressors[compressorId];
+    if (!compressor) {
+      console.error('No compressor for: compressor id' + compressorId + '.');
+      return;
+    }
+
+    unpacker.app.mountProcessCounter--;
+    if (Object.keys(unpacker.app.volumes).length === 0 &&
+        unpacker.app.mountProcessCounter === 0) {
+      unpacker.app.unloadNaclModule();
+    } else {
+      // Request libarchive to abort any ongoing process and release resources.
+      // The argument indicates whether an error occurred or not.
+      if (hasError)
+        compressor.sendCloseArchiveRequest(hasError);
+    }
+
+    // Delete the archive file if it exists.
+    if (compressor.archiveFileEntry)
+      compressor.archiveFileEntry.remove();
+
+    delete unpacker.app.compressors[compressorId];
+  },
+
+  /**
    * Unmounts a volume and removes any resources related to the volume from both
    * the extension and the local storage state.
    * @param {!unpacker.types.FileSystemId} fileSystemId
@@ -567,6 +638,66 @@ unpacker.app = {
   },
 
   /**
+   * Creates a new compressor and compresses entries.
+   * @param {!Object} launchData
+   */
+  onLaunchedWithPack: function(launchData) {
+    unpacker.app.mountProcessCounter++;
+
+    // Create a promise to load the NaCL module.
+    if (!unpacker.app.moduleLoadedPromise) {
+      unpacker.app.loadNaclModule(unpacker.app.DEFAULT_MODULE_NMF,
+                                  unpacker.app.DEFAULT_MODULE_TYPE);
+    }
+
+    unpacker.app.moduleLoadedPromise
+        .then(function() {
+          var compressor = new unpacker.Compressor(
+              /** @type {!Object} */ (unpacker.app.naclModule),
+             launchData.items);
+
+          var compressorId = compressor.getCompressorId();
+
+          unpacker.app.compressors[compressorId] = compressor;
+
+          // TODO(takise): Error messages have not been prepared yet for timer
+          // and error processing.
+
+          // If packing takes significant amount of time, then show a
+          // notification about packing in progress.
+          // var deferredNotificationTimer = setTimeout(function() {
+          //   chrome.notifications.create(compressorId.toString(), {
+          //     type: 'basic',
+          //     iconUrl: chrome.runtime.getManifest().icons[128],
+          //     title: entry.name,
+          //     message: chrome.i18n.getMessage('packingMessage'),
+          //   }, function() {});
+          // }, unpacker.app.PACKING_NOTIFICATION_DELAY);
+
+          var onError = function(compressorId) {
+            // clearTimeout(deferredNotificationTimer);
+            // console.error('Packing error: ' + error.message + '.');
+            // chrome.notifications.create(compressorId.toString(), {
+            //   type: 'basic',
+            //   iconUrl: chrome.runtime.getManifest().icons[128],
+            //   title: entry.name,
+            //   message: chrome.i18n.getMessage('packingErrorMessage')
+            // }, function() {});
+            unpacker.app.cleanupCompressor(compressorId, true /* hasError */);
+          };
+
+          var onSuccess = function(compressorId) {
+            // clearTimeout(deferredNotificationTimer);
+            // chrome.notifications.clear(compressorId.toString(),
+            //     function() {});
+            unpacker.app.cleanupCompressor(compressorId, false /* hasError */);
+          };
+
+          compressor.compress(onSuccess, onError);
+        });
+  },
+
+  /**
    * Creates a volume for every opened file with the extension or mime type
    * declared in the manifest file.
    * @param {!Object} launchData
@@ -579,13 +710,7 @@ unpacker.app = {
    *     system id of the volume that failed to load. Can be called multiple
    *     times, depending on how many volumes must be loaded.
    */
-  onLaunched: function(launchData, opt_onSuccess, opt_onError) {
-    if (launchData.items == null) {
-      // The user tried to launch us directly.
-      console.log('Ignoring launch request w/out items field', {launchData});
-      return;
-    }
-
+  onLaunchedWithUnpack: function(launchData, opt_onSuccess, opt_onError) {
     // Increment the counter that indicates the number of ongoing mouot process.
     unpacker.app.mountProcessCounter++;
 
@@ -681,6 +806,28 @@ unpacker.app = {
           });
         })
         .catch(function(error) { console.error(error.stack || error); });
+  },
+
+  /**
+   * Fired when this extension is launched.
+   * Calls a module designated by launchData.id.
+   * Currently, Verbs API does not support "unpack" option. Thus, any launchData
+   * that does not have "pack" as id is regarded as unpack for now.
+   * @param {!Object} launchData
+   * @param {function(string)=} opt_onSuccess
+   * @param {function(string)=} opt_onError
+   */
+  onLaunched: function(launchData, opt_onSuccess, opt_onError) {
+    if (launchData.items == null) {
+      // The user tried to launch us directly.
+      console.log('Ignoring launch request w/out items field', {launchData});
+      return;
+    }
+
+    if (launchData.id === "pack")
+      unpacker.app.onLaunchedWithPack(launchData);
+    else
+      unpacker.app.onLaunchedWithUnpack(launchData, opt_onSuccess, opt_onError);
   },
 
   /**

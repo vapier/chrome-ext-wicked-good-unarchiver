@@ -11,9 +11,9 @@
 #include "ppapi/cpp/instance_handle.h"
 #include "ppapi/cpp/var_array_buffer.h"
 #include "ppapi/cpp/var_dictionary.h"
+#include "ppapi/utility/completion_callback_factory.h"
 #include "ppapi/utility/threading/lock.h"
 #include "ppapi/utility/threading/simple_thread.h"
-#include "ppapi/utility/completion_callback_factory.h"
 
 #include "javascript_requestor_interface.h"
 #include "javascript_message_sender_interface.h"

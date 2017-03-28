@@ -16,26 +16,42 @@ unpacker.request = {
    * @enum {string}
    */
   Key: {
-    // Mandatory keys for all requests.
+    // Mandatory keys for all unpacking operations.
     OPERATION: 'operation',  // Should be a unpacker.request.Operation.
     FILE_SYSTEM_ID: 'file_system_id',  // Should be a string.
     REQUEST_ID: 'request_id',          // Should be a string.
 
-    // Optional keys depending on request operation.
-    ERROR: 'error',                // Should be a string.
+    // Optional keys unique to unpacking operations.
     METADATA: 'metadata',          // Should be a dictionary.
     ARCHIVE_SIZE: 'archive_size',  // Should be a string as only int is
                                    // supported by pp::Var on C++.
+    INDEX: 'index',        // Should be a string. Same reason as ARCHIVE_SIZE.
+    ENCODING: 'encoding',  // Should be a string.
+    OPEN_REQUEST_ID: 'open_request_id',     // Should be a string, just like
+                                            // REQUEST_ID.
+    READ_FILE_DATA: 'read_file_data',       // Should be an ArrayBuffer.
+    HAS_MORE_DATA: 'has_more_data',         // Should be a boolean.
+    PASSPHRASE: 'passphrase',               // Should be a string.
+
+    // Mandatory keys for all packing operations.
+    COMPRESSOR_ID: 'compressor_id',         // Should be an int.
+
+    // Optional keys unique to packing operations.
+    ENTRY_ID: 'entry_id',                   // Should be an int.
+    PATHNAME: 'pathname',                   // should be a string.
+    FILE_SIZE: 'file_size',                 // should be a string. Same reason
+                                            // as ARCHIVE_SIZE.
+    IS_DIRECTORY: 'is_directory',           // should be a boolean.
+    MODIFICATION_TIME: 'modification_time', // should be a string.
+                                            // (mm/dd/yy h:m:s)
+    HAS_ERROR: 'has_error',                 // Should be a boolean Sent from JS
+                                            // to NaCL.
+
+    // Optional keys used for both packing and unpacking operations.
+    ERROR: 'error',                // Should be a string.
     CHUNK_BUFFER: 'chunk_buffer',  // Should be an ArrayBuffer.
     OFFSET: 'offset',      // Should be a string. Same reason as ARCHIVE_SIZE.
     LENGTH: 'length',      // Should be a string. Same reason as ARCHIVE_SIZE.
-    INDEX: 'index',        // Should be a string. Same reason as ARCHIVE_SIZE.
-    ENCODING: 'encoding',  // Should be a string.
-    OPEN_REQUEST_ID: 'open_request_id',  // Should be a string, just like
-                                         // REQUEST_ID.
-    READ_FILE_DATA: 'read_file_data',    // Should be an ArrayBuffer.
-    HAS_MORE_DATA: 'has_more_data',      // Should be a boolean.
-    PASSPHRASE: 'passphrase',            // Should be a string.
     SRC_FILE: 'src_file',                // Should be a string.
     SRC_LINE: 'src_line',                // Should be a int.
     SRC_FUNC: 'src_func',                // Should be a string.
@@ -45,7 +61,9 @@ unpacker.request = {
   /**
    * Defines request operations. These operation should be the same as the
    * operations on the NaCL side. FILE_SYSTEM_ID and REQUEST_ID are mandatory
-   * for all requests.
+   * for all unpack requests, while COMPRESSOR_ID is required for all pack
+   * requests. All the values of unpacking operations must be smaller than any
+   * packing operation (except errors).
    * @enum {number}
    */
   Operation: {
@@ -66,7 +84,34 @@ unpacker.request = {
     READ_FILE_DONE: 14,
     CONSOLE_LOG: 15,
     CONSOLE_DEBUG: 16,
-    FILE_SYSTEM_ERROR: -1
+    CREATE_ARCHIVE: 17,
+    CREATE_ARCHIVE_DONE: 18,
+    ADD_TO_ARCHIVE: 19,
+    ADD_TO_ARCHIVE_DONE: 20,
+    READ_FILE_CHUNK: 21,
+    READ_FILE_CHUNK_DONE: 22,
+    WRITE_CHUNK: 23,
+    WRITE_CHUNK_DONE: 24,
+    CLOSE_ARCHIVE: 25,
+    CLOSE_ARCHIVE_DONE: 26,
+    FILE_SYSTEM_ERROR: -1,
+    COMPRESSOR_ERROR: -2
+  },
+
+  /**
+  * Operations greater than or equal to this value are for packing.
+  * @const {number}
+  */
+  MINIMUM_PACK_REQUEST_VALUE: 17,
+
+  /**
+  * Return true if the given operation is related to packing.
+  * @param {!unpacker.request.Operation} operation
+  * @return {boolean}
+  */
+  isPackRequest: function(operation) {
+    return unpacker.request.MINIMUM_PACK_REQUEST_VALUE <= operation ||
+           operation == unpacker.request.Operation.COMPRESSOR_ERROR;
   },
 
   /**
@@ -230,5 +275,90 @@ unpacker.request = {
     readFileRequest[unpacker.request.Key.OFFSET] = offset.toString();
     readFileRequest[unpacker.request.Key.LENGTH] = length.toString();
     return readFileRequest;
+  },
+
+  /**
+   * Creates a create archive request for compressor.
+   * @param {!unpacker.types.CompressorId} compressorId
+   * @return {!Object} A create archive request.
+   */
+  createCreateArchiveRequest: function(compressorId) {
+    var request = {};
+    request[unpacker.request.Key.OPERATION] =
+        unpacker.request.Operation.CREATE_ARCHIVE;
+    request[unpacker.request.Key.COMPRESSOR_ID] = compressorId;
+    return request;
+  },
+
+  /**
+   * Creates an add to archive request for compressor.
+   * @param {!unpacker.types.CompressorId} compressorId
+   * @param {!unpacker.types.EntryId} entryId
+   * @param {string} pathname The relative path of the entry.
+   * @param {number} fileSize The size of the entry.
+   * @param {string} modificationTime The modification time of the entry.
+   * @param {boolean} isDirectory Whether the entry is a directory or not.
+   * @return {!Object} An add to archive request.
+   */
+  createAddToArchiveRequest: function(compressorId, entryId, pathname,
+                                      fileSize, modificationTime, isDirectory) {
+    var request = {};
+    request[unpacker.request.Key.OPERATION] =
+        unpacker.request.Operation.ADD_TO_ARCHIVE;
+    request[unpacker.request.Key.COMPRESSOR_ID] = compressorId;
+    request[unpacker.request.Key.ENTRY_ID] = entryId;
+    request[unpacker.request.Key.PATHNAME] = pathname.toString();
+    request[unpacker.request.Key.FILE_SIZE] = fileSize.toString();
+    request[unpacker.request.Key.MODIFICATION_TIME] =
+        modificationTime.toString();
+    request[unpacker.request.Key.IS_DIRECTORY] = isDirectory;
+    return request;
+  },
+
+  /**
+   * Creates a read file chunk response for compressor.
+   * @param {!unpacker.types.CompressorId} compressorId
+   * @param {number} length The number of bytes read from the entry.
+   * @param {!ArrayBuffer} buffer A buffer containing the data that was read.
+   * @return {!Object} A read file chunk done response.
+   */
+  createReadFileChunkDoneResponse: function(compressorId, length, buffer) {
+    var response = {};
+    response[unpacker.request.Key.OPERATION] =
+        unpacker.request.Operation.READ_FILE_CHUNK_DONE;
+    response[unpacker.request.Key.COMPRESSOR_ID] = compressorId;
+    response[unpacker.request.Key.LENGTH] = length.toString();
+    response[unpacker.request.Key.CHUNK_BUFFER] = buffer;
+    return response;
+  },
+
+  /**
+   * Creates a write chunk done response for compressor.
+   * @param {!unpacker.types.CompressorId} compressorId
+   * @param {number} length The number of bytes written onto the archive file.
+   * @return {!Object} A write chunk done response.
+   */
+  createWriteChunkDoneResponse: function(compressorId, length) {
+    var response = {};
+    response[unpacker.request.Key.OPERATION] =
+        unpacker.request.Operation.WRITE_CHUNK_DONE;
+    response[unpacker.request.Key.COMPRESSOR_ID] = compressorId;
+    response[unpacker.request.Key.LENGTH] = length.toString();
+    return response;
+  },
+
+  /**
+   * Creates a close archive request for compressor.
+   * @param {!unpacker.types.CompressorId} compressorId
+   * @param {boolean} hasError True if some error occurred.
+   * @return {!Object} A close archive request.
+   */
+  createCloseArchiveRequest: function(compressorId, hasError) {
+    var request = {};
+    request[unpacker.request.Key.OPERATION] =
+        unpacker.request.Operation.CLOSE_ARCHIVE;
+    request[unpacker.request.Key.COMPRESSOR_ID] = compressorId;
+    request[unpacker.request.Key.HAS_ERROR] = hasError;
+    return request;
   }
 };
