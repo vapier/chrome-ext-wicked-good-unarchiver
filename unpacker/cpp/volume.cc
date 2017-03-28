@@ -330,17 +330,16 @@ void Volume::ReadMetadataCallback(int32_t /*result*/,
   int64_t index = 0;
 
   for (;;) {
-    if (!volume_archive_->GetNextHeader(
-            &path_name, &size, &is_directory, &modification_time)) {
+    VolumeArchive::Result ret = volume_archive_->GetNextHeader(
+        &path_name, &size, &is_directory, &modification_time);
+    if (ret == VolumeArchive::RESULT_FAIL) {
       message_sender_->SendFileSystemError(
           file_system_id_, request_id, volume_archive_->error_message());
       ClearJob();
       delete volume_archive_;
       volume_archive_ = NULL;
       return;
-    }
-
-    if (!path_name)  // End of archive.
+    } else if (ret == VolumeArchive::RESULT_EOF)
       break;
 
     ConstructMetadata(index, path_name, size, is_directory, modification_time,

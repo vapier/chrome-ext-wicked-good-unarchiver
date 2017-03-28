@@ -37,8 +37,9 @@ class VolumeArchiveLibarchiveReadTest : public testing::Test {
     int64_t size = 0;
     bool is_directory = false;
     time_t modification_time = 0;
-    ASSERT_TRUE(volume_archive->GetNextHeader(
-        &path_name, &size, &is_directory, &modification_time));
+    ASSERT_EQ(VolumeArchive::RESULT_SUCCESS,
+              volume_archive->GetNextHeader(
+                  &path_name, &size, &is_directory, &modification_time));
   }
 
   virtual void TearDown() {
