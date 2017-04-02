@@ -68,10 +68,6 @@ int64_t CustomArchiveSeek(archive* archive_object,
   return new_offset;
 }
 
-int CustomArchiveClose(archive* archive_object, void* client_data) {
-  return ARCHIVE_OK;
-}
-
 const char* CustomArchivePassphrase(
     archive* archive_object, void* client_data) {
   VolumeArchiveLibarchive* volume_archive =
@@ -131,7 +127,6 @@ bool VolumeArchiveLibarchive::Init(const std::string& encoding) {
   if (archive_read_set_read_callback(archive_, CustomArchiveRead) != ok ||
       archive_read_set_skip_callback(archive_, CustomArchiveSkip) != ok ||
       archive_read_set_seek_callback(archive_, CustomArchiveSeek) != ok ||
-      archive_read_set_close_callback(archive_, CustomArchiveClose) != ok ||
       archive_read_set_passphrase_callback(
           archive_, this, CustomArchivePassphrase) != ok ||
       archive_read_set_callback_data(archive_, this) != ok ||
