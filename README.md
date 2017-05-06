@@ -1,3 +1,185 @@
+# Wicked Good Unpacker extension
+
+This is a fork of the bundled Chrome OS ZIP Unpacker extension.
+It enables support for a wide variety of archive and compression formats.
+It also supports files that have only been compressed (e.g. foo.gz).
+All of this is thanks to the great [libarchive] project.
+
+You can install it via the CWS:
+https://chrome.google.com/webstore/detail/mljpablpddhocfbnokacjggdbmafjnon
+
+## Supported Formats
+
+Note that we support archives (compressed or uncompressed), and we support
+single compressed files (that have no archiving, e.g. `foo.gz`).
+
+Here's the list of supported archive formats:
+
+* 7z: The [7-Zip][7z] format.
+* ar: Simple [UNIX archive][ar], usually for developers.
+* cab: [Microsoft's cabinet archive][cab] format.
+* cpio: [Classic UNIX archive][cpio] that still shows up, but has been largely
+  replaced by tarballs.
+* crx: Google Chrome extensions.
+* deb: [Debian package archive][deb] format used by Linux distros based on
+  Debian (like Ubuntu).
+* iso: [ISO 9660][iso] CD disk images.
+  Note: [UDF][udf] DVD disk images are *not* supported.
+* jar: [Java ARchives][jar] used by programmers.
+* lha/lzh: [LHA][lha] and [LZH][lzh] are common formats in Japan, and used by
+  many old school video games.
+* mtree: The BSD [mtree] format for mapping a directory tree.
+* pax: [Portable Archive Exchange format][pax] is a UNIX format meant to
+  replace cpio and tar.
+* rar: [RAR][rar] archives produced by [WinRAR](https://www.rarlab.com).  This
+  is mostly for testing, so the native CrOS support should be used by default
+  instead.
+* rpm: [RPM Package Manager archive][rpm] used by Linux distros like RedHat,
+  Fedora, CentOS, SUSE, and more.
+* tar: [UNIX tarballs][tar] that are common in the Linux computing world.
+* warc: The [Web ARChive][warc] format for archiving web sites.
+* zip: The venerable [ZIP][zip].  This is mostly for testing, so the native CrOS
+  support should be used by default instead.
+
+[7z]: https://en.wikipedia.org/wiki/7z
+[ar]: https://en.wikipedia.org/wiki/Ar_(Unix)
+[cab]: https://en.wikipedia.org/wiki/Cabinet_(file_format)
+[cpio]: https://en.wikipedia.org/wiki/Cpio
+[deb]: https://en.wikipedia.org/wiki/Deb_(file_format)
+[iso]: https://en.wikipedia.org/wiki/ISO_9660
+[jar]: https://en.wikipedia.org/wiki/JAR_(file_format)
+[lha]: https://en.wikipedia.org/wiki/LHA_(file_format)
+[lzh]: https://en.wikipedia.org/wiki/LHA_(file_format)
+[mtree]: https://www.freebsd.org/cgi/man.cgi?mtree(5)
+[pax]: https://en.wikipedia.org/wiki/Pax_(Unix)
+[rar]: https://en.wikipedia.org/wiki/RAR_(file_format)
+[rpm]: https://en.wikipedia.org/wiki/RPM_Package_Manager
+[tar]: https://en.wikipedia.org/wiki/Tar_(computing)
+[udf]: https://en.wikipedia.org/wiki/Universal_Disk_Format
+[warc]: https://en.wikipedia.org/wiki/Web_ARChive
+[zip]: https://en.wikipedia.org/wiki/Zip_(file_format)
+
+Here's the list of supported compression/encoding formats:
+
+* bz2/bzip/bzip2: The [bzip2] compression format common in the UNIX world.
+* gz/gzip: The [gzip] compression format based on [zlib].  Common
+  in the UNIX world, although zlib is also used in many places.
+* lzma: The [lzma] compression format that has been largely replaced by xz.
+  The compression algorithm is used by other formats, but the standalone format
+  is not.
+* lz4: The [LZ4][lz4] compression algorithm.
+* lzip: The [lzma] compression algorithm in the [lzip] format.
+* lzop: The [LZO][lzo] compression algorithm in the [lzop] format.
+* uu: The [unix-to-unix][uu] text encoding format.
+* xz: The [xz] compression format that is common in the UNIX world.
+* Z: The [compress][Z] legacy format that still shows up at random.
+* zstd: The [Zstandard][zstd] algorithm developed by Facebook.
+
+[bzip2]: https://en.wikipedia.org/wiki/Bzip2
+[gzip]: https://en.wikipedia.org/wiki/Gzip
+[lz4]: https://en.wikipedia.org/wiki/LZ4_(compression_algorithm)
+[lzip]: https://en.wikipedia.org/wiki/Lzip
+[lzma]: https://en.wikipedia.org/wiki/LZMA
+[lzo]: https://en.wikipedia.org/wiki/Lempel–Ziv–Oberhumer
+[lzop]: https://en.wikipedia.org/wiki/Lzop
+[uu]: https://en.wikipedia.org/wiki/Uuencoding
+[xz]: https://en.wikipedia.org/wiki/Xz
+[Z]: https://en.wikipedia.org/wiki/Compress
+[zlib]: https://en.wikipedia.org/wiki/Zlib
+[zstd]: https://en.wikipedia.org/wiki/Zstandard
+
+## Known Issues
+
+### Speed/Performance
+
+Most archive formats don't include an index.  This means we need to decompress
+the entire file just to get a directory listing.  The formats allow any ordering
+by design.  For example, it could be `./bar.txt`, `./foo/blah.txt`, `./asdf.txt`.
+Or it could be `./asdf.txt`, `./foo/blah.txt`, and `./bar.txt`.  The only way we
+can produce a complete directory listing is by looking through the entire file.
+
+This slows things down overall (like in tarballs) and there isn't much that can
+be done about it.
+
+However, there are a some file formats that do have indexes and we don't (yet)
+support using those.  7-zip is the most notable one here.
+
+A similar issue comes up with single compressed files.  Many formats do not know
+the uncompressed file size, so the only way to calculate it is by decompressing
+the entire file.  If we were to report a fake file size (like zero bytes, or a
+really large file size) to the Files app, it wouldn't be able to copy the result
+out.  It would try to read the number of bytes that it was told were available.
+For the few formats that do include the uncompressed size in their header (like
+the gzip format), we can skip the decompression overhead.
+
+### Passwords
+
+Some formats can be encrypted with passwords, but we don't prompt the user, so
+the files aren't decrypted.  Oops.
+
+### Spanning Archives
+
+Some formats can span multiple files, but we don't yet support those.
+
+### RAR Support
+
+*"It's complicated."*
+
+The WGU extension doesn't support the [RAR][rar] format today.
+Chrome OS supports it natively via [cros-disks] -> [AVFS][avfs] -> official
+[unrar] program.
+We can't replace that stack until we have comparable coverage.
+
+The [RAR][rar] format has gone through a number of major revisions (at least 5
+so far).  A smart Russian came up with it long ago and continues to develop it
+as a company (RARLAB).  It's a proprietary format and, while some code has been
+released by them, they are hostile to reverse engineering.  As such, only the
+v1, v2, and v3 formats are supported.  Unfortunately, v4 and v5 formats are
+common and users tend to use those more.
+
+There is an open source unrar library released by RARLAB, but the API is not
+documented, and its runtime model does not mesh well with libarchive's runtime
+model.  It's possible, but it's not trivial.
+
+[avfs]: http://avf.sourceforge.net/
+[cros-disks]: https://chromium.googlesource.com/chromiumos/platform2/+/master/cros-disks/
+[rar]: https://en.wikipedia.org/wiki/RAR_(file_format)
+[unrar]: https://www.rarlab.com/rar_add.htm
+
+## Chrome OS Bundling
+
+Sometimes people ask, since WGU is based on the official Chrome OS Zip unpacker
+that is bundled with Chrome OS today, why don't we just merge the two so that
+Chrome OS supports everything WGU does out of the box?
+
+*"It's complicated."*
+
+From the product team's perspective, they don't want to support an extensive set
+of formats if there is not high user demand for them.  If users run into problems
+(and they inevitably will), the engineering costs aren't justified.
+
+Similarly, they don't want to say "ZIP is officially supported, but all other
+formats are 'best effort'".  Most users don't care about those trade-offs --
+they just want their system to work.  All they see is that they tried to open
+a 7z file and it didn't work even though opening a different 7z file worked.
+Trying to explain these nuances doesn't really scale.
+
+Thus the status quo is to not support the formats at all.  Users can try and
+locate alternatives (like WGU), and in the process of doing so, understand that
+the resulting software might be buggy.  And those bugs are not the fault of the
+Chrome OS product (although some will still complain that Chrome OS should have
+included support out of the box).
+
+Everyone has a reasonable position taken in isolation.  But the end result is
+that everyone loses.  Offering best-effort support makes users unhappy, but
+offering nothing also makes them unhappy.  At least this way, the blow back on
+the Chrome OS product is lower.
+
+## Bug reports / Feature requests
+
+Please use the [issues](https://github.com/vapier/chrome-ext-wicked-good-unarchiver/issues)
+link here to report any issues you might run into.
+
 # ZIP Unpacker extension
 
 This is the ZIP Unpacker extension used in Chrome OS to support reading and
