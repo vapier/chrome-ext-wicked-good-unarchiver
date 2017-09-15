@@ -398,7 +398,7 @@ https://developer.chrome.com/native-client/devguide/devcycle/debugging.
 ## Testing
 
 Install [Karma](http://karma-runner.github.io/0.12/index.html) for tests
-runner, [Mocha](http://visionmedia.github.io/mocha/) for asynchronous testings,
+runner, [Mocha](http://mochajs.org/) for asynchronous testings,
 [Chai](http://chaijs.com/) for assertions, and [Sinon](http://sinonjs.org/) for
 spies and stubs.
 
