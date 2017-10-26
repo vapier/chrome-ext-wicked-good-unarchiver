@@ -21,6 +21,9 @@ class FakeJavaScriptMessageSender : public JavaScriptMessageSenderInterface {
                                    const std::string& request_id,
                                    const std::string& message) {}
 
+  virtual void SendCompressorError(int compressor_id,
+                                   const std::string& message) {};
+
   virtual void SendFileChunkRequest(const std::string& file_system_id,
                                     const std::string& request_id,
                                     int64_t offset,
@@ -44,6 +47,26 @@ class FakeJavaScriptMessageSender : public JavaScriptMessageSenderInterface {
                                 const std::string& request_id,
                                 const pp::VarArrayBuffer& array_buffer,
                                 bool has_more_data) {}
+
+  virtual void SendConsoleLog(const std::string& file_system_id,
+                              const std::string& request_id,
+                              const std::string& src_file,
+                              int src_line,
+                              const std::string& src_func,
+                              const std::string& message) {}
+
+  virtual void SendCreateArchiveDone(int compressor_id) {};
+
+  virtual void SendReadFileChunk(int compressor_id_,
+                                 int64_t file_size) {};
+
+  virtual void SendWriteChunk(int compressor_id,
+                              const pp::VarArrayBuffer& array_buffer,
+                              int64_t length) {};
+
+  virtual void SendAddToArchiveDone(int compressor_id) {};
+
+  virtual void SendCloseArchiveDone(int compressor_id) {};
 };
 
 }  // namespace
