@@ -34,11 +34,14 @@ On Debian, you'll want something like:
 $ sudo apt-get install npm
 ```
 
+Your distro might have old versions of npm, so you'd have to install it
+yourself.
+
 Then install the npm modules that we require.  Do this in the root of the
 unpacker repo.
 
 ```
-$ npm install bower 'vulcanize@<0.8'
+$ npm install bower vulcanize crisper
 ```
 
 ### Unpacker Build

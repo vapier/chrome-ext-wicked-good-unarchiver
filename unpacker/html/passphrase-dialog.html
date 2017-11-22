@@ -1,24 +1,24 @@
 <link rel="import" href="../third-party/polymer.html">
 
-<polymer-element name="passphrase-dialog">
+<dom-module id="passphrase-dialog">
   <template>
     <link rel="stylesheet" href="../css/passphrase-dialog.css">
-    <h3>{{ 'passphraseTitle' | i18n }}</h3>
-    <paper-input-decorator label="{{ 'passphraseInputLabel' | i18n }}">
-      <input is="core-input" type="password" id="input" autofocus>
-    </paper-input-decorator>
+    <h3>[[i18n('passphraseTitle')]]</h3>
+    <paper-input type="password" id="input"
+        label="[[i18n('passphraseInputLabel')]]"></paper-input>
     <div id="bar">
-      <paper-checkbox id="remember"
-          label="{{ 'passphraseRemember' | i18n }}"></paper-checkbox>
+      <paper-checkbox id="remember">
+        [[i18n('passphraseRemember')]]
+      </paper-checkbox>
       <div id="buttons">
-        <paper-button on-click="{{cancel}}" id="cancelButton">
-            {{ 'passphraseCancel' | i18n }}
+        <paper-button on-click="cancel" id="cancelButton">
+            [[i18n('passphraseCancel')]]
         </paper-button>
-        <paper-button on-click="{{accept}}" id="acceptButton">
-            {{ 'passphraseAccept' | i18n }}
+        <paper-button on-click="accept" id="acceptButton">
+            [[i18n('passphraseAccept')]]
         </paper-button>
       </div>
     </div>
   </template>
   <script src="../js/passphrase-dialog.js"></script>
-</polymer-element>
+</dom-module>
