@@ -781,12 +781,14 @@ unpacker.app = {
                 // Mount the volume and save its information in local storage
                 // in order to be able to recover the metadata in case of
                 // restarts, system crashes, etc.
-                chrome.fileSystemProvider.mount({
+                const mountOptions = {
                   fileSystemId: fileSystemId,
                   displayName: entry.name,
                   openedFilesLimit: 1
-                },
-                function() {
+                };
+                if (unpacker.app.getChromeMajorVersion_() >= 64)
+                  mountOptions.persistent = false;
+                chrome.fileSystemProvider.mount(mountOptions, function() {
                   if (chrome.runtime.lastError) {
                     onError(chrome.runtime.lastError, fileSystemId);
                     return;
@@ -836,5 +838,16 @@ unpacker.app = {
    */
   onSuspend: function() {
     unpacker.app.saveState_(Object.keys(unpacker.app.volumes));
+  },
+
+  /**
+   * Gets the major version number of Chrome currently running.
+   * @private
+   * @return {number}
+   */
+  getChromeMajorVersion_: function() {
+    const r = navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)/);
+    console.assert(r, 'Failed to identify Chrome version.');
+    return parseInt(r[2]);
   }
 };
