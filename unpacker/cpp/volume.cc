@@ -54,13 +54,59 @@ pp::VarDictionary CreateEntry(int64_t index,
   return entry_metadata;
 }
 
+// Normalize a path by:
+// - remove all leading / and ./ and ../
+// - turn all // into /
+// - turn all /./ into /
+// - TODO canonicalize /../
+std::string normpath(const std::string& path) {
+  std::string ret = path;
+  size_t i;
+
+  // Removing all leading "/" and "./" and "../".
+  do {
+    i = ret.length();
+
+    if (ret[0] == '/')
+      ret.erase(0, 1);
+
+    if (ret.compare(0, 2, "./") == 0)
+      ret.erase(0, 2);
+
+    if (ret.compare(0, 3, "../") == 0)
+      ret.erase(0, 3);
+  } while (i != ret.length());
+
+  // Turn runs of "//" and "/./" into a single "/".
+  i = 0;
+  while (i < ret.length()) {
+    if (ret.compare(i, 2, "//") == 0) {
+      ret.erase(i, 1);
+      continue;
+    }
+
+    if (ret.compare(i, 3, "/./") == 0) {
+      ret.erase(i, 2);
+      continue;
+    }
+
+    ++i;
+  }
+
+  return ret;
+}
+
 void ConstructMetadata(int64_t index,
-                       const std::string& entry_path,
+                       const std::string& entry_complete_path,
                        int64_t size,
                        bool is_directory,
                        time_t modification_time,
                        pp::VarDictionary* parent_metadata) {
-  if (entry_path == "")
+  // Normalize the path.  The FSP layers can't handle anything weird.
+  std::string entry_path = normpath(entry_complete_path);
+
+  // If, after all the stripping, the path is empty, skip it.
+  if (entry_path.empty())
     return;
 
   pp::VarDictionary parent_entries =
