@@ -55,13 +55,20 @@ pp::VarDictionary CreateEntry(int64_t index,
 }
 
 void ConstructMetadata(int64_t index,
-                       const std::string& entry_path,
+                       const std::string& entry_complete_path,
                        int64_t size,
                        bool is_directory,
                        time_t modification_time,
                        pp::VarDictionary* parent_metadata) {
-  if (entry_path == "")
+  if (entry_complete_path.empty())
     return;
+
+  // If the path starts with ./ then skip it.  The FSP layers can't handle this
+  // scenario and just keep doing ././././.  The libarchive layers can handle
+  // this fine though.
+  std::string entry_path = entry_complete_path;
+  while (entry_path.compare(0, 2, "./") == 0)
+    entry_path.erase(0, 2);
 
   pp::VarDictionary parent_entries =
       pp::VarDictionary(parent_metadata->Get("entries"));
