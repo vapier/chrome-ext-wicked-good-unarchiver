@@ -75,7 +75,7 @@
     },
     "tar": {
       "types": ["application/x-tar", "application/x-gtar", "application/x-gtar-compressed"],
-      "extensions": ["gtar", "tar", "tgz", "tbz2", "txz", "tz"]
+      "extensions": ["gtar", "tar", "tgz", "tbz", "tbz2", "txz", "tz"]
     },
     "xz": {
       "types": ["application/x-lzma", "application/x-xz"],
