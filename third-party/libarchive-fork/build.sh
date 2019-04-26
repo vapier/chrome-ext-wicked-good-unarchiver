@@ -6,7 +6,9 @@
 AutogenStep() {
   ChangeDir ${SRC_DIR}
   export MAKE_LIBARCHIVE_RELEASE="1"
-  ./build/autogen.sh
+  if [[ ! -e configure ]]; then
+    ./build/autogen.sh
+  fi
   cd -
 }
 
