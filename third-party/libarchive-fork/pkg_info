@@ -1,6 +1,6 @@
 NAME=libarchive-fork
 VERSION=0.1  # Custom version.
-URL=https://github.com/mtomasz-chromium/libarchive.git@ca1615b
+URL=https://github.com/libarchive/libarchive.git@18dc6a9132868d4e25844f5a1c3ad3049ed92289
 LICENSE=BSD
 DEPENDS=(zlib libiconv lz4 lzo openssl bzip2 xz zstd)
 CONFLICTS=(libarchive libarchive-dev)

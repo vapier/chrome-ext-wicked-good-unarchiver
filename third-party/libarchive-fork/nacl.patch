@@ -1,63 +1,6 @@
-https://github.com/libarchive/libarchive/commit/345be3839ebc45a15c02e1db5abd0fa3fa70e403
-
---- a/libarchive/archive_random.c
-+++ b/libarchive/archive_random.c
-@@ -34,6 +34,10 @@ __FBSDID("$FreeBSD$");
- 
- #ifdef HAVE_FCNTL
- #include <fcntl.h>
-+// TODO(cmihail): If possible remove this workaround for O_CLOEXEC.
-+#ifndef O_CLOEXEC
-+#define O_CLOEXEC 0
-+#endif
- #endif
- #ifdef HAVE_LIMITS_H
- #include <limits.h>
-
-https://github.com/libarchive/libarchive/commit/844b006283d1dfbc4256f7c26434459040dad5d4
-
---- a/libarchive/archive_random.c
-+++ b/libarchive/archive_random.c
-@@ -142,11 +142,10 @@ struct arc4_stream {
- 	u_int8_t s[256];
- };
- 
--static pthread_mutex_t	arc4random_mtx = PTHREAD_MUTEX_INITIALIZER;
--
- #define	RANDOMDEV	"/dev/urandom"
- #define	KEYSIZE		128
- #ifdef HAVE_PTHREAD_H
-+static pthread_mutex_t	arc4random_mtx = PTHREAD_MUTEX_INITIALIZER;
- #define	_ARC4_LOCK()	pthread_mutex_lock(&arc4random_mtx);
- #define	_ARC4_UNLOCK()  pthread_mutex_unlock(&arc4random_mtx);
- #else
-
-https://github.com/libarchive/libarchive/pull/663
-
 --- a/libarchive/archive_read_disk_posix.c
 +++ b/libarchive/archive_read_disk_posix.c
-@@ -1559,6 +1559,7 @@ setup_current_filesystem(struct archive_read_disk *a)
- #if defined(HAVE_STRUCT_STATFS_F_NAMEMAX)
- 	t->current_filesystem->name_max = sfs.f_namemax;
- #else
-+# if defined(_PC_NAME_MAX)
- 	/* Mac OS X does not have f_namemax in struct statfs. */
- 	if (tree_current_is_symblic_link_target(t)) {
- 		if (tree_enter_working_dir(t) != 0) {
-@@ -1568,6 +1569,9 @@ setup_current_filesystem(struct archive_read_disk *a)
- 		nm = pathconf(tree_current_access_path(t), _PC_NAME_MAX);
- 	} else
- 		nm = fpathconf(tree_current_dir_fd(t), _PC_NAME_MAX);
-+# else
-+	nm = -1;
-+# endif
- 	if (nm == -1)
- 		t->current_filesystem->name_max = NAME_MAX;
- 	else
-
---- a/libarchive/archive_read_disk_posix.c
-+++ b/libarchive/archive_read_disk_posix.c
-@@ -109,6 +109,10 @@ __FBSDID("$FreeBSD$");
+@@ -109,7 +109,11 @@ __FBSDID("$FreeBSD$");
  #define O_CLOEXEC	0
  #endif
  
@@ -68,3 +11,443 @@ https://github.com/libarchive/libarchive/pull/663
  /*-
   * This is a new directory-walking system that addresses a number
   * of problems I've had with fts(3).  In particular, it has no
+
+--- a/libarchive/archive.h
++++ b/libarchive/archive.h
+@@ -553,6 +553,10 @@ __LA_DECL int archive_read_next_header(struct archive *,
+ __LA_DECL int archive_read_next_header2(struct archive *,
+ 		     struct archive_entry *);
+ 
++/* Seeks to entry header of n-th entry. */
++__LA_DECL int archive_read_seek_header(struct archive *,
++		     size_t index);
++
+ /*
+  * Retrieve the byte offset in UNCOMPRESSED data where last-read
+  * header started.
+--- a/libarchive/archive_private.h
++++ b/libarchive/archive_private.h
+@@ -82,6 +82,7 @@ struct archive_vtable {
+ 	int64_t (*archive_filter_bytes)(struct archive *, int);
+ 	int	(*archive_filter_code)(struct archive *, int);
+ 	const char * (*archive_filter_name)(struct archive *, int);
++	int (*archive_read_seek_header)(struct archive *, size_t);
+ };
+ 
+ struct archive_string_conv;
+--- a/libarchive/archive_read.c
++++ b/libarchive/archive_read.c
+@@ -71,6 +71,8 @@ static int	_archive_read_next_header(struct archive *,
+ 		    struct archive_entry **);
+ static int	_archive_read_next_header2(struct archive *,
+ 		    struct archive_entry *);
++static int	_archive_read_seek_header(struct archive *,
++		    size_t index);
+ static int64_t  advance_file_pointer(struct archive_read_filter *, int64_t);
+ 
+ static struct archive_vtable *
+@@ -89,6 +91,7 @@ archive_read_vtable(void)
+ 		av.archive_read_next_header2 = _archive_read_next_header2;
+ 		av.archive_free = _archive_read_free;
+ 		av.archive_close = _archive_read_close;
++		av.archive_read_seek_header = _archive_read_seek_header;
+ 		inited = 1;
+ 	}
+ 	return (&av);
+@@ -654,7 +657,10 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
+ 	/* Record start-of-header offset in uncompressed stream. */
+ 	a->header_position = a->filter->position;
+ 
+-	++_a->file_count;
++	if (a->header_position > a->max_header_position) {
++		++_a->file_count;
++		a->max_header_position = a->header_position;
++	}
+ 	r2 = (a->format->read_header)(a, entry);
+ 
+ 	/*
+@@ -699,6 +705,58 @@ _archive_read_next_header(struct archive *_a, struct archive_entry **entryp)
+ }
+ 
+ /*
++ * Seek to header of n-th entry.
++ */
++static int
++_archive_read_seek_header(struct archive *_a, size_t index)
++{
++	struct archive_read *a = (struct archive_read *)_a;
++	int ret;
++
++	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
++	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA | ARCHIVE_STATE_EOF,
++	    "archive_read_seek_header");
++
++	if (a->format->seek_header == NULL) {
++		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
++		    "Internal error: "
++		    "No format_seek_header function registered");
++		return (ARCHIVE_FATAL);
++	}
++
++	archive_clear_error(&a->archive);
++	ret = (a->format->seek_header)(a, index);
++
++	/*
++	 * FATAL is persistent at this layer.  By modifying the state, we guarantee
++	 * that future calls to read a header or read data will fail.
++	 */
++	switch (ret) {
++	case ARCHIVE_EOF:
++		a->archive.state = ARCHIVE_STATE_EOF;
++		break;
++	case ARCHIVE_OK:
++		a->archive.state = ARCHIVE_STATE_HEADER;
++		break;
++	case ARCHIVE_WARN:
++		a->archive.state = ARCHIVE_STATE_HEADER;
++		break;
++	case ARCHIVE_RETRY:
++		break;
++	case ARCHIVE_FATAL:
++		a->archive.state = ARCHIVE_STATE_FATAL;
++		break;
++	}
++
++	_a->read_data_output_offset = 0;
++	_a->read_data_remaining = 0;
++	_a->read_data_is_posix_read = 0;
++	_a->read_data_requested = 0;
++	a->data_start_node = a->client.cursor;
++	return ret;
++}
++
++/*
+  * Allow each registered format to bid on whether it wants to handle
+  * the next entry.  Return index of winning bidder.
+  */
+@@ -1200,7 +1258,8 @@ __archive_read_register_format(struct archive_read *a,
+     int64_t (*seek_data)(struct archive_read *, int64_t, int),
+     int (*cleanup)(struct archive_read *),
+     int (*format_capabilities)(struct archive_read *),
+-    int (*has_encrypted_entries)(struct archive_read *))
++    int (*has_encrypted_entries)(struct archive_read *),
++    int (*seek_header)(struct archive_read*, size_t))
+ {
+ 	int i, number_slots;
+ 
+@@ -1225,6 +1284,7 @@ __archive_read_register_format(struct archive_read *a,
+ 			a->formats[i].name = name;
+ 			a->formats[i].format_capabilties = format_capabilities;
+ 			a->formats[i].has_encrypted_entries = has_encrypted_entries;
++			a->formats[i].seek_header = seek_header;
+ 			return (ARCHIVE_OK);
+ 		}
+ 	}
+--- a/libarchive/archive_read_private.h
++++ b/libarchive/archive_read_private.h
+@@ -183,6 +183,10 @@ struct archive_read {
+ 	/* File offset of beginning of most recently-read header. */
+ 	int64_t		  header_position;
+ 
++	/* Offset of the farthest read header. Used for counting files while
++	 * seeking between headers */
++	int64_t		  max_header_position;
++
+ 	/* Nodes and offsets of compressed data block */
+ 	unsigned int data_start_node;
+ 	unsigned int data_end_node;
+@@ -208,6 +212,7 @@ struct archive_read {
+ 		int	(*cleanup)(struct archive_read *);
+ 		int	(*format_capabilties)(struct archive_read *);
+ 		int	(*has_encrypted_entries)(struct archive_read *);
++		int	(*seek_header)(struct archive_read *, size_t);
+ 	}	formats[16];
+ 	struct archive_format_descriptor	*format; /* Active format. */
+ 
+@@ -240,7 +245,8 @@ int	__archive_read_register_format(struct archive_read *a,
+ 		int64_t (*seek_data)(struct archive_read *, int64_t, int),
+ 		int (*cleanup)(struct archive_read *),
+ 		int (*format_capabilities)(struct archive_read *),
+-		int (*has_encrypted_entries)(struct archive_read *));
++		int (*has_encrypted_entries)(struct archive_read *),
++		int (*seek_header)(struct archive_read *, size_t));
+ 
+ int __archive_read_get_bidder(struct archive_read *a,
+     struct archive_read_filter_bidder **bidder);
+--- a/libarchive/archive_read_support_format_7zip.c
++++ b/libarchive/archive_read_support_format_7zip.c
+@@ -434,7 +434,8 @@ archive_read_support_format_7zip(struct archive *_a)
+ 	    NULL,
+ 	    archive_read_format_7zip_cleanup,
+ 	    archive_read_support_format_7zip_capabilities,
+-	    archive_read_format_7zip_has_encrypted_entries);
++	    archive_read_format_7zip_has_encrypted_entries,
++	    NULL);
+ 
+ 	if (r != ARCHIVE_OK)
+ 		free(zip);
+--- a/libarchive/archive_read_support_format_ar.c
++++ b/libarchive/archive_read_support_format_ar.c
+@@ -123,6 +123,7 @@ archive_read_support_format_ar(struct archive *_a)
+ 	    NULL,
+ 	    archive_read_format_ar_cleanup,
+ 	    NULL,
++	    NULL,
+ 	    NULL);
+ 
+ 	if (r != ARCHIVE_OK) {
+--- a/libarchive/archive_read_support_format_cab.c
++++ b/libarchive/archive_read_support_format_cab.c
+@@ -376,6 +376,7 @@ archive_read_support_format_cab(struct archive *_a)
+ 	    NULL,
+ 	    archive_read_format_cab_cleanup,
+ 	    NULL,
++	    NULL,
+ 	    NULL);
+ 
+ 	if (r != ARCHIVE_OK)
+--- a/libarchive/archive_read_support_format_cpio.c
++++ b/libarchive/archive_read_support_format_cpio.c
+@@ -245,6 +245,7 @@ archive_read_support_format_cpio(struct archive *_a)
+ 	    NULL,
+ 	    archive_read_format_cpio_cleanup,
+ 	    NULL,
++	    NULL,
+ 	    NULL);
+ 
+ 	if (r != ARCHIVE_OK)
+--- a/libarchive/archive_read_support_format_empty.c
++++ b/libarchive/archive_read_support_format_empty.c
+@@ -56,6 +56,7 @@ archive_read_support_format_empty(struct archive *_a)
+ 	    NULL,
+ 	    NULL,
+ 	    NULL,
++	    NULL,
+ 	    NULL);
+ 
+ 	return (r);
+--- a/libarchive/archive_read_support_format_iso9660.c
++++ b/libarchive/archive_read_support_format_iso9660.c
+@@ -481,6 +481,7 @@ archive_read_support_format_iso9660(struct archive *_a)
+ 	    NULL,
+ 	    archive_read_format_iso9660_cleanup,
+ 	    NULL,
++	    NULL,
+ 	    NULL);
+ 
+ 	if (r != ARCHIVE_OK) {
+--- a/libarchive/archive_read_support_format_lha.c
++++ b/libarchive/archive_read_support_format_lha.c
+@@ -282,6 +282,7 @@ archive_read_support_format_lha(struct archive *_a)
+ 	    NULL,
+ 	    archive_read_format_lha_cleanup,
+ 	    NULL,
++	    NULL,
+ 	    NULL);
+ 
+ 	if (r != ARCHIVE_OK)
+--- a/libarchive/archive_read_support_format_mtree.c
++++ b/libarchive/archive_read_support_format_mtree.c
+@@ -260,7 +260,7 @@ archive_read_support_format_mtree(struct archive *_a)
+ 	__archive_rb_tree_init(&mtree->rbtree, &rb_ops);
+ 
+ 	r = __archive_read_register_format(a, mtree, "mtree",
+-           mtree_bid, archive_read_format_mtree_options, read_header, read_data, skip, NULL, cleanup, NULL, NULL);
++           mtree_bid, archive_read_format_mtree_options, read_header, read_data, skip, NULL, cleanup, NULL, NULL, NULL);
+ 
+ 	if (r != ARCHIVE_OK)
+ 		free(mtree);
+--- a/libarchive/archive_read_support_format_rar.c
++++ b/libarchive/archive_read_support_format_rar.c
+@@ -658,7 +658,8 @@ archive_read_support_format_rar(struct archive *_a)
+                                      archive_read_format_rar_seek_data,
+                                      archive_read_format_rar_cleanup,
+                                      archive_read_support_format_rar_capabilities,
+-                                     archive_read_format_rar_has_encrypted_entries);
++                                     archive_read_format_rar_has_encrypted_entries,
++                                     NULL);
+ 
+   if (r != ARCHIVE_OK)
+     free(rar);
+--- a/libarchive/archive_read_support_format_rar5.c
++++ b/libarchive/archive_read_support_format_rar5.c
+@@ -3797,7 +3797,8 @@ int archive_read_support_format_rar5(struct archive *_a) {
+ 	    rar5_seek_data,
+ 	    rar5_cleanup,
+ 	    rar5_capabilities,
+-	    rar5_has_encrypted_entries);
++	    rar5_has_encrypted_entries,
++	    NULL);
+ 
+ 	if(ret != ARCHIVE_OK) {
+ 		(void) rar5_cleanup(ar);
+--- a/libarchive/archive_read_support_format_raw.c
++++ b/libarchive/archive_read_support_format_raw.c
+@@ -80,6 +80,7 @@ archive_read_support_format_raw(struct archive *_a)
+ 	    NULL,
+ 	    archive_read_format_raw_cleanup,
+ 	    NULL,
++	    NULL,
+ 	    NULL);
+ 	if (r != ARCHIVE_OK)
+ 		free(info);
+--- a/libarchive/archive_read_support_format_tar.c
++++ b/libarchive/archive_read_support_format_tar.c
+@@ -270,6 +270,7 @@ archive_read_support_format_tar(struct archive *_a)
+ 	    NULL,
+ 	    archive_read_format_tar_cleanup,
+ 	    NULL,
++	    NULL,
+ 	    NULL);
+ 
+ 	if (r != ARCHIVE_OK)
+--- a/libarchive/archive_read_support_format_warc.c
++++ b/libarchive/archive_read_support_format_warc.c
+@@ -155,7 +155,7 @@ archive_read_support_format_warc(struct archive *_a)
+ 	r = __archive_read_register_format(
+ 		a, w, "warc",
+ 		_warc_bid, NULL, _warc_rdhdr, _warc_read,
+-		_warc_skip, NULL, _warc_cleanup, NULL, NULL);
++		_warc_skip, NULL, _warc_cleanup, NULL, NULL, NULL);
+ 
+ 	if (r != ARCHIVE_OK) {
+ 		free(w);
+--- a/libarchive/archive_read_support_format_xar.c
++++ b/libarchive/archive_read_support_format_xar.c
+@@ -469,6 +469,7 @@ archive_read_support_format_xar(struct archive *_a)
+ 	    NULL,
+ 	    xar_cleanup,
+ 	    NULL,
++	    NULL,
+ 	    NULL);
+ 	if (r != ARCHIVE_OK)
+ 		free(xar);
+--- a/libarchive/archive_read_support_format_zip.c
++++ b/libarchive/archive_read_support_format_zip.c
+@@ -3142,7 +3142,8 @@ archive_read_support_format_zip_streamable(struct archive *_a)
+ 	    NULL,
+ 	    archive_read_format_zip_cleanup,
+ 	    archive_read_support_format_zip_capabilities_streamable,
+-	    archive_read_format_zip_has_encrypted_entries);
++	    archive_read_format_zip_has_encrypted_entries,
++	    NULL);
+ 
+ 	if (r != ARCHIVE_OK)
+ 		free(zip);
+@@ -3322,10 +3323,12 @@ cmp_node(const struct archive_rb_node *n1, const struct archive_rb_node *n2)
+ static int
+ cmp_key(const struct archive_rb_node *n, const void *key)
+ {
+-	/* This function won't be called */
+-	(void)n; /* UNUSED */
+-	(void)key; /* UNUSED */
+-	return 1;
++	const struct zip_entry *e = (const struct zip_entry *)n;
++	if (e->local_header_offset > *(int64_t *)key)
++		return -1;
++	if (e->local_header_offset < *(int64_t *)key)
++		return 1;
++	return 0;
+ }
+ 
+ static const struct archive_rb_tree_ops rb_ops = {
+@@ -3802,18 +3805,15 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
+ 
+ 	if (zip->zip_entries == NULL) {
+ 		r = slurp_central_directory(a, entry, zip);
++		__archive_read_seek(a, 0, SEEK_SET);
+ 		if (r != ARCHIVE_OK)
+ 			return r;
+-		/* Get first entry whose local header offset is lower than
+-		 * other entries in the archive file. */
+-		zip->entry =
+-		    (struct zip_entry *)ARCHIVE_RB_TREE_MIN(&zip->tree);
+-	} else if (zip->entry != NULL) {
+-		/* Get next entry in local header offset order. */
+-		zip->entry = (struct zip_entry *)__archive_rb_tree_iterate(
+-		    &zip->tree, &zip->entry->node, ARCHIVE_RB_DIR_RIGHT);
+ 	}
+ 
++	offset = archive_filter_bytes(&a->archive, 0);
++	zip->entry = (struct zip_entry *)__archive_rb_tree_find_node_geq(
++	    &zip->tree, &offset);
++
+ 	if (zip->entry == NULL)
+ 		return ARCHIVE_EOF;
+ 
+@@ -3854,6 +3854,50 @@ archive_read_format_zip_seekable_read_header(struct archive_read *a,
+ 	return (ret);
+ }
+ 
++static int
++archive_read_format_zip_seekable_seek_header(struct archive_read *a,
++		size_t index) {
++	struct zip *zip = (struct zip *)a->format->data;
++	size_t cur_index = 0;
++	int64_t offset;
++	int r;
++
++	zip->unconsumed = 0;
++
++	if (zip->zip_entries == NULL) {
++		r = slurp_central_directory(a, NULL, zip);
++		if (r != ARCHIVE_OK)
++			return r;
++	}
++
++	/* Iterate until getting the correct header starting from the first one.
++	 * This can be optimized, but since the headers are stored in balanced
++	 * trees, it should not be a performance bottleneck. */
++	zip->entry = (struct zip_entry *)ARCHIVE_RB_TREE_MIN(&zip->tree);
++	while (zip->entry && cur_index++ != index) {
++		/* Get next entry in local header offset order. */
++		zip->entry = (struct zip_entry *)__archive_rb_tree_iterate(
++		    &zip->tree, &zip->entry->node, ARCHIVE_RB_DIR_RIGHT);
++	}
++
++	if (zip->entry == NULL)
++		return ARCHIVE_EOF;
++
++	/* File entries are sorted by the header offset, we should mostly
++	 * use __archive_read_consume to advance a read point to avoid redundant
++	 * data reading.  */
++	offset = archive_filter_bytes(&a->archive, 0);
++	if (offset < zip->entry->local_header_offset)
++		__archive_read_consume(a,
++		    zip->entry->local_header_offset - offset);
++	else if (offset != zip->entry->local_header_offset) {
++		__archive_read_seek(a, zip->entry->local_header_offset,
++		    SEEK_SET);
++	}
++
++	return ARCHIVE_OK;
++}
++
+ /*
+  * We're going to seek for the next header anyway, so we don't
+  * need to bother doing anything here.
+@@ -3908,7 +3952,8 @@ archive_read_support_format_zip_seekable(struct archive *_a)
+ 	    NULL,
+ 	    archive_read_format_zip_cleanup,
+ 	    archive_read_support_format_zip_capabilities_seekable,
+-	    archive_read_format_zip_has_encrypted_entries);
++	    archive_read_format_zip_has_encrypted_entries,
++	    archive_read_format_zip_seekable_seek_header);
+ 
+ 	if (r != ARCHIVE_OK)
+ 		free(zip);
+--- a/libarchive/archive_virtual.c
++++ b/libarchive/archive_virtual.c
+@@ -156,6 +156,12 @@ archive_read_next_header2(struct archive *a, struct archive_entry *entry)
+ }
+ 
+ int
++archive_read_seek_header(struct archive *a, size_t index)
++{
++	return ((a->vtable->archive_read_seek_header)(a, index));
++}
++
++int
+ archive_read_data_block(struct archive *a,
+     const void **buff, size_t *s, la_int64_t *o)
+ {
