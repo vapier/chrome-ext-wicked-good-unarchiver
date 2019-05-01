@@ -1,0 +1,7 @@
+NAME=lzo
+VERSION=2.10
+URL=http://www.oberhumer.com/opensource/lzo/download/lzo-2.10.tar.gz
+LICENSE=GPL-2
+DEPENDS=(glibc-compat)
+SHA1=4924676a9bae5db58ef129dc1cebce3baa3c4b5d
+DISABLED_TOOLCHAIN=(emscripten)

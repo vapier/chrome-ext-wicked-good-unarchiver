@@ -1,0 +1,13 @@
+--- a/contrib/cmake_unofficial/CMakeLists.txt
++++ b/contrib/cmake_unofficial/CMakeLists.txt
+@@ -125,10 +125,6 @@ endif()
+ endif()
+ 
+ # lz4
+-set(LZ4_PROGRAMS_BUILT lz4cli)
+-add_executable(lz4cli ${LZ4_CLI_SOURCES})
+-set_target_properties(lz4cli PROPERTIES OUTPUT_NAME lz4)
+-target_link_libraries(lz4cli ${LZ4_LINK_LIBRARY})
+ 
+ # lz4c
+ if (LZ4_BUILD_LEGACY_LZ4C)

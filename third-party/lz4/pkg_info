@@ -1,0 +1,7 @@
+NAME=lz4
+VERSION=1.9.2
+URL=https://github.com/lz4/lz4/archive/v1.9.2.tar.gz
+LICENSE=BSD
+DEPENDS=(glibc-compat)
+SHA1=4dc36f29d7b4e5b45b114be2674068200714abb3
+DISABLED_TOOLCHAIN=(emscripten)

@@ -15,9 +15,19 @@ ifeq ($(wildcard $(WEBPORTS_PATH)/src),)
 endif
 endif
 
+LOCAL_WEBPORTS_LIBS = lz4 lzo zstd
+
 .PHONY: libarchive-fork
-libarchive-fork:
+libarchive-fork: local-webports-libs
 	$(WEBPORTS_PATH)/src/bin/webports -f install libarchive-fork
+
+.PHONY: local-webports-libs
+local-webports-libs:
+	$(WEBPORTS_PATH)/src/bin/webports -f install $(LOCAL_WEBPORTS_LIBS)
+
+.PHONY: $(LOCAL_WEBPORTS_LIBS)
+$(LOCAL_WEBPORTS_LIBS):
+	$(WEBPORTS_PATH)/src/bin/webports -f install $@
 
 .PHONY: polymer
 polymer:
