@@ -1,0 +1,7 @@
+NAME=lz4
+VERSION=r131
+URL=https://github.com/Cyan4973/lz4/archive/r131.tar.gz
+LICENSE=BSD
+DEPENDS=(glibc-compat)
+SHA1=b6eab6461977dca11e7efc4ed79d59924b216c7e
+DISABLED_TOOLCHAIN=(emscripten)

@@ -1,0 +1,7 @@
+NAME=zstd
+VERSION=1.4.0
+URL=https://github.com/facebook/zstd/releases/download/v1.4.0/zstd-1.4.0.tar.gz
+LICENSE=BSD
+DEPENDS=(glibc-compat)
+SHA1=eea4f789e2af35b1d845abca10b8008546f0e833
+DISABLED_TOOLCHAIN=(emscripten)

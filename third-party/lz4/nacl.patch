@@ -1,0 +1,27 @@
+--- a/cmake_unofficial/CMakeLists.txt
++++ b/cmake_unofficial/CMakeLists.txt
+@@ -9,7 +9,7 @@ include(CPack)
+ cmake_minimum_required (VERSION 2.6)
+ INCLUDE (CheckTypeSize)
+ check_type_size("void *" SIZEOF_VOID_P)
+-IF( ${SIZEOF_VOID_P} STREQUAL  "8" )
++IF( "${SIZEOF_VOID_P}" STREQUAL  "8" )
+     set (CMAKE_SYSTEM_PROCESSOR "64bit")
+     MESSAGE( STATUS "64 bit architecture detected size of void * is " ${SIZEOF_VOID_P})
+ ENDIF()
+@@ -61,6 +61,15 @@ if(BUILD_LIBS)
+     ${LZ4_DIR}/lz4frame.h
+     DESTINATION include
+     )
++
++    set(PREFIX ${CMAKE_INSTALL_PREFIX})
++    set(LIBDIR ${CMAKE_INSTALL_PREFIX}/lib)
++    set(INCLUDEDIR ${CMAKE_INSTALL_PREFIX}/include)
++    string(SUBSTRING ${CPACK_PACKAGE_VERSION_PATCH} 1 -1 VERSION)
++    configure_file(${LZ4_DIR}/liblz4.pc.in liblz4.pc @ONLY)
++    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/liblz4.pc
++    DESTINATION "${CMAKE_INSTALL_PREFIX}/lib${LIB_SUFFIX}/pkgconfig"
++    )
+     
+     if(BUILD_TOOLS)
+         target_link_libraries(lz4 liblz4)
