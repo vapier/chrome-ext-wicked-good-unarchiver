@@ -240,10 +240,10 @@ https://developer.chrome.com/native-client/devguide/devcycle/debugging.
 
 ## Testing
 
-Install [Karma](http://karma-runner.github.io/0.12/index.html) for tests
-runner, [Mocha](http://visionmedia.github.io/mocha/) for asynchronous testings,
-[Chai](http://chaijs.com/) for assertions, and [Sinon](http://sinonjs.org/) for
-spies and stubs.
+Install [Karma](https://karma-runner.github.io/0.12/index.html) for tests
+runner, [Mocha](https://mochajs.org/) for asynchronous testings,
+[Chai](https://www.chaijs.com/) for assertions, and
+[Sinon](https://sinonjs.org/) for spies and stubs.
 
 ```
 $ npm install --save-dev \
@@ -262,7 +262,7 @@ $ npm install google-closure-compiler
 $ bash check_js_for_errors.sh
 ```
 
-[libarchive]: http://www.libarchive.org/
+[libarchive]: https://www.libarchive.org/
 
 [third-party/]: ./third-party/
 [libarchive-fork/]: ./third-party/libarchive-fork/
