@@ -2,9 +2,12 @@
 <html>
   <head>
     <link rel="stylesheet" href="../css/standalone.css">
-    <link rel="import" href="standalone-dialog.html">
+    <link rel="stylesheet" href="../css/standalone-dialog.css">
+    <script src="../js/standalone.js"></script>
   </head>
   <body>
-    <standalone-dialog></standalone-dialog>
+    <h3><span i18n=name></span>: <span i18n=standaloneTitle></span></h3>
+    <div i18n=standaloneText></div>
+    <input type=button id=acceptButton i18n=standaloneAccept>
   </body>
 </html>
