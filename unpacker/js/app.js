@@ -825,7 +825,7 @@ unpacker.app = {
       chrome.app.window.create(
         '../html/standalone.html',
         /** @type {!chrome.app.window.CreateWindowOptions} */ ({
-          innerBounds: {width: 320, height: 140},
+          innerBounds: {width: 400, height: 300},
           alwaysOnTop: true,
           resizable: false,
           frame: 'none',

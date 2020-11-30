@@ -51,6 +51,10 @@
     "message": "This app integrates with the Chrome OS Files app program. It is not run directly. To use it, find some archives, then open them in the Files app.",
     "description": "Long text telling the user they should not run this app directly."
   },
+  "standaloneUninstall": {
+    "message": "If you want to uninstall, right click its icon and select 'Uninstall'. If there is no such option, and you do not own your Chromebook (e.g. it belongs to a school or is enrolled), then your Administrator force installed this app for you. They have decided to not allow you to remove it, so please complain to them.",
+    "description": "Blurb explaining to people how to uninstall (if they're allowed)."
+  },
   "standaloneAccept": {
     "message": "OK",
     "description": "Short name for the OK/acceptance button."
